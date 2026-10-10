@@ -14,6 +14,9 @@ const STORAGE_KEY_EMAILS_LOG = 'IFS_EMAILS_LOG';
 const STORAGE_KEY_TROCAS = 'IFS_TROCAS_PERMUTAS';
 const STORAGE_KEY_REPOSICOES = 'IFS_REPOSICOES_AULAS';
 
+// URL Oficial de Produção do Google Apps Script (Conectado ao Google Sheets do IFS)
+const DEFAULT_BACKEND_URL = "https://script.google.com/macros/s/AKfycbwlITC2JrJ3lFYl__oER1B86JFlHpsrjq75BRGD_q-iIhlKIphfdIcQkbIwRMtTjy2kjg/exec";
+
 // Configurações padrão de E-mails Institucionais por Curso
 const DEFAULT_EMAILS_CONFIG = {
   emailCoordDS: "coordenacao.ds.tb@ifs.edu.br",
@@ -144,7 +147,9 @@ const DEFAULT_PIN = "1234";
 
 const API = {
   getBackendUrl() {
-    return localStorage.getItem(STORAGE_KEY_API_URL) || "";
+    const salvo = localStorage.getItem(STORAGE_KEY_API_URL);
+    if (salvo && salvo.trim() !== "") return salvo.trim();
+    return DEFAULT_BACKEND_URL;
   },
 
   setBackendUrl(url) {

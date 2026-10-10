@@ -22,7 +22,7 @@ var CONFIG_PADRAO = {
   EMAIL_DIRECAO: "direcao.tobiasbarreto@ifs.edu.br",
   DOMINIO_INSTITUCIONAL: "@ifs.edu.br",
   NOME_INSTITUICAO: "IFS Campus Tobias Barreto",
-  LINK_PAINEL: "https://ebersantana.github.io/painel-docente-ifs/"
+  LINK_PAINEL: "https://ebersantana.github.io/horarios-ifs/"
 };
 
 /**
