@@ -376,6 +376,15 @@ body {
   border-radius: 50%;
   background-color: #69f0ae;
   display: inline-block;
+  transition: background-color 0.3s ease;
+}
+
+.sync-dot.online {
+  background-color: #69f0ae;
+}
+
+.sync-dot.local {
+  background-color: #ffab00;
 }
 
 .sync-dot.updating {

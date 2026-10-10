@@ -320,30 +320,49 @@ const API = {
     return { sucesso: true, email: emailProf, pinPadrao: DEFAULT_PIN };
   },
 
-  // Carrega toda a grade
+  // Carrega toda a grade com timeout e retry automático
   async carregarGradeCompleta() {
     const url = this.getBackendUrl();
     if (!url) {
       return { online: false, data: this.getLocalDatabase() };
     }
 
-    try {
-      const response = await fetch(`${url}?action=obterGrade`, {
-        method: "GET",
-        headers: { "Accept": "application/json" },
-        cache: "no-store"
-      });
+    const buscarGradeComTimeout = async (tempoLimiteMs = 9000) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), tempoLimiteMs);
+      try {
+        const response = await fetch(`${url}?action=obterGrade`, {
+          method: "GET",
+          headers: { "Accept": "application/json" },
+          cache: "no-store",
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      } catch (e) {
+        clearTimeout(timeoutId);
+        throw e;
+      }
+    };
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
-      
-      if (data && typeof data === 'object') {
+    try {
+      let data = null;
+      try {
+        data = await buscarGradeComTimeout(9000);
+      } catch (primeiraTentativa) {
+        // Se a primeira tentativa falhar (Google acordando do cold-start), tenta novamente
+        await new Promise((r) => setTimeout(r, 1200));
+        data = await buscarGradeComTimeout(9000);
+      }
+
+      if (data && typeof data === 'object' && Object.keys(data).length > 0) {
         this.saveLocalDatabase(data);
         return { online: true, data };
       }
       return { online: false, data: this.getLocalDatabase() };
     } catch (err) {
-      console.warn("Backend Google inacessível. Usando base local:", err);
+      console.warn("Backend Google inacessível temporariamente. Usando base local:", err);
       return { online: false, data: this.getLocalDatabase() };
     }
   },

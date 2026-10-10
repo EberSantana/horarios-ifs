@@ -51,8 +51,8 @@ async function carregarDadosIniciais() {
 }
 
 function verificarLoginSalvo() {
-  const usuarioSalvo = localStorage.getItem("IFS_SAVED_USER");
-  if (usuarioSalvo && bancoDeDados[usuarioSalvo]) {
+  const usuarioSalvo = localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER");
+  if (usuarioSalvo) {
     usuarioLogado = usuarioSalvo;
     entrarNoPainel();
   }
@@ -138,6 +138,20 @@ function configurarEventosInterface() {
   document.querySelectorAll(".btn-close-modal, .btn-cancelar-modal").forEach((btn) => {
     btn.addEventListener("click", fecharTodosModais);
   });
+
+  // Reconexão inteligente instantânea (ao desbloquear tela / trocar de app ou voltar online)
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && usuarioLogado) {
+      recarregarDados(true);
+    }
+  });
+
+  window.addEventListener("online", () => {
+    if (usuarioLogado) {
+      recarregarDados(false);
+      mostrarToast("Conexão restabelecida com sucesso!");
+    }
+  });
 }
 
 // ============================================================================
@@ -175,6 +189,7 @@ function executarLogin() {
   } else {
     localStorage.removeItem("IFS_SAVED_USER");
   }
+  sessionStorage.setItem("IFS_SESSION_USER", prof);
 
   pinInput.value = "";
   entrarNoPainel();
@@ -222,6 +237,7 @@ function entrarNoPainel() {
 
 function executarLogout() {
   localStorage.removeItem("IFS_SAVED_USER");
+  sessionStorage.removeItem("IFS_SESSION_USER");
   usuarioLogado = "";
   pararPolling();
 
@@ -1317,6 +1333,10 @@ function atualizarIndicadorSincronismo(status, texto) {
   dot.className = "sync-dot";
   if (status === "atualizando") {
     dot.classList.add("updating");
+  } else if (status === "local") {
+    dot.classList.add("local");
+  } else if (status === "online") {
+    dot.classList.add("online");
   }
   txt.innerText = texto;
 }
