@@ -22,7 +22,7 @@ Hospedado no **GitHub Pages** e conectado ao **Google Sheets / Apps Script** par
 * 📧 **Central de Notificações & E-mails:**
   * Aba exclusiva com o histórico e registro de todos os e-mails disparados pelo sistema.
   * Configuração direta no menu de configurações (⚙️) para definir os e-mails da coordenação e direção.
-* 🏫 **Grade por Turma:** Filtro dinâmico para 1º DS, 2º DS, 1º ADM, 2º ADM e 3º ADM.
+* 🏫 **Grade por Turma:** Filtro dinâmico para 1º DS, 2º DS e 3º DS 1º ADM, 2º ADM e 3º ADM e SUBSEQUENTE
 
 ---
 
