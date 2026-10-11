@@ -339,6 +339,13 @@ function atualizarContadoresEAlerta() {
   }
 }
 
+// Função utilitária global para ordenação por horário
+function extrairMinutosDoHorario(horaStr) {
+  if (!horaStr) return 0;
+  const match = String(horaStr).match(/(\d{1,2})[:h](\d{2})/);
+  return match ? parseInt(match[1], 10) * 60 + parseInt(match[2], 10) : 0;
+}
+
 // ============================================================================
 // 1. ABA: MINHA GRADE
 // ============================================================================
@@ -381,12 +388,6 @@ function renderizarMinhaGrade() {
     if (!aulasPorDia[a.dia]) aulasPorDia[a.dia] = [];
     aulasPorDia[a.dia].push(a);
   });
-
-function extrairMinutosDoHorario(horaStr) {
-  if (!horaStr) return 0;
-  const match = String(horaStr).match(/(\d{1,2})[:h](\d{2})/);
-  return match ? parseInt(match[1], 10) * 60 + parseInt(match[2], 10) : 0;
-}
 
   diasOrdem.forEach((dia) => {
     if (aulasPorDia[dia] && aulasPorDia[dia].length > 0) {
@@ -957,48 +958,69 @@ function verificarConflito(diaAlvo, horaAlvo, professorAlvo = usuarioLogado) {
 // MODAL & AÇÃO: LIBERAR AULAS (AUSÊNCIA EM MÚLTIPLOS TEMPOS)
 // ============================================================================
 function abrirModalLiberar(prof, indexInicial) {
-  prof = prof || usuarioLogado;
-  const todasMinhasAulas = bancoDeDados[prof] || [];
-
-  if (todasMinhasAulas.length === 0) {
-    mostrarToast("Você não possui aulas cadastradas na sua grade.");
-    return;
-  }
-
-  // Obtém todos os dias da semana em que o docente leciona
-  const diasOrdem = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"];
-  const diasComAula = [];
-  diasOrdem.forEach((dia) => {
-    if (todasMinhasAulas.some((a) => a.dia === dia)) {
-      diasComAula.push(dia);
+  try {
+    if (!prof || !bancoDeDados[prof]) {
+      prof = usuarioLogado;
     }
-  });
+    if (!prof || !bancoDeDados[prof]) {
+      const usuarioSalvo = localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER");
+      if (usuarioSalvo && bancoDeDados[usuarioSalvo]) {
+        prof = usuarioSalvo;
+        usuarioLogado = usuarioSalvo;
+      }
+    }
 
-  const selectDia = document.getElementById("selectDiaFalta");
-  selectDia.innerHTML = "";
-  diasComAula.forEach((d) => {
-    const opt = document.createElement("option");
-    opt.value = d;
-    opt.innerText = d;
-    selectDia.appendChild(opt);
-  });
+    const todasMinhasAulas = (bancoDeDados && bancoDeDados[prof]) ? bancoDeDados[prof] : [];
 
-  // Se clicou a partir de um card específico, foca no dia daquela aula
-  let diaAlvo = diasComAula[0];
-  if (indexInicial !== undefined && indexInicial !== null && todasMinhasAulas[indexInicial]) {
-    diaAlvo = todasMinhasAulas[indexInicial].dia;
+    if (todasMinhasAulas.length === 0) {
+      mostrarToast("Você não possui aulas cadastradas na sua grade.");
+      return;
+    }
+
+    // Obtém todos os dias da semana em que o docente leciona
+    const diasOrdem = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"];
+    const diasComAula = [];
+    diasOrdem.forEach((dia) => {
+      if (todasMinhasAulas.some((a) => a.dia === dia)) {
+        diasComAula.push(dia);
+      }
+    });
+
+    const selectDia = document.getElementById("selectDiaFalta");
+    if (selectDia) {
+      selectDia.innerHTML = "";
+      diasComAula.forEach((d) => {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.innerText = d;
+        selectDia.appendChild(opt);
+      });
+
+      // Se clicou a partir de um card específico, foca no dia daquela aula
+      let diaAlvo = diasComAula[0];
+      if (indexInicial !== undefined && indexInicial !== null && todasMinhasAulas[indexInicial]) {
+        diaAlvo = todasMinhasAulas[indexInicial].dia;
+      }
+      selectDia.value = diaAlvo;
+
+      // Renderiza a checklist de tempos para aquele dia e pré-seleciona
+      atualizarChecklistTemposFalta(prof, diaAlvo, indexInicial);
+
+      // Calcula a data padrão sugerida (próxima ocorrência do dia ou hoje)
+      const inputData = document.getElementById("inputDataFalta");
+      if (inputData) {
+        inputData.value = calcularProximaDataParaDia(diaAlvo);
+      }
+    }
+
+    const inputMotivo = document.getElementById("inputMotivoFalta");
+    if (inputMotivo) inputMotivo.value = "";
+
+    abrirModal("modalLiberar");
+  } catch (err) {
+    console.error("Erro ao abrir modal de ausência:", err);
+    mostrarToast("Erro ao abrir modal: " + err.message);
   }
-  selectDia.value = diaAlvo;
-
-  // Renderiza a checklist de tempos para aquele dia e pré-seleciona
-  atualizarChecklistTemposFalta(prof, diaAlvo, indexInicial);
-
-  // Calcula a data padrão sugerida (próxima ocorrência do dia ou hoje)
-  const inputData = document.getElementById("inputDataFalta");
-  inputData.value = calcularProximaDataParaDia(diaAlvo);
-
-  document.getElementById("inputMotivoFalta").value = "";
-  abrirModal("modalLiberar");
 }
 
 function calcularProximaDataParaDia(diaSemanaStr) {
@@ -1144,9 +1166,11 @@ document.getElementById("btnConfirmarLiberar").addEventListener("click", () => {
 
   fecharTodosModais();
 
+  const profAlvo = usuarioLogado || localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER");
+
   bancoDeDados = API.processarAcao({
     acao: "libertar_multiplos",
-    profOriginal: usuarioLogado,
+    profOriginal: profAlvo,
     indices: indicesSelecionados,
     dataFalta: dataFalta,
     motivo: motivo
@@ -1585,3 +1609,19 @@ async function recarregarDados(silencioso = false) {
     sincronizacaoEmAndamento = false;
   }
 }
+
+// ============================================================================
+// EXPOSIÇÃO GLOBAL PARA EVENTOS ONCLICK INLINE
+// ============================================================================
+window.abrirModalLiberar = abrirModalLiberar;
+window.abrirModalTroca = abrirModalTroca;
+window.cancelarAusencia = cancelarAusencia;
+window.desistirSubstituicao = desistirSubstituicao;
+window.prepararAssumirAula = prepararAssumirAula;
+window.aceitarTroca = aceitarTroca;
+window.recusarTroca = recusarTroca;
+window.cancelarReposicao = cancelarReposicao;
+window.abrirModalReposicao = abrirModalReposicao;
+window.extrairMinutosDoHorario = extrairMinutosDoHorario;
+window.abrirModal = abrirModal;
+window.fecharTodosModais = fecharTodosModais;
