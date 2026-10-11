@@ -137,21 +137,81 @@ function configurarEventosInterface() {
   document.getElementById("btnConfirmarReposicao").addEventListener("click", executarAgendarReposicao);
   document.getElementById("btnNovaTrocaTab").addEventListener("click", iniciarTrocaPelaAba);
 
-  // Proposta de Troca
-  document.getElementById("selectMinhaAulaTroca").addEventListener("change", (e) => {
-    const idx = parseInt(e.target.value, 10);
-    if (!isNaN(idx) && bancoDeDados[usuarioLogado] && bancoDeDados[usuarioLogado][idx]) {
-      aulaSelecionadaParaAcao = {
-        prof: usuarioLogado,
-        index: idx,
-        aula: bancoDeDados[usuarioLogado][idx]
-      };
-    }
-  });
-  document.getElementById("selectColegaTroca").addEventListener("change", (e) => {
-    atualizarSelectAulasColega(e.target.value);
-  });
-  document.getElementById("btnConfirmarPropostaTroca").addEventListener("click", executarPropostaTroca);
+  // Proposta de Troca (Permuta Multi-Tempos)
+  const selectDiaMinhasTroca = document.getElementById("selectDiaMinhasAulasTroca");
+  if (selectDiaMinhasTroca) {
+    selectDiaMinhasTroca.addEventListener("change", (e) => {
+      atualizarChecklistMinhasAulasTroca(usuarioLogado, e.target.value);
+    });
+  }
+
+  const btnMarcarTodasMinhas = document.getElementById("btnMarcarTodasMinhasTroca");
+  if (btnMarcarTodasMinhas) {
+    btnMarcarTodasMinhas.addEventListener("click", () => {
+      document.querySelectorAll(".minha-troca-chk").forEach((chk) => {
+        chk.checked = true;
+        const item = chk.closest(".tempo-checkbox-item");
+        if (item) item.classList.add("selected");
+      });
+      atualizarResumoBalancoTroca();
+    });
+  }
+
+  const btnDesmarcarTodasMinhas = document.getElementById("btnDesmarcarTodasMinhasTroca");
+  if (btnDesmarcarTodasMinhas) {
+    btnDesmarcarTodasMinhas.addEventListener("click", () => {
+      document.querySelectorAll(".minha-troca-chk").forEach((chk) => {
+        chk.checked = false;
+        const item = chk.closest(".tempo-checkbox-item");
+        if (item) item.classList.remove("selected");
+      });
+      atualizarResumoBalancoTroca();
+    });
+  }
+
+  const selectColega = document.getElementById("selectColegaTroca");
+  if (selectColega) {
+    selectColega.addEventListener("change", (e) => {
+      selecionarColegaTroca(e.target.value);
+    });
+  }
+
+  const selectDiaColegaTroca = document.getElementById("selectDiaColegaTroca");
+  if (selectDiaColegaTroca) {
+    selectDiaColegaTroca.addEventListener("change", (e) => {
+      const colega = document.getElementById("selectColegaTroca").value;
+      atualizarChecklistAulasColegaTroca(colega, e.target.value);
+    });
+  }
+
+  const btnMarcarTodasColega = document.getElementById("btnMarcarTodasColegaTroca");
+  if (btnMarcarTodasColega) {
+    btnMarcarTodasColega.addEventListener("click", () => {
+      document.querySelectorAll(".colega-troca-chk").forEach((chk) => {
+        chk.checked = true;
+        const item = chk.closest(".tempo-checkbox-item");
+        if (item) item.classList.add("selected");
+      });
+      atualizarResumoBalancoTroca();
+    });
+  }
+
+  const btnDesmarcarTodasColega = document.getElementById("btnDesmarcarTodasColegaTroca");
+  if (btnDesmarcarTodasColega) {
+    btnDesmarcarTodasColega.addEventListener("click", () => {
+      document.querySelectorAll(".colega-troca-chk").forEach((chk) => {
+        chk.checked = false;
+        const item = chk.closest(".tempo-checkbox-item");
+        if (item) item.classList.remove("selected");
+      });
+      atualizarResumoBalancoTroca();
+    });
+  }
+
+  const btnConfirmarTroca = document.getElementById("btnConfirmarPropostaTroca");
+  if (btnConfirmarTroca) {
+    btnConfirmarTroca.addEventListener("click", executarPropostaTroca);
+  }
 
   // Filtros e Exportações da Aba de Relatórios
   document.getElementById("filtroRelatorioTipo").addEventListener("change", renderizarRelatorios);
@@ -487,20 +547,31 @@ function renderizarTrocasEReposicoes() {
         statusBadge = `<span style="background:#ffebee; color:#d32f2f; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:700;">Recusada</span>`;
       }
 
+      const descCedidas = (t.aulasCedidas && t.aulasCedidas.length > 0)
+        ? t.aulasCedidas.map(a => `• <strong>${a.dia} às ${a.hora}</strong>: ${a.disc} (${a.turma})`).join("<br>")
+        : `• <strong>${t.aulaCedida.dia} às ${t.aulaCedida.hora}</strong>: ${t.aulaCedida.disc} (${t.aulaCedida.turma})`;
+
+      const descDesejadas = (t.aulasDesejadas && t.aulasDesejadas.length > 0)
+        ? t.aulasDesejadas.map(a => `• <strong>${a.dia} às ${a.hora}</strong>: ${a.disc} (${a.turma})`).join("<br>")
+        : `• <strong>${t.aulaDesejada.dia} às ${t.aulaDesejada.hora}</strong>: ${t.aulaDesejada.disc} (${t.aulaDesejada.turma})`;
+
+      const qtdCedidas = t.aulasCedidas ? t.aulasCedidas.length : 1;
+      const qtdDesejadas = t.aulasDesejadas ? t.aulasDesejadas.length : 1;
+
       trocasHTML += `
         <div class="class-card swap-pending">
           <div class="card-top">
-            <span style="font-size:13px; font-weight:800; color:var(--accent-swap);">Permuta de Horário</span>
+            <span style="font-size:13px; font-weight:800; color:var(--accent-swap);">Permuta de Horário (${qtdCedidas} ↔️ ${qtdDesejadas} tempos)</span>
             ${statusBadge}
           </div>
           <div class="swap-comparison-card">
             <div class="swap-side">
-              <div class="swap-side-title">📤 Cedida por Prof. ${t.proponente}:</div>
-              <div class="swap-side-desc">${t.aulaCedida.disc} (${t.aulaCedida.turma}) • ${t.aulaCedida.dia} às ${t.aulaCedida.hora}</div>
+              <div class="swap-side-title">📤 Cedida(s) por Prof. ${t.proponente} (${qtdCedidas} tempos):</div>
+              <div class="swap-side-desc" style="line-height:1.5;">${descCedidas}</div>
             </div>
-            <div class="swap-side">
-              <div class="swap-side-title">📥 Em troca de aula do Prof. ${t.colega}:</div>
-              <div class="swap-side-desc">${t.aulaDesejada.disc} (${t.aulaDesejada.turma}) • ${t.aulaDesejada.dia} às ${t.aulaDesejada.hora}</div>
+            <div class="swap-side" style="margin-top:10px;">
+              <div class="swap-side-title">📥 Em contrapartida com Prof. ${t.colega} (${qtdDesejadas} tempos):</div>
+              <div class="swap-side-desc" style="line-height:1.5;">${descDesejadas}</div>
             </div>
           </div>
           <div style="font-size:13px; color:var(--text-secondary); line-height: 1.4;">
@@ -1235,108 +1306,344 @@ function desistirSubstituicao(profOriginal, index) {
 }
 
 // ============================================================================
-// MODAL & AÇÃO: TROCA DE HORÁRIO (PERMUTA ENTRE DOCENTES)
+// MODAL & AÇÃO: TROCA DE HORÁRIO (PERMUTA DE MÚLTIPLOS TEMPOS)
 // ============================================================================
 function iniciarTrocaPelaAba() {
   const minhasAulas = bancoDeDados[usuarioLogado] || [];
   if (minhasAulas.length === 0) {
-    alert("Você não possui aulas cadastradas na sua grade para trocar.");
+    mostrarToast("Você não possui aulas cadastradas na sua grade para trocar.");
     return;
   }
-  abrirModalTroca(usuarioLogado, 0);
+  abrirModalTroca(usuarioLogado);
 }
 
-function abrirModalTroca(prof, index) {
+function abrirModalTroca(prof, indexInicial) {
+  try {
+    prof = prof || usuarioLogado;
+    if (!prof || !bancoDeDados[prof]) {
+      const usuarioSalvo = localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER");
+      if (usuarioSalvo && bancoDeDados[usuarioSalvo]) {
+        prof = usuarioSalvo;
+        usuarioLogado = usuarioSalvo;
+      }
+    }
+
+    const minhasAulas = (bancoDeDados && bancoDeDados[prof]) ? bancoDeDados[prof] : [];
+    if (minhasAulas.length === 0) {
+      mostrarToast("Você não possui aulas cadastradas na sua grade para propor permuta.");
+      return;
+    }
+
+    // 1. Configura os dias da semana do proponente
+    const diasOrdem = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"];
+    const diasComAula = [];
+    diasOrdem.forEach((dia) => {
+      if (minhasAulas.some((a) => a.dia === dia)) {
+        diasComAula.push(dia);
+      }
+    });
+
+    const selectDiaMinhas = document.getElementById("selectDiaMinhasAulasTroca");
+    if (selectDiaMinhas) {
+      selectDiaMinhas.innerHTML = "";
+      diasComAula.forEach((d) => {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.innerText = d;
+        selectDiaMinhas.appendChild(opt);
+      });
+
+      let diaAlvo = diasComAula[0];
+      if (indexInicial !== undefined && indexInicial !== null && minhasAulas[indexInicial]) {
+        diaAlvo = minhasAulas[indexInicial].dia;
+      }
+      selectDiaMinhas.value = diaAlvo;
+
+      // Renderiza checklist de aulas a ceder
+      atualizarChecklistMinhasAulasTroca(prof, diaAlvo, indexInicial);
+    }
+
+    // 2. Configura a lista de colegas
+    const selectColega = document.getElementById("selectColegaTroca");
+    if (selectColega) {
+      selectColega.innerHTML = '<option value="" disabled selected>Selecione o professor colega...</option>';
+      const colegas = Object.keys(bancoDeDados).filter(c => c !== usuarioLogado).sort();
+      colegas.forEach((colega) => {
+        const opt = document.createElement("option");
+        opt.value = colega;
+        opt.innerText = `Prof. ${colega}`;
+        selectColega.appendChild(opt);
+      });
+    }
+
+    // Oculta área do colega até ser selecionado
+    const containerColega = document.getElementById("containerAulasColegaTroca");
+    if (containerColega) containerColega.style.display = "none";
+
+    // 3. Data e Justificativa padrão
+    const inputData = document.getElementById("inputDataTroca");
+    if (inputData) {
+      inputData.value = new Date().toISOString().split("T")[0];
+    }
+    const inputMotivo = document.getElementById("inputMotivoTroca");
+    if (inputMotivo) inputMotivo.value = "";
+
+    atualizarResumoBalancoTroca();
+    abrirModal("modalTroca");
+  } catch (err) {
+    console.error("Erro ao abrir modal de troca:", err);
+    mostrarToast("Erro ao abrir modal de permuta: " + err.message);
+  }
+}
+
+function atualizarChecklistMinhasAulasTroca(prof, diaSelecionado, indexPreselecionado) {
   prof = prof || usuarioLogado;
-  const minhasAulas = bancoDeDados[prof] || [];
-  if (minhasAulas.length === 0) {
-    alert("Você não possui aulas cadastradas na sua grade para propor troca.");
+  const container = document.getElementById("listaMinhasAulasTroca");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const todasAulas = (bancoDeDados && bancoDeDados[prof]) ? bancoDeDados[prof] : [];
+  const aulasDoDia = [];
+
+  todasAulas.forEach((aula, idx) => {
+    if (aula.dia === diaSelecionado) {
+      aulasDoDia.push({ ...aula, indexOriginal: idx });
+    }
+  });
+
+  if (aulasDoDia.length === 0) {
+    container.innerHTML = `<div style="font-size:12px; color:var(--text-muted); padding:8px;">Nenhuma aula cadastrada para ${diaSelecionado}.</div>`;
+    atualizarResumoBalancoTroca();
     return;
   }
 
-  // Popula o select de aulas do docente a ceder
-  const selectMinhaAula = document.getElementById("selectMinhaAulaTroca");
-  selectMinhaAula.innerHTML = "";
-  minhasAulas.forEach((a, idx) => {
-    selectMinhaAula.innerHTML += `<option value="${idx}">${a.disc} (${a.turma}) - ${a.dia} às ${a.hora}</option>`;
+  aulasDoDia.sort((a, b) => extrairMinutosDoHorario(a.hora) - extrairMinutosDoHorario(b.hora));
+
+  // Pré-seleciona a aula clicada e suas irmãs contíguas (mesma turma/disciplina ou turno)
+  const indicesParaMarcar = new Set();
+  if (indexPreselecionado !== undefined && indexPreselecionado !== null) {
+    const aulaClicada = todasAulas[indexPreselecionado];
+    if (aulaClicada) {
+      const minClicado = extrairMinutosDoHorario(aulaClicada.hora);
+      const ehNoturno = minClicado >= 18 * 60;
+      aulasDoDia.forEach((a) => {
+        const minA = extrairMinutosDoHorario(a.hora);
+        const aNoturno = minA >= 18 * 60;
+        if ((ehNoturno && aNoturno) || (!ehNoturno && !aNoturno && a.turma === aulaClicada.turma)) {
+          indicesParaMarcar.add(a.indexOriginal);
+        }
+      });
+      indicesParaMarcar.add(indexPreselecionado);
+    }
+  } else {
+    // Por padrão marca todas do dia
+    aulasDoDia.forEach((a) => indicesParaMarcar.add(a.indexOriginal));
+  }
+
+  aulasDoDia.forEach((aula) => {
+    const isChecked = indicesParaMarcar.has(aula.indexOriginal);
+    const itemLabel = document.createElement("label");
+    itemLabel.className = `tempo-checkbox-item ${isChecked ? "selected" : ""}`;
+
+    itemLabel.innerHTML = `
+      <input type="checkbox" class="minha-troca-chk" value="${aula.indexOriginal}" ${isChecked ? "checked" : ""}>
+      <div class="tempo-info">
+        <div class="tempo-row-top">
+          <span class="tempo-horario">⏰ ${aula.hora}</span>
+          <span class="tempo-turma-badge">${aula.turma}</span>
+        </div>
+        <span class="tempo-disc">${aula.disc}</span>
+      </div>
+    `;
+
+    const chk = itemLabel.querySelector(".minha-troca-chk");
+    chk.addEventListener("change", () => {
+      if (chk.checked) {
+        itemLabel.classList.add("selected");
+      } else {
+        itemLabel.classList.remove("selected");
+      }
+      atualizarResumoBalancoTroca();
+    });
+
+    container.appendChild(itemLabel);
   });
 
-  const idxFinal = (index !== undefined && index !== null && minhasAulas[index]) ? index : 0;
-  selectMinhaAula.value = idxFinal;
-
-  const aula = minhasAulas[idxFinal];
-  aulaSelecionadaParaAcao = { prof, index: idxFinal, aula };
-
-  // Popula o select de colegas
-  const selectColega = document.getElementById("selectColegaTroca");
-  selectColega.innerHTML = '<option value="" disabled selected>Selecione o professor colega...</option>';
-  
-  const colegas = Object.keys(bancoDeDados).filter(c => c !== usuarioLogado).sort();
-  colegas.forEach((colega) => {
-    selectColega.innerHTML += `<option value="${colega}">Prof. ${colega}</option>`;
-  });
-
-  document.getElementById("selectAulaColega").innerHTML = '<option value="" disabled selected>Escolha primeiro o colega acima...</option>';
-  const inputData = document.getElementById("inputDataTroca");
-  inputData.value = new Date().toISOString().split("T")[0];
-  document.getElementById("inputMotivoTroca").value = "";
-
-  abrirModal("modalTroca");
+  atualizarResumoBalancoTroca();
 }
 
-function atualizarSelectAulasColega(colegaNome) {
-  const selectAulas = document.getElementById("selectAulaColega");
-  selectAulas.innerHTML = '<option value="" disabled selected>Selecione a aula do colega...</option>';
-  
+function selecionarColegaTroca(colegaNome) {
+  const containerColega = document.getElementById("containerAulasColegaTroca");
+  if (!containerColega) return;
+
   const aulasColega = bancoDeDados[colegaNome] || [];
   if (aulasColega.length === 0) {
-    selectAulas.innerHTML = '<option value="" disabled>Nenhuma aula encontrada para este professor.</option>';
+    containerColega.style.display = "none";
+    mostrarToast("O professor selecionado não possui aulas cadastradas.");
     return;
   }
 
-  aulasColega.forEach((aula, idx) => {
-    selectAulas.innerHTML += `<option value="${idx}">${aula.disc} (${aula.turma}) - ${aula.dia} às ${aula.hora}</option>`;
+  containerColega.style.display = "block";
+
+  const diasOrdem = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"];
+  const diasComAula = [];
+  diasOrdem.forEach((dia) => {
+    if (aulasColega.some((a) => a.dia === dia)) {
+      diasComAula.push(dia);
+    }
   });
+
+  const selectDiaColega = document.getElementById("selectDiaColegaTroca");
+  if (selectDiaColega) {
+    selectDiaColega.innerHTML = "";
+    diasComAula.forEach((d) => {
+      const opt = document.createElement("option");
+      opt.value = d;
+      opt.innerText = d;
+      selectDiaColega.appendChild(opt);
+    });
+
+    atualizarChecklistAulasColegaTroca(colegaNome, diasComAula[0]);
+  }
+}
+
+function atualizarChecklistAulasColegaTroca(colegaNome, diaSelecionado) {
+  const container = document.getElementById("listaAulasColegaTroca");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const todasAulas = bancoDeDados[colegaNome] || [];
+  const aulasDoDia = [];
+
+  todasAulas.forEach((aula, idx) => {
+    if (aula.dia === diaSelecionado) {
+      aulasDoDia.push({ ...aula, indexOriginal: idx });
+    }
+  });
+
+  if (aulasDoDia.length === 0) {
+    container.innerHTML = `<div style="font-size:12px; color:var(--text-muted); padding:8px;">Nenhuma aula cadastrada para ${diaSelecionado}.</div>`;
+    atualizarResumoBalancoTroca();
+    return;
+  }
+
+  aulasDoDia.sort((a, b) => extrairMinutosDoHorario(a.hora) - extrairMinutosDoHorario(b.hora));
+
+  aulasDoDia.forEach((aula, i) => {
+    const isChecked = i === 0;
+    const itemLabel = document.createElement("label");
+    itemLabel.className = `tempo-checkbox-item ${isChecked ? "selected" : ""}`;
+
+    itemLabel.innerHTML = `
+      <input type="checkbox" class="colega-troca-chk" value="${aula.indexOriginal}" ${isChecked ? "checked" : ""}>
+      <div class="tempo-info">
+        <div class="tempo-row-top">
+          <span class="tempo-horario">⏰ ${aula.hora}</span>
+          <span class="tempo-turma-badge">${aula.turma}</span>
+        </div>
+        <span class="tempo-disc">${aula.disc}</span>
+      </div>
+    `;
+
+    const chk = itemLabel.querySelector(".colega-troca-chk");
+    chk.addEventListener("change", () => {
+      if (chk.checked) {
+        itemLabel.classList.add("selected");
+      } else {
+        itemLabel.classList.remove("selected");
+      }
+      atualizarResumoBalancoTroca();
+    });
+
+    container.appendChild(itemLabel);
+  });
+
+  atualizarResumoBalancoTroca();
+}
+
+function atualizarResumoBalancoTroca() {
+  const qtdMinhas = document.querySelectorAll(".minha-troca-chk:checked").length;
+  const qtdColega = document.querySelectorAll(".colega-troca-chk:checked").length;
+
+  const badgeMinhas = document.getElementById("badgeMinhasAulasCedidas");
+  const badgeColega = document.getElementById("badgeAulasColegaDesejadas");
+  const boxBalanco = document.getElementById("resumoBalancoTroca");
+  const btnTxt = document.getElementById("textoBtnConfirmarPropostaTroca");
+
+  if (badgeMinhas) badgeMinhas.innerText = `${qtdMinhas} tempo${qtdMinhas !== 1 ? "s" : ""}`;
+  if (badgeColega) badgeColega.innerText = `${qtdColega} tempo${qtdColega !== 1 ? "s" : ""}`;
+
+  if (boxBalanco) {
+    if (qtdMinhas > 0 && qtdColega > 0) {
+      if (qtdMinhas === qtdColega) {
+        boxBalanco.className = "swap-balance-indicator balanced";
+        boxBalanco.innerHTML = `✅ <strong>Permuta Equilibrada:</strong> ${qtdMinhas} tempo(s) cedido(s) ↔️ ${qtdColega} tempo(s) recebido(s)`;
+      } else {
+        boxBalanco.className = "swap-balance-indicator";
+        boxBalanco.innerHTML = `⚖️ <strong>Comparativo de Tempos:</strong> ${qtdMinhas} tempo(s) cedido(s) ↔️ ${qtdColega} tempo(s) recebido(s)`;
+      }
+    } else {
+      boxBalanco.className = "swap-balance-indicator";
+      boxBalanco.innerText = "⚖️ Selecione as suas aulas e as aulas do colega para comparar os tempos.";
+    }
+  }
+
+  if (btnTxt) {
+    if (qtdMinhas > 0 && qtdColega > 0) {
+      btnTxt.innerText = `Enviar Proposta (${qtdMinhas} ↔️ ${qtdColega} tempos)`;
+    } else {
+      btnTxt.innerText = "Enviar Proposta de Troca";
+    }
+  }
 }
 
 async function executarPropostaTroca() {
-  const idxMinhaAula = parseInt(document.getElementById("selectMinhaAulaTroca").value, 10);
-  if (!isNaN(idxMinhaAula) && bancoDeDados[usuarioLogado] && bancoDeDados[usuarioLogado][idxMinhaAula]) {
-    aulaSelecionadaParaAcao = {
-      prof: usuarioLogado,
-      index: idxMinhaAula,
-      aula: bancoDeDados[usuarioLogado][idxMinhaAula]
-    };
-  }
-
-  if (!aulaSelecionadaParaAcao) return;
-  const { aula: minhaAula } = aulaSelecionadaParaAcao;
-
+  const chkMinhas = Array.from(document.querySelectorAll(".minha-troca-chk:checked"));
+  const chkColega = Array.from(document.querySelectorAll(".colega-troca-chk:checked"));
   const colega = document.getElementById("selectColegaTroca").value;
-  const aulaIdx = document.getElementById("selectAulaColega").value;
   const dataPrevista = document.getElementById("inputDataTroca").value;
   const motivo = document.getElementById("inputMotivoTroca").value.trim();
 
-  if (!colega || aulaIdx === "") {
-    alert("Por favor, selecione o colega e a aula que deseja trocar em contrapartida!");
+  if (chkMinhas.length === 0) {
+    mostrarToast("Por favor, selecione pelo menos uma aula sua a ser cedida.");
     return;
   }
 
-  const aulaDesejada = bancoDeDados[colega][aulaIdx];
-
-  // 1. Validação Dupla de Conflito!
-  // Eu posso lecionar no horário da aula do colega?
-  const conflitoEu = verificarConflito(aulaDesejada.dia, aulaDesejada.hora, usuarioLogado);
-  if (conflitoEu.conflito) {
-    alert(`⚠️ CONFLITO DETECTADO:\nVocê já possui aula no horário da aula que deseja pegar (${aulaDesejada.dia} às ${aulaDesejada.hora}):\n▶ ${conflitoEu.descricao}`);
+  if (!colega) {
+    mostrarToast("Por favor, selecione o professor colega para a permuta.");
     return;
   }
 
-  // O colega pode lecionar no horário da minha aula?
-  const conflitoColega = verificarConflito(minhaAula.dia, minhaAula.hora, colega);
-  if (conflitoColega.conflito) {
-    alert(`⚠️ CONFLITO DO COLEGA:\nO Prof. ${colega} já possui outra aula no horário da sua aula cedida (${minhaAula.dia} às ${minhaAula.hora}):\n▶ ${conflitoColega.descricao}`);
+  if (chkColega.length === 0) {
+    mostrarToast("Por favor, selecione pelo menos uma aula do colega em contrapartida.");
     return;
+  }
+
+  const minhasAulasObjetos = chkMinhas.map(chk => {
+    const idx = parseInt(chk.value, 10);
+    return bancoDeDados[usuarioLogado][idx];
+  }).filter(Boolean);
+
+  const aulasColegaObjetos = chkColega.map(chk => {
+    const idx = parseInt(chk.value, 10);
+    return bancoDeDados[colega][idx];
+  }).filter(Boolean);
+
+  // Validação Cruzada de Conflitos em Lote
+  for (const aulaDesejada of aulasColegaObjetos) {
+    const conflitoEu = verificarConflito(aulaDesejada.dia, aulaDesejada.hora, usuarioLogado);
+    if (conflitoEu.conflito) {
+      alert(`⚠️ CONFLITO DETECTADO:\nVocê já possui aula agendada no horário:\n▶ ${aulaDesejada.dia} às ${aulaDesejada.hora} (${conflitoEu.descricao})`);
+      return;
+    }
+  }
+
+  for (const minhaAula of minhasAulasObjetos) {
+    const conflitoColega = verificarConflito(minhaAula.dia, minhaAula.hora, colega);
+    if (conflitoColega.conflito) {
+      alert(`⚠️ CONFLITO DO COLEGA:\nO Prof. ${colega} já possui aula agendada no horário da aula cedida:\n▶ ${minhaAula.dia} às ${minhaAula.hora} (${conflitoColega.descricao})`);
+      return;
+    }
   }
 
   fecharTodosModais();
@@ -1345,10 +1652,12 @@ async function executarPropostaTroca() {
     id: "TR-" + Date.now(),
     proponente: usuarioLogado,
     colega,
-    aulaCedida: minhaAula,
-    aulaDesejada,
-    dataPrevista,
-    motivo,
+    aulasCedidas: minhasAulasObjetos,
+    aulasDesejadas: aulasColegaObjetos,
+    aulaCedida: minhasAulasObjetos[0],
+    aulaDesejada: aulasColegaObjetos[0],
+    dataPrevista: dataPrevista || "A combinar",
+    motivo: motivo || "Permuta de horários",
     status: "pendente",
     dataCriacao: new Date().toLocaleString("pt-BR")
   };
@@ -1359,7 +1668,7 @@ async function executarPropostaTroca() {
   });
 
   renderizarTudo();
-  mostrarToast(`Proposta de troca enviada ao Prof. ${colega}!`);
+  mostrarToast(`Proposta de permuta (${minhasAulasObjetos.length} ↔️ ${aulasColegaObjetos.length} tempos) enviada ao Prof. ${colega}!`);
 }
 
 function aceitarTroca(trocaId) {

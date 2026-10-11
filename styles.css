@@ -1682,3 +1682,65 @@ body {
   margin-top: 12px;
 }
 
+/* ==========================================================================
+   MODAL DE PERMUTA / TROCA MULTI-TEMPOS
+   ========================================================================== */
+.swap-section-card {
+  background: #fdfcff;
+  border: 1.5px solid #e9d5ff;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.swap-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b21a8;
+  margin-bottom: 8px;
+}
+
+.badge-count-swap {
+  font-size: 11px;
+  background: #f3e8ff;
+  color: #7e22ce;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.swap-balance-indicator {
+  background: #faf5ff;
+  border: 1px dashed #d8b4fe;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b21a8;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.swap-balance-indicator.balanced {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.btn-purple {
+  background: var(--accent-swap);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-purple:hover {
+  opacity: 0.9;
+}
+

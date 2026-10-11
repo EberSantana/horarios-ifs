@@ -580,15 +580,21 @@ const API = {
       const { troca } = payload;
       this.salvarTroca(troca);
       if (config.notificarTroca) {
-        const dests1 = this.obterDestinatariosPorTurma(troca.aulaCedida.turma);
-        this.registrarEmailLog("PERMUTA_PROPOSTA", `🔄 [PROPOSTA DE TROCA] Prof. ${troca.proponente} solicitou permuta com Prof. ${troca.colega}`, `${dests1}, ${troca.colega.toLowerCase()}@ifs.edu.br`);
+        const dests1 = this.obterDestinatariosPorTurma(troca.aulaCedida?.turma || "");
+        const qtdCedidas = (troca.aulasCedidas && troca.aulasCedidas.length) || 1;
+        const qtdDesejadas = (troca.aulasDesejadas && troca.aulasDesejadas.length) || 1;
+        const temposLabel = (qtdCedidas > 1 || qtdDesejadas > 1) ? ` (${qtdCedidas} ↔️ ${qtdDesejadas} tempos)` : "";
+        this.registrarEmailLog("PERMUTA_PROPOSTA", `🔄 [PROPOSTA DE TROCA${temposLabel}] Prof. ${troca.proponente} solicitou permuta com Prof. ${troca.colega}`, `${dests1}, ${troca.colega.toLowerCase()}@ifs.edu.br`);
       }
     } else if (acao === "aceitar_troca") {
       const { trocaId, troca } = payload;
       this.atualizarStatusTroca(trocaId, "aceita");
-      if (config.notificarTroca) {
-        const dests2 = this.obterDestinatariosPorTurma(troca.aulaCedida.turma);
-        this.registrarEmailLog("PERMUTA_ACEITA", `✅ [TROCA CONFIRMADA] Permuta aprovada entre Prof. ${troca.proponente} e Prof. ${troca.colega}`, `${dests2}, ${troca.proponente.toLowerCase()}@ifs.edu.br`);
+      if (config.notificarTroca && troca) {
+        const dests2 = this.obterDestinatariosPorTurma(troca.aulaCedida?.turma || "");
+        const qtdCedidas = (troca.aulasCedidas && troca.aulasCedidas.length) || 1;
+        const qtdDesejadas = (troca.aulasDesejadas && troca.aulasDesejadas.length) || 1;
+        const temposLabel = (qtdCedidas > 1 || qtdDesejadas > 1) ? ` (${qtdCedidas} ↔️ ${qtdDesejadas} tempos)` : "";
+        this.registrarEmailLog("PERMUTA_ACEITA", `✅ [TROCA CONFIRMADA${temposLabel}] Permuta aprovada entre Prof. ${troca.proponente} e Prof. ${troca.colega}`, `${dests2}, ${troca.proponente.toLowerCase()}@ifs.edu.br`);
       }
     } else if (acao === "recusar_troca") {
       const { trocaId } = payload;
@@ -671,13 +677,25 @@ const API = {
     // 2. Trocas e Permutas
     const trocas = this.getTrocas();
     trocas.forEach((t) => {
+      const qtdCedidas = (t.aulasCedidas && t.aulasCedidas.length) || 1;
+      const qtdDesejadas = (t.aulasDesejadas && t.aulasDesejadas.length) || 1;
+      const horarioDesc = t.aulasCedidas && t.aulasCedidas.length > 1
+        ? `${t.aulaCedida?.dia || ""} (${qtdCedidas} tempos ↔ ${qtdDesejadas} tempos)`
+        : `${t.aulaCedida?.dia || ""} às ${t.aulaCedida?.hora || ""}`;
+      const turmaDesc = t.aulasCedidas && t.aulasCedidas.length > 1
+        ? Array.from(new Set(t.aulasCedidas.map(a => a.turma))).join("/") + " ↔ " + Array.from(new Set(t.aulasDesejadas.map(a => a.turma))).join("/")
+        : `${t.aulaCedida?.turma || ""} ↔ ${t.aulaDesejada?.turma || ""}`;
+      const discDesc = t.aulasCedidas && t.aulasCedidas.length > 1
+        ? Array.from(new Set(t.aulasCedidas.map(a => a.disc))).join("/") + " ↔ " + Array.from(new Set(t.aulasDesejadas.map(a => a.disc))).join("/")
+        : `${t.aulaCedida?.disc || ""} ↔ ${t.aulaDesejada?.disc || ""}`;
+
       eventos.push({
         id: t.id,
         tipo: "PERMUTA",
         data: t.dataPrevista || "-",
-        horario: `${t.aulaCedida.dia} às ${t.aulaCedida.hora}`,
-        turma: `${t.aulaCedida.turma} ↔ ${t.aulaDesejada.turma}`,
-        disciplina: `${t.aulaCedida.disc} ↔ ${t.aulaDesejada.disc}`,
+        horario: horarioDesc,
+        turma: turmaDesc,
+        disciplina: discDesc,
         titular: t.proponente,
         substituto: t.colega,
         detalhes: t.motivo || "Permuta de horários entre docentes",

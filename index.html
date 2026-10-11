@@ -11,7 +11,7 @@
   
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=3.3">
+  <link rel="stylesheet" href="./styles.css?v=3.4">
 </head>
 <body>
 
@@ -208,7 +208,7 @@
         <!-- BARRA RÁPIDA DE AÇÕES -->
         <div class="action-bar-top" style="margin-bottom: 16px;">
           <button type="button" id="btnNovaTrocaTab" class="btn-quick-action" style="background: #ede7f6; color: #7b1fa2; border: 1px solid #d1c4e9;">
-            <span>🔄 Propor Troca de Horário</span>
+            <span>🔄 Propor Troca de Horário (Múltiplos Tempos)</span>
           </button>
           <button type="button" id="btnNovaReposicaoTab" class="btn-quick-action btn-reposicao-trigger">
             <span>📅 Agendar Reposição de Aula</span>
@@ -472,52 +472,81 @@
   </div>
 </div>
 
-<!-- Modal 3: Propor Troca de Horário (Permuta entre Docentes) -->
+<!-- Modal 3: Propor Troca de Horário (Permuta de Múltiplos Tempos) -->
 <div id="modalTroca" class="modal-overlay">
-  <div class="modal-card">
+  <div class="modal-card modal-card-large">
     <div class="modal-header">
-      <h3 class="modal-title">Propor Troca de Aula (Permuta)</h3>
+      <h3 class="modal-title">🔄 Propor Permuta de Horários (Múltiplos Tempos)</h3>
       <button type="button" class="btn-close-modal">&times;</button>
     </div>
     <div class="modal-body">
-      <div class="form-group" id="grupoMinhaAulaTroca">
-        <label class="form-label" for="selectMinhaAulaTroca">Sua aula a ser cedida na permuta:</label>
-        <div class="select-wrapper">
-          <select id="selectMinhaAulaTroca" class="custom-select"></select>
+      <!-- Seção 1: Minhas Aulas a Ceder -->
+      <div class="swap-section-card">
+        <div class="swap-section-title">
+          <span>📤 1. Suas Aulas a Serem Cedidas</span>
+          <span class="badge-count-swap" id="badgeMinhasAulasCedidas">0 tempos</span>
+        </div>
+        <div class="form-group" style="margin-bottom: 6px;">
+          <div class="tempos-selection-header">
+            <label class="form-label" for="selectDiaMinhasAulasTroca" style="margin-bottom:0;">Dia da sua grade:</label>
+            <div class="tempos-quick-actions">
+              <button type="button" id="btnMarcarTodasMinhasTroca" class="btn-chip-action">Marcar Todas</button>
+              <button type="button" id="btnDesmarcarTodasMinhasTroca" class="btn-chip-action">Desmarcar</button>
+            </div>
+          </div>
+          <select id="selectDiaMinhasAulasTroca" class="custom-input custom-select" style="margin-bottom:8px;"></select>
+          <div id="listaMinhasAulasTroca" class="tempos-checklist-container" style="max-height: 140px;"></div>
         </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label" for="selectColegaTroca">Com qual professor deseja trocar?</label>
-        <div class="select-wrapper">
-          <select id="selectColegaTroca" class="custom-select">
+      <!-- Seção 2: Colega e Aulas Desejadas -->
+      <div class="swap-section-card" style="margin-top: 12px;">
+        <div class="swap-section-title">
+          <span>📥 2. Professor Colega e Aulas Desejadas</span>
+          <span class="badge-count-swap" id="badgeAulasColegaDesejadas">0 tempos</span>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 8px;">
+          <label class="form-label" for="selectColegaTroca">Com qual professor deseja permutar?</label>
+          <select id="selectColegaTroca" class="custom-input custom-select">
             <option value="" disabled selected>Selecione o professor colega...</option>
           </select>
         </div>
-      </div>
 
-      <div class="form-group">
-        <label class="form-label" for="selectAulaColega">Qual aula do colega você deseja em contrapartida?</label>
-        <div class="select-wrapper">
-          <select id="selectAulaColega" class="custom-select">
-            <option value="" disabled selected>Escolha primeiro o professor acima...</option>
-          </select>
+        <div id="containerAulasColegaTroca" style="display:none;">
+          <div class="tempos-selection-header">
+            <label class="form-label" for="selectDiaColegaTroca" style="margin-bottom:0;">Dia da grade do colega:</label>
+            <div class="tempos-quick-actions">
+              <button type="button" id="btnMarcarTodasColegaTroca" class="btn-chip-action">Marcar Todas</button>
+              <button type="button" id="btnDesmarcarTodasColegaTroca" class="btn-chip-action">Desmarcar</button>
+            </div>
+          </div>
+          <select id="selectDiaColegaTroca" class="custom-input custom-select" style="margin-bottom:8px;"></select>
+          <div id="listaAulasColegaTroca" class="tempos-checklist-container" style="max-height: 140px;"></div>
         </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label" for="inputDataTroca">Data prevista para a troca:</label>
+      <!-- Indicador de Balanço / Resumo da Troca -->
+      <div id="resumoBalancoTroca" class="swap-balance-indicator">
+        ⚖️ Selecione as suas aulas e as aulas do colega para comparar os tempos.
+      </div>
+
+      <!-- Seção 3: Data e Justificativa -->
+      <div class="form-group" style="margin-top: 10px;">
+        <label class="form-label" for="inputDataTroca">Data ou Período Previsto para a Troca:</label>
         <input type="date" id="inputDataTroca" class="custom-input">
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="inputMotivoTroca">Justificativa da Permuta:</label>
-        <input type="text" id="inputMotivoTroca" class="custom-input" placeholder="Ex: Acordo mútuo para participação em evento acadêmico">
+        <label class="form-label" for="inputMotivoTroca">Justificativa da Permuta (Única para todos os tempos):</label>
+        <input type="text" id="inputMotivoTroca" class="custom-input" placeholder="Ex: Acordo mútuo para participação em evento acadêmico / banca">
       </div>
     </div>
     <div class="modal-actions">
       <button type="button" class="btn-secondary btn-cancelar-modal">Cancelar</button>
-      <button type="button" id="btnConfirmarPropostaTroca" class="btn-purple">Enviar Proposta de Troca</button>
+      <button type="button" id="btnConfirmarPropostaTroca" class="btn-purple">
+        <span id="textoBtnConfirmarPropostaTroca">Enviar Proposta de Troca</span>
+      </button>
     </div>
   </div>
 </div>
@@ -694,8 +723,8 @@
 <!-- Toast de Notificações -->
 <div id="toast">Notificação</div>
 
-<script src="./api.js?v=3.3"></script>
-<script src="./app.js?v=3.3"></script>
+<script src="./api.js?v=3.4"></script>
+<script src="./app.js?v=3.4"></script>
 
 </body>
 </html>
