@@ -1,5 +1,5 @@
 // Service Worker - Painel Docente IFS Tobias Barreto
-const CACHE_NAME = 'ifs-painel-v6-coinf-subsequente';
+const CACHE_NAME = 'ifs-painel-v7-print-emails-fix';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

@@ -217,7 +217,10 @@ function configurarEventosInterface() {
   document.getElementById("filtroRelatorioTipo").addEventListener("change", renderizarRelatorios);
   document.getElementById("filtroRelatorioProf").addEventListener("change", renderizarRelatorios);
   document.getElementById("filtroRelatorioTurma").addEventListener("change", renderizarRelatorios);
-  document.getElementById("btnImprimirRelatorio").addEventListener("click", () => window.print());
+  document.getElementById("btnImprimirRelatorio").addEventListener("click", () => {
+    renderizarRelatorios();
+    window.print();
+  });
   document.getElementById("btnExportarCsv").addEventListener("click", exportarRelatorioCSV);
   document.getElementById("btnCopiarTabela").addEventListener("click", copiarRelatorioTabela);
 
