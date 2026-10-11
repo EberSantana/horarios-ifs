@@ -1,5 +1,5 @@
 // Service Worker - Painel Docente IFS Tobias Barreto
-const CACHE_NAME = 'ifs-painel-v1';
+const CACHE_NAME = 'ifs-painel-v3-subsequente-multitempos';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -28,6 +28,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((name) => {
           if (name !== CACHE_NAME) {
+            console.log('Removendo cache antigo:', name);
             return caches.delete(name);
           }
         })
@@ -38,22 +39,34 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Ignora requisições para APIs externas (Google Script) no cache estático
+  // Ignora requisições para APIs externas (Google Apps Script)
   if (event.request.url.includes('script.google.com')) {
     return;
   }
 
+  // Estratégia Network-First: Sempre tenta buscar a versão mais recente do GitHub Pages primeiro.
+  // Se houver rede, atualiza o cache e entrega os arquivos frescos.
+  // Se estiver offline ou a rede falhar, entrega o cache como fallback imediato.
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).catch(() => {
-        // Fallback offline se necessário
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
         }
-      });
-    })
+        return networkResponse;
+      })
+      .catch(() => {
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          if (event.request.mode === 'navigate') {
+            return caches.match('./index.html');
+          }
+        });
+      })
   );
 });

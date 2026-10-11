@@ -2,3 +2,6 @@
 Thumbs.db
 *.log
 .vscode/
+*.pkg
+package-lock.json
+node_modules/

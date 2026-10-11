@@ -175,31 +175,47 @@ function doPost(e) {
     }
 
     // =========================================================================
-    // CASO 2: LIBERTAR AULA (FALTA / AUSÊNCIA)
+    // CASO 2: LIBERTAR AULA (FALTA / AUSÊNCIA INDIVIDUAL OU MÚLTIPLOS TEMPOS)
     // =========================================================================
-    else if (acao === "libertar") {
+    else if (acao === "libertar" || acao === "libertar_multiplos") {
       var sheetHorarios = ss.getSheetByName("Horarios");
-      var linhaAlvo = encontrarLinhaAula(sheetHorarios, dados.profOriginal, dados.index);
-      
-      if (linhaAlvo !== -1) {
-        sheetHorarios.getRange(linhaAlvo, 7).setValue("alert");
-        sheetHorarios.getRange(linhaAlvo, 8).setValue("");
-        sheetHorarios.getRange(linhaAlvo, 9).setValue(dados.motivo ? "⚠️ " + dados.motivo : "⚠️ Prof. " + dados.profOriginal + " ausente");
-        sheetHorarios.getRange(linhaAlvo, 10).setValue(dados.dataFalta);
+      var indices = acao === "libertar_multiplos" ? (dados.indices || []) : [dados.index];
+      var turmasSet = [];
+      var discsSet = [];
+      var contagem = 0;
 
-        var disc = sheetHorarios.getRange(linhaAlvo, 6).getValue();
-        var turma = sheetHorarios.getRange(linhaAlvo, 5).getValue();
-        var hora = sheetHorarios.getRange(linhaAlvo, 4).getValue();
-        var dia = sheetHorarios.getRange(linhaAlvo, 3).getValue();
+      for (var k = 0; k < indices.length; k++) {
+        var idxAlvo = indices[k];
+        var linhaAlvo = encontrarLinhaAula(sheetHorarios, dados.profOriginal, idxAlvo);
+        
+        if (linhaAlvo !== -1) {
+          sheetHorarios.getRange(linhaAlvo, 7).setValue("alert");
+          sheetHorarios.getRange(linhaAlvo, 8).setValue("");
+          sheetHorarios.getRange(linhaAlvo, 9).setValue(dados.motivo ? "⚠️ " + dados.motivo : "⚠️ Prof. " + dados.profOriginal + " ausente");
+          sheetHorarios.getRange(linhaAlvo, 10).setValue(dados.dataFalta);
 
-        var emailDest = obterEmailsPorTurma(turma, config);
+          var disc = sheetHorarios.getRange(linhaAlvo, 6).getValue();
+          var turma = sheetHorarios.getRange(linhaAlvo, 5).getValue();
+          var hora = sheetHorarios.getRange(linhaAlvo, 4).getValue();
+          var dia = sheetHorarios.getRange(linhaAlvo, 3).getValue();
 
-        registrarHistorico(ss, "AULA_DISPONIBILIZADA", dados.profOriginal, "", disc, turma, dia + " às " + hora, dados.dataFalta);
-        dispararEmailAulaDisponibilizada(emailDest, dados.profOriginal, disc, turma, dia, hora, dados.dataFalta, dados.motivo);
+          if (turmasSet.indexOf(turma) === -1) turmasSet.push(turma);
+          if (discsSet.indexOf(disc) === -1) discsSet.push(disc);
+          contagem++;
+
+          registrarHistorico(ss, "AULA_DISPONIBILIZADA", dados.profOriginal, "", disc, turma, dia + " às " + hora, dados.dataFalta);
+        }
+      }
+
+      if (contagem > 0) {
+        var emailDest = turmasSet.map(function(t) { return obterEmailsPorTurma(t, config); }).join(", ");
+        var descDiscs = discsSet.join(", ");
+        var descTurmas = turmasSet.join(", ");
+        dispararEmailAulaDisponibilizada(emailDest, dados.profOriginal, descDiscs, descTurmas, contagem > 1 ? contagem + " tempos" : "1 tempo", "", dados.dataFalta, dados.motivo);
       }
 
       lock.releaseLock();
-      return criarRespostaJSON({ sucesso: true, mensagem: "Aula liberada e e-mails disparados para o coordenador do curso!" });
+      return criarRespostaJSON({ sucesso: true, mensagem: contagem + " aula(s) liberada(s) e e-mail disparado para a coordenação!" });
     }
 
     // =========================================================================

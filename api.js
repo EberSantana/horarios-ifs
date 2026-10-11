@@ -16,7 +16,7 @@ const STORAGE_KEY_TROCAS = 'IFS_TROCAS_PERMUTAS';
 const STORAGE_KEY_REPOSICOES = 'IFS_REPOSICOES_AULAS';
 
 // Versão do banco para auto-atualizar clientes com as turmas do Subsequente e novos docentes
-const CURRENT_DB_VERSION = 'v2_subsequente_2026';
+const CURRENT_DB_VERSION = 'v3_subsequente_multitempos_2026';
 
 // URL Oficial de Produção do Google Apps Script (Conectado ao Google Sheets do IFS)
 const DEFAULT_BACKEND_URL = "https://script.google.com/macros/s/AKfycbwlITC2JrJ3lFYl__oER1B86JFlHpsrjq75BRGD_q-iIhlKIphfdIcQkbIwRMtTjy2kjg/exec";
@@ -356,8 +356,11 @@ const API = {
 
       const aulasLocais = [...merged[prof]];
       sheetAulas.forEach((sAula) => {
+        // Encontra correspondência prioritariamente pelo slot físico (dia, hora, turma)
+        // e secundariamente por ID apenas se o dia for idêntico.
         const idx = aulasLocais.findIndex(
-          (l) => l.id === sAula.id || (l.dia === sAula.dia && l.hora === sAula.hora && l.turma === sAula.turma)
+          (l) => (l.dia === sAula.dia && l.hora === sAula.hora && l.turma === sAula.turma) ||
+                 (l.id === sAula.id && l.dia === sAula.dia)
         );
         if (idx !== -1) {
           aulasLocais[idx] = {
@@ -368,8 +371,6 @@ const API = {
             dataFalta: sAula.dataFalta || aulasLocais[idx].dataFalta,
             linhaExcel: sAula.linhaExcel || aulasLocais[idx].linhaExcel
           };
-        } else {
-          aulasLocais.push(sAula);
         }
       });
       merged[prof] = aulasLocais;
@@ -377,25 +378,54 @@ const API = {
     return merged;
   },
 
-  // Banco de Dados Local dos Horários com versionamento automático
+  // Banco de Dados Local dos Horários com auto-migração inteligente
   getLocalDatabase() {
     const versao = localStorage.getItem(STORAGE_KEY_DB_VERSION);
-    if (versao !== CURRENT_DB_VERSION) {
-      localStorage.setItem(STORAGE_KEY_DB_VERSION, CURRENT_DB_VERSION);
-      localStorage.setItem(STORAGE_KEY_LOCAL_DB, JSON.stringify(DADOS_INICIAIS_IFS));
-      return JSON.parse(JSON.stringify(DADOS_INICIAIS_IFS));
-    }
-
     const salvo = localStorage.getItem(STORAGE_KEY_LOCAL_DB);
+    let db = null;
     if (salvo) {
       try {
-        return JSON.parse(salvo);
+        db = JSON.parse(salvo);
       } catch (e) {
         console.error("Erro ao ler banco local:", e);
       }
     }
-    localStorage.setItem(STORAGE_KEY_LOCAL_DB, JSON.stringify(DADOS_INICIAIS_IFS));
-    return JSON.parse(JSON.stringify(DADOS_INICIAIS_IFS));
+
+    // Validação estrita: se faltar turmas do subsequente para Eber ou versão mudou
+    const precisaMigracao = !db || 
+      versao !== CURRENT_DB_VERSION || 
+      !db["Eber"] || 
+      db["Eber"].length < 11 || 
+      !db["Eber"].some(a => (a.turma || "").includes("Subsequente"));
+
+    if (precisaMigracao) {
+      localStorage.setItem(STORAGE_KEY_DB_VERSION, CURRENT_DB_VERSION);
+      const baseNova = JSON.parse(JSON.stringify(DADOS_INICIAIS_IFS));
+      // Preserva status alert/assumed existentes do usuário
+      if (db) {
+        for (const prof in db) {
+          if (baseNova[prof] && Array.isArray(db[prof])) {
+            db[prof].forEach((aulaAntiga) => {
+              if (aulaAntiga.status === "alert" || aulaAntiga.status === "assumed") {
+                const correspondente = baseNova[prof].find(
+                  (n) => n.dia === aulaAntiga.dia && n.hora === aulaAntiga.hora && n.turma === aulaAntiga.turma
+                );
+                if (correspondente) {
+                  correspondente.status = aulaAntiga.status;
+                  correspondente.substituto = aulaAntiga.substituto;
+                  correspondente.obs = aulaAntiga.obs;
+                  correspondente.dataFalta = aulaAntiga.dataFalta;
+                }
+              }
+            });
+          }
+        }
+      }
+      localStorage.setItem(STORAGE_KEY_LOCAL_DB, JSON.stringify(baseNova));
+      return baseNova;
+    }
+
+    return db;
   },
 
   saveLocalDatabase(db) {
@@ -488,18 +518,46 @@ const API = {
     const { acao, profOriginal, index, substituto, dataFalta, motivo } = payload;
 
     // 1. Processamento Local Imediato (0ms)
-    if (acao === "libertar" && localDb[profOriginal] && localDb[profOriginal][index]) {
-      const aula = localDb[profOriginal][index];
-      aula.status = "alert";
-      aula.obs = motivo ? `⚠️ ${motivo}` : `⚠️ Prof. ${profOriginal} ausente`;
-      aula.dataFalta = dataFalta || "Próxima aula";
-      aula.substituto = "";
+    if ((acao === "libertar_multiplos" || acao === "libertar") && localDb[profOriginal]) {
+      const indicesArray = acao === "libertar_multiplos" ? (payload.indices || []) : [index];
+      const turmasAfetadas = new Set();
+      const discsAfetadas = new Set();
+      let contagem = 0;
+
+      indicesArray.forEach((idx) => {
+        if (localDb[profOriginal][idx]) {
+          const aula = localDb[profOriginal][idx];
+          aula.status = "alert";
+          aula.obs = motivo ? `⚠️ ${motivo}` : `⚠️ Prof. ${profOriginal} ausente`;
+          aula.dataFalta = dataFalta || "Próxima aula";
+          aula.substituto = "";
+          turmasAfetadas.add(aula.turma);
+          discsAfetadas.add(aula.disc);
+          contagem++;
+        }
+      });
+
       this.saveLocalDatabase(localDb);
 
-      if (config.notificarFalta) {
-        const dests = this.obterDestinatariosPorTurma(aula.turma);
-        this.registrarEmailLog("AUSENCIA", `🔴 [AUSÊNCIA] ${aula.disc} (${aula.turma}) - Prof. ${profOriginal}`, dests);
+      if (config.notificarFalta && contagem > 0) {
+        const turmasStr = Array.from(turmasAfetadas).join(", ");
+        const discsStr = Array.from(discsAfetadas).join(", ");
+        const dests = Array.from(turmasAfetadas).map(t => this.obterDestinatariosPorTurma(t)).join(", ");
+        const labelTempos = contagem > 1 ? `${contagem} TEMPOS` : "1 TEMPO";
+        this.registrarEmailLog("AUSENCIA", `🔴 [AUSÊNCIA - ${labelTempos}] ${discsStr} (${turmasStr}) - Prof. ${profOriginal}`, dests);
       }
+    } else if (acao === "recuperar_multiplos" && localDb[profOriginal]) {
+      const indicesArray = payload.indices || [];
+      indicesArray.forEach((idx) => {
+        if (localDb[profOriginal][idx]) {
+          const aula = localDb[profOriginal][idx];
+          aula.status = "normal";
+          aula.substituto = "";
+          aula.obs = "Aula confirmada";
+          delete aula.dataFalta;
+        }
+      });
+      this.saveLocalDatabase(localDb);
     } else if (acao === "assumir" && localDb[profOriginal] && localDb[profOriginal][index]) {
       const aula = localDb[profOriginal][index];
       aula.status = "assumed";

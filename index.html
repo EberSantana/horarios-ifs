@@ -11,7 +11,7 @@
   
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=3.2">
 </head>
 <body>
 
@@ -188,6 +188,9 @@
       <!-- ABA 1: MINHA GRADE -->
       <div id="tab-minha" class="tab-pane active">
         <div class="action-bar-top">
+          <button type="button" id="btnOpenModalAusenciaMultipla" class="btn-quick-action" style="background: #ffebee; color: #c62828; border: 1px solid #ffcdd2;">
+            <span>⚠️ Informar Falta (Múltiplos Tempos)</span>
+          </button>
           <button type="button" id="btnOpenModalReposicao" class="btn-quick-action btn-reposicao-trigger">
             <span>➕ Agendar Reposição de Aula</span>
           </button>
@@ -399,33 +402,52 @@
 <!-- MODAIS INTELIGENTES                                                     -->
 <!-- ======================================================================= -->
 
-<!-- Modal 1: Liberar Aula com Seleção de Data -->
+<!-- Modal 1: Liberar Aula com Seleção de Múltiplos Tempos e Única Justificativa -->
 <div id="modalLiberar" class="modal-overlay">
-  <div class="modal-card">
+  <div class="modal-card modal-card-large">
     <div class="modal-header">
-      <h3 class="modal-title">Disponibilizar Aula (Ausência)</h3>
+      <h3 class="modal-title">⚠️ Informar Ausência / Falta de Aulas</h3>
       <button type="button" class="btn-close-modal">&times;</button>
     </div>
     <div class="modal-body">
-      <p id="modalLiberarDesc" style="font-weight: 700; color: var(--primary-dark); margin-bottom: 12px;"></p>
-      
+      <div class="form-group">
+        <label class="form-label" for="selectDiaFalta">Dia da Semana:</label>
+        <select id="selectDiaFalta" class="custom-input custom-select"></select>
+      </div>
+
+      <div class="form-group">
+        <div class="tempos-selection-header">
+          <label class="form-label" style="margin-bottom:0;">Selecione os Tempos para a Mesma Justificativa:</label>
+          <div class="tempos-quick-actions">
+            <button type="button" id="btnMarcarTodosTempos" class="btn-chip-action">Marcar Todos do Dia</button>
+            <button type="button" id="btnDesmarcarTodosTempos" class="btn-chip-action">Desmarcar</button>
+          </div>
+        </div>
+        <div id="listaTemposContainer" class="tempos-checklist-container"></div>
+        <div id="resumoTemposSelecionados" class="tempos-summary-badge">0 tempos selecionados</div>
+      </div>
+
       <div class="form-group">
         <label class="form-label" for="inputDataFalta">Data da Ausência / Falta:</label>
         <input type="date" id="inputDataFalta" class="custom-input">
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="inputMotivoFalta">Motivo / Justificativa (Opcional):</label>
-        <input type="text" id="inputMotivoFalta" class="custom-input" placeholder="Ex: Consulta médica, banca examinadora, capacitação">
+        <label class="form-label" for="inputMotivoFalta">Motivo / Justificativa (Única para todos os tempos marcados):</label>
+        <input type="text" id="inputMotivoFalta" class="custom-input" placeholder="Ex: Consulta médica, banca examinadora, capacitação, atestado">
       </div>
 
-      <p style="font-size: 12px; color: var(--text-secondary);">
-        Ao confirmar, a aula ficará vermelha para toda a instituição e um e-mail de alerta será disparado para a coordenação.
-      </p>
+      <p id="modalLiberarDesc" style="font-size: 11px; color: var(--primary-color); font-weight: 600; margin-top: 6px;"></p>
+
+      <div class="modal-info-box">
+        ℹ️ Todos os tempos selecionados serão disponibilizados simultaneamente para substituição e a coordenação pedagógica receberá uma notificação única consolidada.
+      </div>
     </div>
     <div class="modal-actions">
       <button type="button" class="btn-secondary btn-cancelar-modal">Cancelar</button>
-      <button type="button" id="btnConfirmarLiberar" class="btn-danger">Confirmar e Notificar</button>
+      <button type="button" id="btnConfirmarLiberar" class="btn-danger">
+        <span id="textoBtnConfirmarLiberar">Confirmar Falta</span>
+      </button>
     </div>
   </div>
 </div>
@@ -672,8 +694,8 @@
 <!-- Toast de Notificações -->
 <div id="toast">Notificação</div>
 
-<script src="./api.js"></script>
-<script src="./app.js"></script>
+<script src="./api.js?v=3.2"></script>
+<script src="./app.js?v=3.2"></script>
 
 </body>
 </html>

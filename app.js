@@ -95,7 +95,43 @@ function configurarEventosInterface() {
     renderizarGradePorTurma(e.target.value);
   });
 
-  // Botões de Ação de Reposição e Trocas
+  // Botões de Ação de Falta, Reposição e Trocas
+  const btnAusenciaTop = document.getElementById("btnOpenModalAusenciaMultipla");
+  if (btnAusenciaTop) {
+    btnAusenciaTop.addEventListener("click", () => abrirModalLiberar(usuarioLogado));
+  }
+
+  const selectDiaFalta = document.getElementById("selectDiaFalta");
+  if (selectDiaFalta) {
+    selectDiaFalta.addEventListener("change", (e) => {
+      atualizarChecklistTemposFalta(usuarioLogado, e.target.value);
+    });
+  }
+
+  const btnMarcarTodos = document.getElementById("btnMarcarTodosTempos");
+  if (btnMarcarTodos) {
+    btnMarcarTodos.addEventListener("click", () => {
+      document.querySelectorAll(".tempo-chk").forEach((chk) => {
+        chk.checked = true;
+        const item = chk.closest(".tempo-checkbox-item");
+        if (item) item.classList.add("selected");
+      });
+      atualizarContadorTemposSelecionados();
+    });
+  }
+
+  const btnDesmarcarTodos = document.getElementById("btnDesmarcarTodosTempos");
+  if (btnDesmarcarTodos) {
+    btnDesmarcarTodos.addEventListener("click", () => {
+      document.querySelectorAll(".tempo-chk").forEach((chk) => {
+        chk.checked = false;
+        const item = chk.closest(".tempo-checkbox-item");
+        if (item) item.classList.remove("selected");
+      });
+      atualizarContadorTemposSelecionados();
+    });
+  }
+
   document.getElementById("btnOpenModalReposicao").addEventListener("click", abrirModalReposicao);
   document.getElementById("btnNovaReposicaoTab").addEventListener("click", abrirModalReposicao);
   document.getElementById("btnConfirmarReposicao").addEventListener("click", executarAgendarReposicao);
@@ -918,44 +954,206 @@ function verificarConflito(diaAlvo, horaAlvo, professorAlvo = usuarioLogado) {
 }
 
 // ============================================================================
-// MODAL & AÇÃO: LIBERAR AULA (AUSÊNCIA)
+// MODAL & AÇÃO: LIBERAR AULAS (AUSÊNCIA EM MÚLTIPLOS TEMPOS)
 // ============================================================================
-function abrirModalLiberar(prof, index) {
-  const aula = bancoDeDados[prof][index];
-  aulaSelecionadaParaAcao = { prof, index, aula };
+function abrirModalLiberar(prof, indexInicial) {
+  prof = prof || usuarioLogado;
+  const todasMinhasAulas = bancoDeDados[prof] || [];
 
-  const dests = API.obterDestinatariosPorTurma(aula.turma);
-  document.getElementById("modalLiberarDesc").innerHTML = 
-    `<strong>${aula.disc} - ${aula.turma}</strong> (${aula.dia} às ${aula.hora})<br>` +
-    `<span style="font-size: 11px; color: var(--primary-color); font-weight: 600;">📬 Coordenadores a notificar: ${dests}</span>`;
-  
+  if (todasMinhasAulas.length === 0) {
+    mostrarToast("Você não possui aulas cadastradas na sua grade.");
+    return;
+  }
+
+  // Obtém todos os dias da semana em que o docente leciona
+  const diasOrdem = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"];
+  const diasComAula = [];
+  diasOrdem.forEach((dia) => {
+    if (todasMinhasAulas.some((a) => a.dia === dia)) {
+      diasComAula.push(dia);
+    }
+  });
+
+  const selectDia = document.getElementById("selectDiaFalta");
+  selectDia.innerHTML = "";
+  diasComAula.forEach((d) => {
+    const opt = document.createElement("option");
+    opt.value = d;
+    opt.innerText = d;
+    selectDia.appendChild(opt);
+  });
+
+  // Se clicou a partir de um card específico, foca no dia daquela aula
+  let diaAlvo = diasComAula[0];
+  if (indexInicial !== undefined && indexInicial !== null && todasMinhasAulas[indexInicial]) {
+    diaAlvo = todasMinhasAulas[indexInicial].dia;
+  }
+  selectDia.value = diaAlvo;
+
+  // Renderiza a checklist de tempos para aquele dia e pré-seleciona
+  atualizarChecklistTemposFalta(prof, diaAlvo, indexInicial);
+
+  // Calcula a data padrão sugerida (próxima ocorrência do dia ou hoje)
   const inputData = document.getElementById("inputDataFalta");
-  const hoje = new Date();
-  inputData.value = hoje.toISOString().split("T")[0];
+  inputData.value = calcularProximaDataParaDia(diaAlvo);
 
   document.getElementById("inputMotivoFalta").value = "";
   abrirModal("modalLiberar");
 }
 
-document.getElementById("btnConfirmarLiberar").addEventListener("click", () => {
-  if (!aulaSelecionadaParaAcao) return;
-  const { prof, index, aula } = aulaSelecionadaParaAcao;
+function calcularProximaDataParaDia(diaSemanaStr) {
+  const mapDias = {
+    "Domingo": 0, "Segunda-feira": 1, "Terça-feira": 2,
+    "Quarta-feira": 3, "Quinta-feira": 4, "Sexta-feira": 5, "Sábado": 6
+  };
+  const targetDay = mapDias[diaSemanaStr];
+  const hoje = new Date();
+  if (targetDay === undefined) {
+    return hoje.toISOString().split("T")[0];
+  }
+  const currentDay = hoje.getDay();
+  let diff = targetDay - currentDay;
+  if (diff < 0) diff += 7; // Próxima semana
+  const targetDate = new Date(hoje.getTime() + diff * 86400000);
+  return targetDate.toISOString().split("T")[0];
+}
 
+function atualizarChecklistTemposFalta(prof, diaSelecionado, indexPreselecionado) {
+  prof = prof || usuarioLogado;
+  const container = document.getElementById("listaTemposContainer");
+  container.innerHTML = "";
+
+  const todasAulas = bancoDeDados[prof] || [];
+  const aulasDoDia = [];
+
+  todasAulas.forEach((aula, idx) => {
+    if (aula.dia === diaSelecionado) {
+      aulasDoDia.push({ ...aula, indexOriginal: idx });
+    }
+  });
+
+  if (aulasDoDia.length === 0) {
+    container.innerHTML = `<div style="font-size:12px; color:var(--text-muted); padding:10px;">Nenhuma aula cadastrada para ${diaSelecionado}.</div>`;
+    atualizarContadorTemposSelecionados();
+    return;
+  }
+
+  // Ordena por horário
+  aulasDoDia.sort((a, b) => extrairMinutosDoHorario(a.hora) - extrairMinutosDoHorario(b.hora));
+
+  // Identifica quais devem vir marcados por padrão:
+  const indicesParaMarcar = new Set();
+  if (indexPreselecionado !== undefined && indexPreselecionado !== null) {
+    const aulaClicada = todasAulas[indexPreselecionado];
+    if (aulaClicada) {
+      const minClicado = extrairMinutosDoHorario(aulaClicada.hora);
+      const ehNoturno = minClicado >= 18 * 60;
+      aulasDoDia.forEach((a) => {
+        const minA = extrairMinutosDoHorario(a.hora);
+        const aNoturno = minA >= 18 * 60;
+        // Se ambos são noturnos (ex: Subsequente) ou ambos diurnos da mesma turma, marca o bloco
+        if ((ehNoturno && aNoturno) || (!ehNoturno && !aNoturno && a.turma === aulaClicada.turma)) {
+          indicesParaMarcar.add(a.indexOriginal);
+        }
+      });
+      indicesParaMarcar.add(indexPreselecionado);
+    }
+  } else {
+    // Se abriu pelo botão do topo, marca todas as aulas do dia por padrão
+    aulasDoDia.forEach((a) => indicesParaMarcar.add(a.indexOriginal));
+  }
+
+  aulasDoDia.forEach((aula) => {
+    const isChecked = indicesParaMarcar.has(aula.indexOriginal);
+    const itemLabel = document.createElement("label");
+    itemLabel.className = `tempo-checkbox-item ${isChecked ? "selected" : ""}`;
+
+    itemLabel.innerHTML = `
+      <input type="checkbox" class="tempo-chk" value="${aula.indexOriginal}" ${isChecked ? "checked" : ""}>
+      <div class="tempo-info">
+        <div class="tempo-row-top">
+          <span class="tempo-horario">⏰ ${aula.hora}</span>
+          <span class="tempo-turma-badge">${aula.turma}</span>
+        </div>
+        <span class="tempo-disc">${aula.disc}</span>
+      </div>
+    `;
+
+    const chk = itemLabel.querySelector(".tempo-chk");
+    chk.addEventListener("change", () => {
+      if (chk.checked) {
+        itemLabel.classList.add("selected");
+      } else {
+        itemLabel.classList.remove("selected");
+      }
+      atualizarContadorTemposSelecionados();
+    });
+
+    container.appendChild(itemLabel);
+  });
+
+  atualizarContadorTemposSelecionados();
+}
+
+function atualizarContadorTemposSelecionados() {
+  const selecionados = document.querySelectorAll(".tempo-chk:checked");
+  const count = selecionados.length;
+  const badge = document.getElementById("resumoTemposSelecionados");
+  const btnTxt = document.getElementById("textoBtnConfirmarLiberar");
+
+  if (badge) {
+    badge.innerText = `${count} tempo${count !== 1 ? "s" : ""} selecionado${count !== 1 ? "s" : ""}`;
+  }
+
+  if (btnTxt) {
+    btnTxt.innerText = count > 0 
+      ? `Confirmar Falta (${count} tempo${count !== 1 ? "s" : ""})`
+      : "Confirmar Falta";
+  }
+
+  // Notificação de Coordenadores baseada nas turmas marcadas
+  const turmasSet = new Set();
+  selecionados.forEach((chk) => {
+    const idx = parseInt(chk.value, 10);
+    if (bancoDeDados[usuarioLogado] && bancoDeDados[usuarioLogado][idx]) {
+      turmasSet.add(bancoDeDados[usuarioLogado][idx].turma);
+    }
+  });
+
+  const descCoordenadores = document.getElementById("modalLiberarDesc");
+  if (descCoordenadores) {
+    if (turmasSet.size > 0) {
+      const dests = Array.from(turmasSet).map((t) => API.obterDestinatariosPorTurma(t)).join(", ");
+      descCoordenadores.innerHTML = `📬 Coordenadores que receberão o aviso: <strong>${dests}</strong>`;
+    } else {
+      descCoordenadores.innerText = "Nenhum tempo selecionado.";
+    }
+  }
+}
+
+document.getElementById("btnConfirmarLiberar").addEventListener("click", () => {
+  const checkboxes = Array.from(document.querySelectorAll(".tempo-chk:checked"));
+  if (checkboxes.length === 0) {
+    mostrarToast("Por favor, selecione pelo menos um tempo de aula.");
+    return;
+  }
+
+  const indicesSelecionados = checkboxes.map((chk) => parseInt(chk.value, 10));
   const dataFalta = document.getElementById("inputDataFalta").value;
   const motivo = document.getElementById("inputMotivoFalta").value.trim();
 
   fecharTodosModais();
 
   bancoDeDados = API.processarAcao({
-    acao: "libertar",
-    profOriginal: prof,
-    index,
-    dataFalta,
-    motivo
+    acao: "libertar_multiplos",
+    profOriginal: usuarioLogado,
+    indices: indicesSelecionados,
+    dataFalta: dataFalta,
+    motivo: motivo
   });
 
   renderizarTudo();
-  mostrarToast(`Aula liberada! Ausência comunicada.`);
+  mostrarToast(`Sucesso! Falta registrada para ${indicesSelecionados.length} tempos de aula.`);
 });
 
 // ============================================================================
