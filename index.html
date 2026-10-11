@@ -45,6 +45,8 @@
             <option value="Alyrio">Prof. Alyrio</option>
             <option value="Ângelo">Prof. Ângelo</option>
             <option value="Christiano">Prof. Christiano</option>
+            <option value="Elliot">Prof. Elliot</option>
+            <option value="Emerson">Prof. Emerson</option>
             <option value="Eric">Prof. Eric</option>
             <option value="Felippe">Prof. Felippe</option>
             <option value="Fernanda">Profa. Fernanda</option>
@@ -52,6 +54,7 @@
             <option value="Luiz Felipe">Prof. Luiz Felipe</option>
             <option value="Pedro Ernesto">Prof. Pedro Ernesto</option>
             <option value="Pedro Goes">Prof. Pedro Goes</option>
+            <option value="Rafael">Prof. Rafael</option>
             <option value="Raisa">Profa. Raisa</option>
             <option value="Sanderson">Prof. Sanderson</option>
             <option value="Sérgio">Prof. Sérgio</option>
@@ -219,15 +222,22 @@
       <!-- ABA 4: GRADE POR TURMA -->
       <div id="tab-turmas" class="tab-pane">
         <div class="form-group" style="margin-bottom: 12px;">
-          <label class="form-label" for="filtroTurmaSelect">Filtrar por Turma Integrada:</label>
+          <label class="form-label" for="filtroTurmaSelect">Filtrar por Turma (Integrado & Subsequente):</label>
           <div class="select-wrapper">
             <select id="filtroTurmaSelect" class="custom-select">
-              <option value="1º DS">1º Desenvolvimento de Sistemas (1º DS)</option>
-              <option value="2º DS">2º Desenvolvimento de Sistemas (2º DS)</option>
-              <option value="3º DS">3º Desenvolvimento de Sistemas (3º DS)</option>
-              <option value="1º ADM">1º Administração (1º ADM)</option>
-              <option value="2º ADM">2º Administração (2º ADM)</option>
-              <option value="3º ADM">3º Administração (3º ADM)</option>
+              <optgroup label="Cursos Técnicos Integrados (Diurno)">
+                <option value="1º DS">1º Desenvolvimento de Sistemas (1º DS)</option>
+                <option value="2º DS">2º Desenvolvimento de Sistemas (2º DS)</option>
+                <option value="3º DS">3º Desenvolvimento de Sistemas (3º DS)</option>
+                <option value="1º ADM">1º Administração (1º ADM)</option>
+                <option value="2º ADM">2º Administração (2º ADM)</option>
+                <option value="3º ADM">3º Administração (3º ADM)</option>
+              </optgroup>
+              <optgroup label="Cursos Técnicos Subsequentes (Noturno)">
+                <option value="1º Info">1º Semestre Informática (1º Info - Subsequente)</option>
+                <option value="3º Info">3º Semestre Informática (3º Info - Subsequente)</option>
+                <option value="2º Comércio">2º Semestre Comércio (2º Comércio - Subsequente)</option>
+              </optgroup>
             </select>
           </div>
         </div>
@@ -300,12 +310,19 @@
             <div class="select-wrapper">
               <select id="filtroRelatorioTurma" class="custom-select">
                 <option value="TODAS">Todas as Turmas</option>
-                <option value="1º DS">1º DS</option>
-                <option value="2º DS">2º DS</option>
-                <option value="3º DS">3º DS</option>
-                <option value="1º ADM">1º ADM</option>
-                <option value="2º ADM">2º ADM</option>
-                <option value="3º ADM">3º ADM</option>
+                <optgroup label="Integrado (Diurno)">
+                  <option value="1º DS">1º DS</option>
+                  <option value="2º DS">2º DS</option>
+                  <option value="3º DS">3º DS</option>
+                  <option value="1º ADM">1º ADM</option>
+                  <option value="2º ADM">2º ADM</option>
+                  <option value="3º ADM">3º ADM</option>
+                </optgroup>
+                <optgroup label="Subsequente (Noturno)">
+                  <option value="1º Info">1º Info (Subsequente)</option>
+                  <option value="3º Info">3º Info (Subsequente)</option>
+                  <option value="2º Comércio">2º Comércio (Subsequente)</option>
+                </optgroup>
               </select>
             </div>
           </div>

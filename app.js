@@ -347,8 +347,15 @@ function renderizarMinhaGrade() {
     aulasPorDia[a.dia].push(a);
   });
 
+function extrairMinutosDoHorario(horaStr) {
+  if (!horaStr) return 0;
+  const match = String(horaStr).match(/(\d{1,2})[:h](\d{2})/);
+  return match ? parseInt(match[1], 10) * 60 + parseInt(match[2], 10) : 0;
+}
+
   diasOrdem.forEach((dia) => {
     if (aulasPorDia[dia] && aulasPorDia[dia].length > 0) {
+      aulasPorDia[dia].sort((a, b) => extrairMinutosDoHorario(a.hora) - extrairMinutosDoHorario(b.hora));
       container.innerHTML += `<div class="day-header">${dia}</div>`;
       let cardsHTML = `<div class="cards-grid">`;
       aulasPorDia[dia].forEach((aula) => {
@@ -385,6 +392,13 @@ function renderizarAulasLivres() {
       </div>`;
     return;
   }
+
+  const diasOrdem = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"];
+  aulasLivres.sort((a, b) => {
+    const dDiff = diasOrdem.indexOf(a.dia) - diasOrdem.indexOf(b.dia);
+    if (dDiff !== 0) return dDiff;
+    return extrairMinutosDoHorario(a.hora) - extrairMinutosDoHorario(b.hora);
+  });
 
   let cardsHTML = `<div class="cards-grid">`;
   aulasLivres.forEach((aula) => {
@@ -527,6 +541,7 @@ function renderizarGradePorTurma(turmaAlvo) {
 
   diasOrdem.forEach((dia) => {
     if (agrupado[dia] && agrupado[dia].length > 0) {
+      agrupado[dia].sort((a, b) => extrairMinutosDoHorario(a.hora) - extrairMinutosDoHorario(b.hora));
       container.innerHTML += `<div class="day-header">${dia}</div>`;
       let cardsHTML = `<div class="cards-grid">`;
       agrupado[dia].forEach((aula) => {
@@ -1039,11 +1054,10 @@ function abrirModalTroca(prof, index) {
   const selectColega = document.getElementById("selectColegaTroca");
   selectColega.innerHTML = '<option value="" disabled selected>Selecione o professor colega...</option>';
   
-  for (const colega in bancoDeDados) {
-    if (colega !== usuarioLogado) {
-      selectColega.innerHTML += `<option value="${colega}">Prof. ${colega}</option>`;
-    }
-  }
+  const colegas = Object.keys(bancoDeDados).filter(c => c !== usuarioLogado).sort();
+  colegas.forEach((colega) => {
+    selectColega.innerHTML += `<option value="${colega}">Prof. ${colega}</option>`;
+  });
 
   document.getElementById("selectAulaColega").innerHTML = '<option value="" disabled selected>Escolha primeiro o colega acima...</option>';
   const inputData = document.getElementById("inputDataTroca");
@@ -1295,6 +1309,7 @@ function salvarNovoPin() {
 function resetarDadosDemo() {
   if (confirm("Deseja restaurar os horários, trocas e e-mails para o padrão de demonstração do IFS?")) {
     localStorage.removeItem("IFS_LOCAL_DATABASE");
+    localStorage.removeItem("IFS_DB_VERSION");
     localStorage.removeItem("IFS_TROCAS_PERMUTAS");
     localStorage.removeItem("IFS_REPOSICOES_AULAS");
     localStorage.removeItem("IFS_EMAILS_LOG");
