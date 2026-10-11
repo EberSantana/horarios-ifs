@@ -25,6 +25,7 @@ const DEFAULT_BACKEND_URL = "https://script.google.com/macros/s/AKfycbwlITC2JrJ3
 const DEFAULT_EMAILS_CONFIG = {
   emailCoordDS: "coordenacao.ds.tb@ifs.edu.br",
   emailCoordADM: "coordenacao.adm.tb@ifs.edu.br",
+  emailCoordSubsequente: "coinf.tbarreto@ifs.edu.br",
   emailCoordGeral: "coordenacao.tobiasbarreto@ifs.edu.br",
   emailDirecao: "direcao.tobiasbarreto@ifs.edu.br",
   notificarFalta: true,
@@ -246,20 +247,28 @@ const API = {
   // Configurações de E-mails da Coordenação
   getEmailsConfig() {
     const config = localStorage.getItem(STORAGE_KEY_EMAILS_CONFIG);
-    return config ? JSON.parse(config) : DEFAULT_EMAILS_CONFIG;
+    if (!config) return { ...DEFAULT_EMAILS_CONFIG };
+    try {
+      const parsed = JSON.parse(config);
+      return { ...DEFAULT_EMAILS_CONFIG, ...parsed };
+    } catch (e) {
+      return { ...DEFAULT_EMAILS_CONFIG };
+    }
   },
 
   saveEmailsConfig(config) {
     localStorage.setItem(STORAGE_KEY_EMAILS_CONFIG, JSON.stringify(config));
   },
 
-  // Roteia automaticamente para o coordenador de DS, ADM e Geral
+  // Roteia automaticamente para o coordenador de Subsequente (COINF), DS, ADM e Geral
   obterDestinatariosPorTurma(turma) {
     const config = this.getEmailsConfig();
     const dests = [];
     const t = (turma || "").toUpperCase();
 
-    if (t.includes("DS") || t.includes("INFO")) {
+    if (t.includes("SUBSEQUENTE") || t.includes("INFO")) {
+      if (config.emailCoordSubsequente) dests.push(config.emailCoordSubsequente);
+    } else if (t.includes("DS")) {
       if (config.emailCoordDS) dests.push(config.emailCoordDS);
     } else if (t.includes("ADM") || t.includes("COMÉRCIO") || t.includes("COMERCIO")) {
       if (config.emailCoordADM) dests.push(config.emailCoordADM);

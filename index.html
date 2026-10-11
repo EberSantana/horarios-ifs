@@ -11,7 +11,7 @@
   
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=3.4">
+  <link rel="stylesheet" href="./styles.css?v=3.5">
 </head>
 <body>
 
@@ -620,7 +620,7 @@
       
       <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--primary-dark);">📧 Coordenadores por Curso (IFS Tobias Barreto):</h4>
       <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
-        O sistema envia notificações automaticamente para o coordenador específico do curso da aula afetada (turmas DS ou turmas ADM) mais a coordenação pedagógica.
+        O sistema envia notificações automaticamente para o coordenador específico do curso da aula afetada (turmas DS, ADM ou Subsequente em Informática) mais a coordenação pedagógica.
       </p>
       
       <div class="form-group">
@@ -630,6 +630,10 @@
       <div class="form-group">
         <label class="form-label" for="configEmailCoordADM">E-mail Coordenação de Administração (ADM):</label>
         <input type="email" id="configEmailCoordADM" class="custom-input" placeholder="coordenacao.adm.tb@ifs.edu.br">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="configEmailCoordSubsequente">E-mail Coordenação do Subsequente em Informática (COINF):</label>
+        <input type="email" id="configEmailCoordSubsequente" class="custom-input" placeholder="coinf.tbarreto@ifs.edu.br">
       </div>
       <div class="form-group">
         <label class="form-label" for="configEmailCoordGeral">E-mail Coordenação Pedagógica Geral (DEN):</label>
@@ -723,8 +727,8 @@
 <!-- Toast de Notificações -->
 <div id="toast">Notificação</div>
 
-<script src="./api.js?v=3.4"></script>
-<script src="./app.js?v=3.4"></script>
+<script src="./api.js?v=3.5"></script>
+<script src="./app.js?v=3.5"></script>
 
 </body>
 </html>

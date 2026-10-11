@@ -1,5 +1,5 @@
 // Service Worker - Painel Docente IFS Tobias Barreto
-const CACHE_NAME = 'ifs-painel-v5-subsequente-multitempos';
+const CACHE_NAME = 'ifs-painel-v6-coinf-subsequente';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

@@ -1771,6 +1771,7 @@ function abrirModalConfig() {
   const config = API.getEmailsConfig();
   document.getElementById("configEmailCoordDS").value = config.emailCoordDS || "";
   document.getElementById("configEmailCoordADM").value = config.emailCoordADM || "";
+  document.getElementById("configEmailCoordSubsequente").value = config.emailCoordSubsequente || "coinf.tbarreto@ifs.edu.br";
   document.getElementById("configEmailCoordGeral").value = config.emailCoordGeral || "";
   document.getElementById("configEmailDir").value = config.emailDirecao || "";
   document.getElementById("chkNotifFalta").checked = !!config.notificarFalta;
@@ -1789,6 +1790,7 @@ function salvarConfiguracoes() {
   const novaConfig = {
     emailCoordDS: document.getElementById("configEmailCoordDS").value.trim() || "coordenacao.ds.tb@ifs.edu.br",
     emailCoordADM: document.getElementById("configEmailCoordADM").value.trim() || "coordenacao.adm.tb@ifs.edu.br",
+    emailCoordSubsequente: document.getElementById("configEmailCoordSubsequente").value.trim() || "coinf.tbarreto@ifs.edu.br",
     emailCoordGeral: document.getElementById("configEmailCoordGeral").value.trim() || "coordenacao.tobiasbarreto@ifs.edu.br",
     emailDirecao: document.getElementById("configEmailDir").value.trim() || "direcao.tobiasbarreto@ifs.edu.br",
     notificarFalta: document.getElementById("chkNotifFalta").checked,

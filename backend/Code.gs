@@ -18,6 +18,7 @@
 var CONFIG_PADRAO = {
   EMAIL_COORD_DS: "coordenacao.ds.tb@ifs.edu.br",
   EMAIL_COORD_ADM: "coordenacao.adm.tb@ifs.edu.br",
+  EMAIL_COORD_SUBSEQUENTE: "coinf.tbarreto@ifs.edu.br",
   EMAIL_COORD_GERAL: "coordenacao.tobiasbarreto@ifs.edu.br",
   EMAIL_DIRECAO: "direcao.tobiasbarreto@ifs.edu.br",
   DOMINIO_INSTITUCIONAL: "@ifs.edu.br",
@@ -33,8 +34,13 @@ function obterEmailsPorTurma(turma, config) {
   var dests = [];
   var t = (turma || "").toUpperCase();
 
+  // Verifica se a turma é do Subsequente em Informática
+  if (t.indexOf("SUBSEQUENTE") !== -1 || t.indexOf("INFO") !== -1) {
+    var emailSub = cfg.emailCoordSubsequente || CONFIG_PADRAO.EMAIL_COORD_SUBSEQUENTE;
+    if (emailSub) dests.push(emailSub);
+  }
   // Verifica se a turma é de Desenvolvimento de Sistemas (DS)
-  if (t.indexOf("DS") !== -1) {
+  else if (t.indexOf("DS") !== -1) {
     var emailDS = cfg.emailCoordDS || CONFIG_PADRAO.EMAIL_COORD_DS;
     if (emailDS) dests.push(emailDS);
   }
