@@ -23,10 +23,10 @@ let aulaSelecionadaParaAcao = null;
 // ============================================================================
 // INICIALIZAÇÃO
 // ============================================================================
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
   registrarServiceWorker();
   configurarEventosInterface();
-  await carregarDadosIniciais();
+  carregarDadosIniciais();
   verificarLoginSalvo();
 });
 
@@ -38,16 +38,13 @@ function registrarServiceWorker() {
   }
 }
 
-async function carregarDadosIniciais() {
-  atualizarIndicadorSincronismo("atualizando", "Carregando horários...");
-  const resultado = await API.carregarGradeCompleta();
-  bancoDeDados = resultado.data;
-  
-  if (resultado.online) {
-    atualizarIndicadorSincronismo("online", "Conectado ao Google Sheets");
-  } else {
-    atualizarIndicadorSincronismo("local", "Modo Rápido / Base Local");
-  }
+function carregarDadosIniciais() {
+  // 1. Carregamento ultra-rápido instantâneo do cache local (0ms)
+  bancoDeDados = API.getLocalDatabase();
+  renderizarTudo();
+
+  // 2. Sincronização em segundo plano sem travar o app
+  recarregarDados(true);
 }
 
 function verificarLoginSalvo() {
@@ -80,10 +77,12 @@ function configurarEventosInterface() {
     });
   });
 
-  // Refresh manual
-  document.getElementById("btnManualRefresh").addEventListener("click", async () => {
-    await recarregarDados();
-    mostrarToast("Grade atualizada com sucesso!");
+  // Refresh manual com feedback imediato
+  document.getElementById("btnManualRefresh").addEventListener("click", () => {
+    mostrarToast("Consultando atualizações no Google Sheets...");
+    recarregarDados(false).then(() => {
+      mostrarToast("Grade sincronizada com sucesso!");
+    });
   });
 
   // Botão de Alerta no Banner
@@ -938,7 +937,7 @@ function abrirModalLiberar(prof, index) {
   abrirModal("modalLiberar");
 }
 
-document.getElementById("btnConfirmarLiberar").addEventListener("click", async () => {
+document.getElementById("btnConfirmarLiberar").addEventListener("click", () => {
   if (!aulaSelecionadaParaAcao) return;
   const { prof, index, aula } = aulaSelecionadaParaAcao;
 
@@ -946,9 +945,8 @@ document.getElementById("btnConfirmarLiberar").addEventListener("click", async (
   const motivo = document.getElementById("inputMotivoFalta").value.trim();
 
   fecharTodosModais();
-  atualizarIndicadorSincronismo("atualizando", "Notificando coordenação...");
 
-  await API.executarAcao({
+  bancoDeDados = API.processarAcao({
     acao: "libertar",
     profOriginal: prof,
     index,
@@ -956,8 +954,8 @@ document.getElementById("btnConfirmarLiberar").addEventListener("click", async (
     motivo
   });
 
-  await recarregarDados();
-  mostrarToast(`Aula liberada! E-mails institucionais enviados.`);
+  renderizarTudo();
+  mostrarToast(`Aula liberada! Ausência comunicada.`);
 });
 
 // ============================================================================
@@ -980,40 +978,37 @@ function prepararAssumirAula(profOriginal, index) {
   abrirModal("modalAssumir");
 }
 
-document.getElementById("btnConfirmarAssumir").addEventListener("click", async () => {
+document.getElementById("btnConfirmarAssumir").addEventListener("click", () => {
   if (!aulaSelecionadaParaAcao) return;
   const { profOriginal, index, aula } = aulaSelecionadaParaAcao;
 
   fecharTodosModais();
-  atualizarIndicadorSincronismo("atualizando", "Registrando substituição...");
 
-  await API.executarAcao({
+  bancoDeDados = API.processarAcao({
     acao: "assumir",
     profOriginal,
     index,
     substituto: usuarioLogado
   });
 
-  await recarregarDados();
-  mostrarToast(`Sucesso! Aula de ${aula.disc} assumida e e-mails disparados.`);
+  renderizarTudo();
+  mostrarToast(`Sucesso! Aula de ${aula.disc} assumida.`);
 });
 
-async function cancelarAusencia(prof, index) {
+function cancelarAusencia(prof, index) {
   const aula = bancoDeDados[prof][index];
   if (confirm(`Deseja cancelar a ausência e lecionar a aula de ${aula.disc} normalmente?`)) {
-    atualizarIndicadorSincronismo("atualizando", "Restaurando aula...");
-    await API.executarAcao({ acao: "recuperar", profOriginal: prof, index });
-    await recarregarDados();
+    bancoDeDados = API.processarAcao({ acao: "recuperar", profOriginal: prof, index });
+    renderizarTudo();
     mostrarToast("Aula restaurada na sua grade normal!");
   }
 }
 
-async function desistirSubstituicao(profOriginal, index) {
+function desistirSubstituicao(profOriginal, index) {
   if (confirm("Deseja desistir desta substituição? A aula voltará a ficar disponível para outros colegas.")) {
-    atualizarIndicadorSincronismo("atualizando", "Cancelando substituição...");
-    await API.executarAcao({ acao: "libertar", profOriginal, index });
-    await recarregarDados();
-    mostrarToast("Substituição cancelada. A aula voltou para o mural de disponíveis.");
+    bancoDeDados = API.processarAcao({ acao: "libertar", profOriginal, index });
+    renderizarTudo();
+    mostrarToast("Substituição desfeita. A aula voltou para o mural de disponíveis.");
   }
 }
 
@@ -1123,7 +1118,6 @@ async function executarPropostaTroca() {
   }
 
   fecharTodosModais();
-  atualizarIndicadorSincronismo("atualizando", "Registrando proposta de permuta...");
 
   const novaTroca = {
     id: "TR-" + Date.now(),
@@ -1137,36 +1131,35 @@ async function executarPropostaTroca() {
     dataCriacao: new Date().toLocaleString("pt-BR")
   };
 
-  await API.executarAcao({
+  bancoDeDados = API.processarAcao({
     acao: "propor_troca",
     troca: novaTroca
   });
 
-  await recarregarDados();
-  mostrarToast(`Proposta de troca enviada ao Prof. ${colega} e coordenação!`);
+  renderizarTudo();
+  mostrarToast(`Proposta de troca enviada ao Prof. ${colega}!`);
 }
 
-async function aceitarTroca(trocaId) {
+function aceitarTroca(trocaId) {
   const trocas = API.getTrocas();
   const troca = trocas.find(t => t.id === trocaId);
   if (!troca) return;
 
   if (confirm(`Confirmar o aceite da troca com o Prof. ${troca.proponente}?`)) {
-    atualizarIndicadorSincronismo("atualizando", "Confirmando permuta...");
-    await API.executarAcao({
+    bancoDeDados = API.processarAcao({
       acao: "aceitar_troca",
       trocaId,
       troca
     });
-    await recarregarDados();
-    mostrarToast("Permuta confirmada com sucesso! E-mails de homologação disparados.");
+    renderizarTudo();
+    mostrarToast("Permuta confirmada com sucesso!");
   }
 }
 
-async function recusarTroca(trocaId) {
+function recusarTroca(trocaId) {
   if (confirm("Deseja recusar esta proposta de troca de aula?")) {
-    await API.executarAcao({ acao: "recusar_troca", trocaId });
-    await recarregarDados();
+    bancoDeDados = API.processarAcao({ acao: "recusar_troca", trocaId });
+    renderizarTudo();
     mostrarToast("Proposta de troca recusada.");
   }
 }
@@ -1196,7 +1189,7 @@ function abrirModalReposicao() {
   abrirModal("modalReposicao");
 }
 
-async function executarAgendarReposicao() {
+function executarAgendarReposicao() {
   const val = document.getElementById("selectDisciplinaReposicao").value;
   const [disc, turma] = val.includes("|") ? val.split("|") : [val, "Geral"];
   const data = document.getElementById("inputDataReposicao").value;
@@ -1210,7 +1203,6 @@ async function executarAgendarReposicao() {
   }
 
   fecharTodosModais();
-  atualizarIndicadorSincronismo("atualizando", "Agendando reposição...");
 
   const novaReposicao = {
     id: "REP-" + Date.now(),
@@ -1224,19 +1216,19 @@ async function executarAgendarReposicao() {
     dataCriacao: new Date().toLocaleString("pt-BR")
   };
 
-  await API.executarAcao({
+  bancoDeDados = API.processarAcao({
     acao: "agendar_reposicao",
     reposicao: novaReposicao
   });
 
-  await recarregarDados();
-  mostrarToast(`Reposição de aula cadastrada e avisada à coordenação!`);
+  renderizarTudo();
+  mostrarToast(`Reposição de aula cadastrada com sucesso!`);
 }
 
-async function cancelarReposicao(id) {
+function cancelarReposicao(id) {
   if (confirm("Deseja realmente cancelar este agendamento de reposição?")) {
-    await API.executarAcao({ acao: "cancelar_reposicao", id });
-    await recarregarDados();
+    bancoDeDados = API.processarAcao({ acao: "cancelar_reposicao", id });
+    renderizarTudo();
     mostrarToast("Reposição cancelada.");
   }
 }
@@ -1370,15 +1362,28 @@ function pararPolling() {
   if (pollingInterval) clearInterval(pollingInterval);
 }
 
-async function recarregarDados(silencioso = false) {
-  if (!silencioso) atualizarIndicadorSincronismo("atualizando", "Sincronizando...");
-  const resultado = await API.carregarGradeCompleta();
-  bancoDeDados = resultado.data;
-  renderizarTudo();
+let sincronizacaoEmAndamento = false;
 
-  if (resultado.online) {
-    atualizarIndicadorSincronismo("online", "Conectado ao Google Sheets");
-  } else {
+async function recarregarDados(silencioso = false) {
+  if (sincronizacaoEmAndamento) return;
+  sincronizacaoEmAndamento = true;
+
+  if (!silencioso) atualizarIndicadorSincronismo("atualizando", "Sincronizando...");
+  try {
+    const resultado = await API.carregarGradeCompleta();
+    bancoDeDados = resultado.data;
+    renderizarTudo();
+
+    if (resultado.online) {
+      atualizarIndicadorSincronismo("online", "Conectado ao Google Sheets");
+    } else {
+      atualizarIndicadorSincronismo("local", "Modo Rápido / Base Local");
+    }
+    return resultado;
+  } catch (err) {
+    console.warn("Aviso ao recarregar dados:", err);
     atualizarIndicadorSincronismo("local", "Modo Rápido / Base Local");
+  } finally {
+    sincronizacaoEmAndamento = false;
   }
 }

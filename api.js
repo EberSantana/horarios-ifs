@@ -445,41 +445,27 @@ const API = {
     return { sucesso: true, email: emailProf, pinPadrao: DEFAULT_PIN };
   },
 
-  // Carrega toda a grade com timeout e retry automático
+  // Carrega toda a grade com timeout rápido e sem bloqueio desnecessário
   async carregarGradeCompleta() {
     const url = this.getBackendUrl();
     if (!url) {
       return { online: false, data: this.getLocalDatabase() };
     }
 
-    const buscarGradeComTimeout = async (tempoLimiteMs = 9000) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), tempoLimiteMs);
-      try {
-        const response = await fetch(`${url}?action=obterGrade`, {
-          method: "GET",
-          headers: { "Accept": "application/json" },
-          cache: "no-store",
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await response.json();
-      } catch (e) {
-        clearTimeout(timeoutId);
-        throw e;
-      }
-    };
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5500);
 
     try {
-      let data = null;
-      try {
-        data = await buscarGradeComTimeout(9000);
-      } catch (primeiraTentativa) {
-        // Se a primeira tentativa falhar (Google acordando do cold-start), tenta novamente
-        await new Promise((r) => setTimeout(r, 1200));
-        data = await buscarGradeComTimeout(9000);
-      }
+      const response = await fetch(`${url}?action=obterGrade`, {
+        method: "GET",
+        headers: { "Accept": "application/json" },
+        cache: "no-store",
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
 
       if (data && typeof data === 'object' && Object.keys(data).length > 0) {
         const gradeMesclada = this.mesclarAulasComGoogleSheet(this.getLocalDatabase(), data);
@@ -488,19 +474,20 @@ const API = {
       }
       return { online: false, data: this.getLocalDatabase() };
     } catch (err) {
-      console.warn("Backend Google inacessível temporariamente. Usando base local:", err);
+      clearTimeout(timeoutId);
+      console.warn("Backend Google demorou para responder. Mantendo base rápida local:", err.message);
       return { online: false, data: this.getLocalDatabase() };
     }
   },
 
-  // Envia ação para o backend com suporte a concorrência e novos eventos
-  async executarAcao(payload) {
+  // Processamento otimista imediato (0ms) + envio assíncrono em segundo plano
+  processarAcao(payload) {
     const url = this.getBackendUrl();
     const config = this.getEmailsConfig();
     const localDb = this.getLocalDatabase();
     const { acao, profOriginal, index, substituto, dataFalta, motivo } = payload;
 
-    // 1. Processamento Local
+    // 1. Processamento Local Imediato (0ms)
     if (acao === "libertar" && localDb[profOriginal] && localDb[profOriginal][index]) {
       const aula = localDb[profOriginal][index];
       aula.status = "alert";
@@ -560,24 +547,29 @@ const API = {
       this.cancelarReposicaoLocal(id);
     }
 
-    // 2. Se backend online estiver configurado, sincroniza com Google Apps Script
+    const dbAtualizado = this.getLocalDatabase();
+
+    // 2. Dispara envio assíncrono em segundo plano para o Google Apps Script
     if (url) {
-      try {
-        const response = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ ...payload, emailsConfig: config }),
-          redirect: "follow"
-        });
-        const json = await response.json();
-        return { sucesso: true, remoto: true, resultado: json };
-      } catch (err) {
-        console.warn("Aviso ao sincronizar remotamente:", err);
-        return { sucesso: true, remoto: false, aviso: "Salvo localmente. Será sincronizado assim que a conexão retornar." };
-      }
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ ...payload, emailsConfig: config }),
+        redirect: "follow"
+      }).then(() => {
+        if (typeof atualizarIndicadorSincronismo === "function") {
+          atualizarIndicadorSincronismo("online", "Conectado ao Google Sheets");
+        }
+      }).catch(err => {
+        console.warn("Aviso ao sincronizar remotamente em segundo plano:", err);
+      });
     }
 
-    return { sucesso: true, remoto: false };
+    return dbAtualizado;
+  },
+
+  async executarAcao(payload) {
+    return this.processarAcao(payload);
   },
 
   // Consolidação de todos os eventos para a Aba de Relatórios
