@@ -65,10 +65,44 @@ document.addEventListener("DOMContentLoaded", () => {
 function registrarServiceWorker() {
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js")
-      .then(() => console.log("Service Worker registrado com sucesso!"))
+      .then((reg) => {
+        console.log("Service Worker registrado com sucesso!");
+        // Checar atualização no servidor imediatamente
+        reg.update().catch(() => {});
+
+        reg.addEventListener("updatefound", () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener("statechange", () => {
+              if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+                mostrarToast("Nova versão do sistema detectada! Atualizando...");
+                setTimeout(() => window.location.reload(), 1200);
+              }
+            });
+          }
+        });
+      })
       .catch((err) => console.log("Falha ao registrar Service Worker:", err));
+
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
   }
 }
+
+// Detecta quando o usuário volta para o app no iOS / celular (tira do estado congelado na memória)
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready.then((reg) => reg.update().catch(() => {}));
+    }
+    recarregarDados(true);
+  }
+});
 
 function carregarDadosIniciais() {
   // 1. Carregamento ultra-rápido instantâneo do cache local (0ms)
@@ -112,8 +146,12 @@ function configurarEventosInterface() {
   // Refresh manual com feedback imediato
   document.getElementById("btnManualRefresh").addEventListener("click", () => {
     mostrarToast("Consultando atualizações no Google Sheets...");
-    recarregarDados(false).then(() => {
-      mostrarToast("Grade sincronizada com sucesso!");
+    recarregarDados(false).then((resultado) => {
+      if (resultado && resultado.online) {
+        mostrarToast("Grade sincronizada com o Google Sheets!");
+      } else {
+        mostrarToast("Modo local ativo (Google Sheets demorou a responder)");
+      }
     });
   });
 
@@ -276,6 +314,10 @@ function configurarEventosInterface() {
   document.getElementById("btnOpenSettings").addEventListener("click", abrirModalConfig);
   document.getElementById("btnSalvarConfig").addEventListener("click", salvarConfiguracoes);
   document.getElementById("btnResetarDemo").addEventListener("click", resetarDadosDemo);
+  const btnForcarAtualizar = document.getElementById("btnForcarAtualizacaoApp");
+  if (btnForcarAtualizar) {
+    btnForcarAtualizar.addEventListener("click", forcarAtualizacaoApp);
+  }
 
   // Modal Alterar PIN
   document.getElementById("btnSalvarNovoPin").addEventListener("click", salvarNovoPin);
@@ -2299,6 +2341,30 @@ async function recarregarDados(silencioso = false) {
   }
 }
 
+// Força a atualização do app no iPhone/navegador limpando caches e reiniciando
+async function forcarAtualizacaoApp() {
+  mostrarToast("Limpando cache e atualizando sistema...");
+  try {
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const reg of regs) {
+        await reg.unregister();
+      }
+    }
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      for (const key of keys) {
+        await caches.delete(key);
+      }
+    }
+  } catch (e) {
+    console.warn("Aviso ao limpar caches:", e);
+  }
+  setTimeout(() => {
+    window.location.href = window.location.origin + window.location.pathname + "?v_reload=" + Date.now();
+  }, 400);
+}
+
 // ============================================================================
 // EXPOSIÇÃO GLOBAL PARA EVENTOS ONCLICK INLINE
 // ============================================================================
@@ -2314,3 +2380,4 @@ window.abrirModalReposicao = abrirModalReposicao;
 window.extrairMinutosDoHorario = extrairMinutosDoHorario;
 window.abrirModal = abrirModal;
 window.fecharTodosModais = fecharTodosModais;
+window.forcarAtualizacaoApp = forcarAtualizacaoApp;

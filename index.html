@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconLink" type="image/png" href="./icons/icon-192.png">
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=4.4">
+  <link rel="stylesheet" href="./styles.css?v=4.5">
 </head>
 <body>
 
@@ -695,7 +695,15 @@
         <label class="form-label" for="inputConfirmaPin">Confirmar Novo PIN:</label>
         <input type="password" id="inputConfirmaPin" class="custom-input" placeholder="Repita o novo PIN" maxlength="6" inputmode="numeric">
       </div>
-      <button type="button" id="btnSalvarNovoPin" class="btn-secondary" style="width: 100%; margin-bottom: 12px;">Gravar Novo PIN</button>
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 16px 0;">
+
+      <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--primary-dark);">📱 Aplicativo PWA & Atualizações:</h4>
+      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+        Se você estiver usando no iPhone ou navegador e novas atualizações não aparecerem de imediato, clique abaixo para descarregar o cache e recarregar a versão mais recente:
+      </p>
+      <button type="button" id="btnForcarAtualizacaoApp" class="btn-secondary" style="width: 100%; margin-bottom: 12px; font-weight: 600; color: #1b5e20;">
+        🔄 Atualizar Versão do App (Limpar Cache)
+      </button>
 
       <hr style="border: 0; border-top: 1px solid #eee; margin: 16px 0;">
 
@@ -752,8 +760,8 @@
 <!-- Toast de Notificações -->
 <div id="toast">Notificação</div>
 
-<script src="./api.js?v=4.4"></script>
-<script src="./app.js?v=4.4"></script>
+<script src="./api.js?v=4.5"></script>
+<script src="./app.js?v=4.5"></script>
 
 </body>
 </html>

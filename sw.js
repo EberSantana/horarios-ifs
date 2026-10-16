@@ -1,5 +1,5 @@
 // Service Worker - Painel Docente IFS Tobias Barreto
-const CACHE_NAME = 'ifs-painel-v15-clean-header';
+const CACHE_NAME = 'ifs-painel-v16-fast-sync';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -39,8 +39,8 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Ignora requisições para APIs externas (Google Apps Script)
-  if (event.request.url.includes('script.google.com')) {
+  // Ignora requisições para APIs externas (Google Apps Script e redirecionamentos Google)
+  if (event.request.url.includes('script.google.com') || event.request.url.includes('googleusercontent.com')) {
     return;
   }
 
@@ -59,7 +59,7 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       })
       .catch(() => {
-        return caches.match(event.request).then((cachedResponse) => {
+        return caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }
@@ -82,6 +82,8 @@ self.addEventListener('message', (event) => {
         self.navigator.clearAppBadge().catch(() => {});
       }
     }
+  } else if (event.data && event.data.tipo === 'SKIP_WAITING') {
+    self.skipWaiting();
   }
 });
 
