@@ -151,7 +151,7 @@ test('Email Routing', 'Roteamento COADM para turmas de Administração / Comérc
 
 test('Email Routing', 'Resolução de E-mails Docentes com Acentuação e Espaços', () => {
   assertEqual(API.obterEmailProfessor('Eber'), 'eber.santana@ifs.edu.br', 'Eber');
-  assertEqual(API.obterEmailProfessor('Ângelo'), 'angelo@ifs.edu.br', 'Ângelo com acento circunflexo');
+  assertEqual(API.obterEmailProfessor('Ângelo'), 'angelo.santos@ifs.edu.br', 'Ângelo com acento circunflexo');
   assertEqual(API.obterEmailProfessor('Sérgio'), 'sergio@ifs.edu.br', 'Sérgio com acento agudo');
   assertEqual(API.obterEmailProfessor('Luiz Felipe'), 'luiz.felipe@ifs.edu.br', 'Nome composto com espaço');
 });
