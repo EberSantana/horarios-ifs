@@ -72,22 +72,24 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Sincronização em segundo plano suave após a interface estar 100% pronta
-  setTimeout(() => recarregarDados(true), 1200);
+  setTimeout(() => recarregarDados(true), 50);
 });
 
 function registrarServiceWorker() {
   if ("serviceWorker" in navigator) {
+    // Só recarrega quando uma versão NOVA assume. Na primeira visita não havia controlador,
+    // e o clients.claim() provocava um reload desnecessário (página carregava 2 vezes).
+    const haviaControlador = !!navigator.serviceWorker.controller;
+
     navigator.serviceWorker.register("./sw.js")
       .then((reg) => {
         reg.update().catch(() => {});
-
         reg.addEventListener("updatefound", () => {
           const newWorker = reg.installing;
           if (newWorker) {
             newWorker.addEventListener("statechange", () => {
               if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
                 mostrarToast("Nova versão do sistema detectada! Atualizando...");
-                setTimeout(() => window.location.reload(), 1200);
               }
             });
           }
@@ -97,12 +99,20 @@ function registrarServiceWorker() {
 
     let refreshing = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (!refreshing) {
-        refreshing = true;
-        window.location.reload();
-      }
+      if (!haviaControlador || refreshing) return;
+      refreshing = true;
+      window.location.reload();
     });
   }
+}
+
+// Recebe do Service Worker a aba a abrir quando o professor toca numa notificação
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data && event.data.tipo === "ABRIR_ABA" && typeof alternarAba === "function") {
+      alternarAba(event.data.aba);
+    }
+  });
 }
 
 // Detecta quando o usuário volta para o app no iOS / celular com throttle de 20s
@@ -112,11 +122,11 @@ document.addEventListener("visibilitychange", () => {
       navigator.serviceWorker.ready.then((reg) => reg.update().catch(() => {}));
     }
     const agora = Date.now();
-    if (agora - ultimaSincronizacao > 20000 && usuarioLogado) {
-      ultimaSincronizacao = agora;
+    if (agora - ultimaSincronizacao > 10000 && usuarioLogado) {
       recarregarDados(true);
     }
   }
+  if (usuarioLogado) iniciarPolling();
 });
 
 // ============================================================================
@@ -799,6 +809,7 @@ async function solicitarPermissaoNotificacoesPWA() {
       const perm = await Notification.requestPermission();
       if (perm === 'granted') {
         mostrarToast("Alertas no ícone do PWA ativados com sucesso!");
+        exibirNotificacao("🔔 Notificações ativadas", "Você será avisado de faltas, substituições e trocas.", "teste", "tab-minha");
         atualizarContadoresEAlerta();
         abrirModalMudancasAlertas();
       } else {
@@ -2324,9 +2335,10 @@ function atualizarIndicadorSincronismo(status, texto) {
 // ============================================================================
 function iniciarPolling() {
   pararPolling();
+  const intervalo = document.visibilityState === "visible" ? 30000 : 90000;
   pollingInterval = setInterval(async () => {
     await recarregarDados(true);
-  }, 30000);
+  }, intervalo);
 }
 
 function pararPolling() {
@@ -2334,16 +2346,37 @@ function pararPolling() {
 }
 
 let sincronizacaoEmAndamento = false;
+let assinaturaUltimosDados = "";
+
+// Assinatura simples para saber se algo mudou (evita redesenhar a tela toda a cada 30 s)
+function assinaturaDados() {
+  try {
+    return JSON.stringify(bancoDeDados) + "|" +
+      JSON.stringify(API.getTrocas().map(t => t.id + t.status)) + "|" +
+      JSON.stringify(API.getReposicoes().map(r => r.id));
+  } catch (e) {
+    return String(Date.now());
+  }
+}
 
 async function recarregarDados(silencioso = false) {
   if (sincronizacaoEmAndamento) return;
   sincronizacaoEmAndamento = true;
+  ultimaSincronizacao = Date.now();
 
   if (!silencioso) atualizarIndicadorSincronismo("atualizando", "Sincronizando...");
   try {
     const resultado = await API.carregarGradeCompleta();
     bancoDeDados = resultado.data;
-    renderizarTudo();
+
+    const assinatura = assinaturaDados();
+    if (!silencioso || assinatura !== assinaturaUltimosDados) {
+      assinaturaUltimosDados = assinatura;
+      renderizarTudo();
+    }
+    if (resultado.online && !resultado.adiado) {
+      verificarNovidadesENotificar();
+    }
 
     if (resultado.online) {
       atualizarIndicadorSincronismo("online", "Conectado ao Google Sheets");
@@ -2357,6 +2390,74 @@ async function recarregarDados(silencioso = false) {
   } finally {
     sincronizacaoEmAndamento = false;
   }
+}
+
+// ============================================================================
+// NOTIFICAÇÕES DO SISTEMA (iPhone 16.4+ com o app na Tela de Início, Android e PC)
+// Antes o app só pedia permissão, mas nunca chamava showNotification().
+// ============================================================================
+const STORAGE_KEY_VISTOS = "IFS_NOTIF_VISTOS_V1";
+
+function verificarNovidadesENotificar() {
+  if (!usuarioLogado) return;
+
+  const atuais = {};
+  // Aulas de colegas precisando de substituto
+  for (const prof in bancoDeDados) {
+    (bancoDeDados[prof] || []).forEach((a) => {
+      if (a.status === "alert" && prof !== usuarioLogado) {
+        atuais[`falta:${prof}:${a.id}:${a.dataFalta || ""}`] =
+          { titulo: "🔴 Aula precisando de substituto", corpo: `${a.disc} (${a.turma}) – ${a.dia} ${a.hora} • Prof. ${prof}`, aba: "tab-livres" };
+      }
+      // Alguém assumiu uma aula minha
+      if (a.status === "assumed" && prof === usuarioLogado && a.substituto) {
+        atuais[`assumida:${a.id}:${a.substituto}:${a.dataFalta || ""}`] =
+          { titulo: "✅ Sua aula foi assumida", corpo: `${a.disc} (${a.turma}) por Prof. ${a.substituto}`, aba: "tab-minha" };
+      }
+    });
+  }
+  // Trocas propostas para mim / respostas às minhas propostas
+  API.getTrocas().forEach((t) => {
+    if (t.colega === usuarioLogado && t.status === "pendente") {
+      atuais[`troca:${t.id}`] = { titulo: "🔄 Nova proposta de troca", corpo: `Prof. ${t.proponente} quer trocar horários com você`, aba: "tab-trocas" };
+    }
+    if (t.proponente === usuarioLogado && (t.status === "aceita" || t.status === "recusada")) {
+      atuais[`resp:${t.id}:${t.status}`] = { titulo: t.status === "aceita" ? "✅ Troca aceita" : "❌ Troca recusada", corpo: `Prof. ${t.colega} ${t.status} sua proposta`, aba: "tab-trocas" };
+    }
+  });
+
+  let vistos = null;
+  try { vistos = JSON.parse(localStorage.getItem(STORAGE_KEY_VISTOS + ":" + usuarioLogado)); } catch (e) {}
+  const primeiraVez = !Array.isArray(vistos);
+  const setVistos = new Set(primeiraVez ? [] : vistos);
+
+  const novidades = Object.keys(atuais).filter(k => !setVistos.has(k));
+  localStorage.setItem(STORAGE_KEY_VISTOS + ":" + usuarioLogado, JSON.stringify(Object.keys(atuais)));
+
+  if (primeiraVez || novidades.length === 0) return; // não notifica o que já existia no 1º acesso
+
+  if (novidades.length === 1) {
+    const n = atuais[novidades[0]];
+    exibirNotificacao(n.titulo, n.corpo, novidades[0], n.aba);
+  } else {
+    exibirNotificacao("📢 Painel Docente", `${novidades.length} novidades na grade e nas trocas`, "resumo", "tab-livres");
+  }
+}
+
+function exibirNotificacao(titulo, corpo, tag, aba) {
+  if (document.visibilityState === "visible") {
+    mostrarToast(`${titulo}: ${corpo}`);
+  }
+  if (!("Notification" in window) || Notification.permission !== "granted" || !("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.ready.then((reg) => {
+    reg.showNotification(titulo, {
+      body: corpo,
+      tag: tag,
+      icon: "./icons/icon-192.png",
+      badge: "./icons/icon-192.png",
+      data: { aba: aba || "tab-minha" }
+    }).catch(() => {});
+  });
 }
 
 // Força a atualização do app no iPhone/navegador limpando caches e reiniciando

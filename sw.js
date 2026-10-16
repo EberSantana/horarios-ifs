@@ -1,5 +1,5 @@
 // Service Worker - Painel Docente IFS Tobias Barreto
-const CACHE_NAME = 'ifs-painel-v18-stale-while-revalidate';
+const CACHE_NAME = 'ifs-painel-v19-sync-notif';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -85,3 +85,29 @@ self.addEventListener('message', (event) => {
   }
 });
 
+
+// Ao tocar numa notificação: foca o app já aberto (ou abre) e vai para a aba certa
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const aba = (event.notification.data && event.notification.data.aba) || 'tab-minha';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((lista) => {
+      for (const client of lista) {
+        if ('focus' in client) {
+          client.postMessage({ tipo: 'ABRIR_ABA', aba });
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow('./index.html');
+    })
+  );
+});
+
+// Pronto para Web Push (notificação com o app FECHADO) quando houver um servidor de push
+self.addEventListener('push', (event) => {
+  let dados = { titulo: 'Painel Docente', corpo: 'Há novidades na grade.' };
+  try { if (event.data) dados = { ...dados, ...event.data.json() }; } catch (e) {}
+  event.waitUntil(self.registration.showNotification(dados.titulo, {
+    body: dados.corpo, icon: './icons/icon-192.png', badge: './icons/icon-192.png', data: { aba: dados.aba }
+  }));
+});

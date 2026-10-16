@@ -445,12 +445,13 @@ const API = {
                  (l.id === sAula.id && l.dia === sAula.dia)
         );
         if (idx !== -1) {
+          // O servidor é a fonte da verdade: campo vazio no servidor LIMPA o local
           aulasLocais[idx] = {
             ...aulasLocais[idx],
-            status: sAula.status || aulasLocais[idx].status,
-            substituto: sAula.substituto || aulasLocais[idx].substituto,
-            obs: sAula.obs || aulasLocais[idx].obs,
-            dataFalta: this.formatarDataBR(sAula.dataFalta) || this.formatarDataBR(aulasLocais[idx].dataFalta),
+            status: sAula.status || "normal",
+            substituto: sAula.substituto || "",
+            obs: sAula.obs || "",
+            dataFalta: this.formatarDataBR(sAula.dataFalta) || "",
             linhaExcel: sAula.linhaExcel || aulasLocais[idx].linhaExcel
           };
         }
@@ -557,7 +558,28 @@ const API = {
     return { sucesso: true, email: emailProf, pinPadrao: DEFAULT_PIN };
   },
 
-  // Carrega toda a grade com timeout rápido e sem bloqueio desnecessário
+  // Controle de escritas em andamento: enquanto um POST não terminou, o GET
+  // devolveria o estado antigo e "desfaria" na tela a ação que o professor acabou de fazer.
+  _escritasPendentes: 0,
+  _ultimaEscrita: 0,
+
+  _haEscritaRecente() {
+    return this._escritasPendentes > 0 || (Date.now() - this._ultimaEscrita) < 3000;
+  },
+
+  // Une a lista do servidor com itens locais recém-criados que ainda não chegaram lá
+  _mesclarListas(listaServidor, listaLocal) {
+    const idsServidor = new Set(listaServidor.map(i => i.id));
+    const doisMinutos = 2 * 60 * 1000;
+    const pendentesLocais = listaLocal.filter(i => {
+      if (!i || idsServidor.has(i.id)) return false;
+      const ts = parseInt(String(i.id || "").replace(/\D/g, ""), 10);
+      return ts && (Date.now() - ts) < doisMinutos;
+    });
+    return [...pendentesLocais, ...listaServidor];
+  },
+
+  // Carrega grade + trocas + reposições do Google Sheets
   async carregarGradeCompleta() {
     const url = this.getBackendUrl();
     if (!url) {
@@ -565,12 +587,12 @@ const API = {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 9000);
+    // Apps Script "frio" pode levar 8-12 s; a tela já está desenhada com a base local, então esperamos mais
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
-      const response = await fetch(`${url}?action=obterGrade`, {
+      const response = await fetch(`${url}?action=obterTudo`, {
         method: "GET",
-        headers: { "Accept": "application/json" },
         cache: "no-store",
         signal: controller.signal
       });
@@ -579,9 +601,25 @@ const API = {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
 
-      if (data && typeof data === 'object' && Object.keys(data).length > 0) {
-        const gradeMesclada = this.mesclarAulasComGoogleSheet(this.getLocalDatabase(), data);
+      // Se o professor acabou de agir, não sobrescreve a tela com dados anteriores à ação
+      if (this._haEscritaRecente()) {
+        return { online: true, data: this.getLocalDatabase(), adiado: true };
+      }
+
+      // Compatível com o backend antigo (só grade) e com o novo ({ grade, trocas, reposicoes })
+      const grade = data && data.grade ? data.grade : data;
+      if (grade && typeof grade === 'object' && !grade.erro && Object.keys(grade).length > 0) {
+        const gradeMesclada = this.mesclarAulasComGoogleSheet(this.getLocalDatabase(), grade);
         this.saveLocalDatabase(gradeMesclada);
+
+        if (data.grade && Array.isArray(data.trocas)) {
+          const trocas = this._mesclarListas(data.trocas, this.getTrocas());
+          localStorage.setItem(STORAGE_KEY_TROCAS, JSON.stringify(trocas));
+        }
+        if (data.grade && Array.isArray(data.reposicoes)) {
+          const reps = this._mesclarListas(data.reposicoes, this.getReposicoes());
+          localStorage.setItem(STORAGE_KEY_REPOSICOES, JSON.stringify(reps));
+        }
         return { online: true, data: gradeMesclada };
       }
       return { online: false, data: this.getLocalDatabase() };
@@ -720,11 +758,16 @@ const API = {
       if (!payloadEnvio.emailDocente && profOriginal) {
         payloadEnvio.emailDocente = this.obterEmailProfessor(profOriginal);
       }
+      this._escritasPendentes++;
+      this._ultimaEscrita = Date.now();
       fetch(url, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payloadEnvio),
         redirect: "follow"
+      }).finally(() => {
+        this._escritasPendentes = Math.max(0, this._escritasPendentes - 1);
+        this._ultimaEscrita = Date.now();
       }).then(res => res.json().catch(() => null))
         .then(resData => {
           if (resData) {
