@@ -1,11 +1,8 @@
 // Service Worker - Painel Docente IFS Tobias Barreto
-const CACHE_NAME = 'ifs-painel-v21-reconexao';
+const CACHE_NAME = 'ifs-painel-v22-network-first';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './styles.css',
-  './app.js',
-  './api.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png'
@@ -13,59 +10,53 @@ const ASSETS_TO_CACHE = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE).catch((err) => {
+    caches.open(CACHE_NAME).then((cache) =>
+      // cache: 'reload' ignora o cache HTTP/CDN e garante arquivos realmente novos
+      cache.addAll(ASSETS_TO_CACHE.map((u) => new Request(u, { cache: 'reload' }))).catch((err) => {
         console.warn('Alguns assets estáticos falharam ao cachear:', err);
-      });
-    })
+      })
+    )
   );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((name) => {
-          if (name !== CACHE_NAME) {
-            console.log('Removendo cache antigo:', name);
-            return caches.delete(name);
-          }
-        })
-      );
-    })
+    caches.keys().then((nomes) => Promise.all(
+      nomes.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n))
+    )).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
+function guardarNoCache(request, response) {
+  if (response && response.status === 200 && request.method === 'GET') {
+    const copia = response.clone();
+    caches.open(CACHE_NAME).then((cache) => cache.put(request, copia));
+  }
+  return response;
+}
+
 self.addEventListener('fetch', (event) => {
-  // Ignora requisições para APIs externas (Google Apps Script e redirecionamentos Google)
-  if (event.request.url.includes('script.google.com') || event.request.url.includes('googleusercontent.com')) {
+  const req = event.request;
+  // Google Apps Script e outros domínios: sempre direto na rede
+  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+
+  // Página (HTML): rede primeiro, para cada professor sempre receber a versão publicada.
+  // Sem internet, abre a última cópia salva.
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      fetch(req, { cache: 'no-cache' })
+        .then((res) => guardarNoCache(new Request('./index.html'), res))
+        .catch(() => caches.match('./index.html'))
+    );
     return;
   }
 
-  // Estratégia Stale-While-Revalidate para velocidade nativa máxima (0ms) no celular
-  // Entrega o arquivo do cache local imediatamente e atualiza o cache em segundo plano
+  // JS/CSS/ícones: o endereço inclui ?v=..., então a busca é EXATA (sem ignoreSearch).
+  // Versão nova = endereço novo = arquivo novo. Versão já vista = sai do cache em 0 ms.
   event.respondWith(
-    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => {
-          if (event.request.mode === 'navigate') {
-            return caches.match('./index.html', { ignoreSearch: true });
-          }
-        });
-
-      return cachedResponse || fetchPromise;
-    })
+    caches.match(req).then((cache) => cache || fetch(req).then((res) => guardarNoCache(req, res)))
+      .catch(() => caches.match(req, { ignoreSearch: true }))
   );
 });
 
