@@ -123,6 +123,8 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+window.addEventListener("online", () => { if (usuarioLogado) { falhasSeguidas = 0; recarregarDados(true); } });
+
 // Detecta quando o usuário volta para o app no iOS / celular com throttle de 20s
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
@@ -169,7 +171,7 @@ function configurarEventosInterface() {
       if (resultado && resultado.online) {
         mostrarToast("Grade sincronizada com o Google Sheets!");
       } else {
-        mostrarToast("Grade pronta (Modo Rápido / Base Local)");
+        mostrarToast("Não foi possível falar com o Google agora. Mostrando os dados salvos no aparelho.");
       }
     });
   });
@@ -2355,6 +2357,8 @@ function pararPolling() {
 
 let sincronizacaoEmAndamento = false;
 let assinaturaUltimosDados = "";
+let falhasSeguidas = 0;
+let timerNovaTentativa = null;
 
 // Assinatura simples para saber se algo mudou (evita redesenhar a tela toda a cada 30 s)
 function assinaturaDados() {
@@ -2387,14 +2391,24 @@ async function recarregarDados(silencioso = false) {
     }
 
     if (resultado.online) {
+      falhasSeguidas = 0;
       atualizarIndicadorSincronismo("online", "Conectado ao Google Sheets");
     } else {
-      atualizarIndicadorSincronismo("local", "Modo Rápido / Base Local");
+      falhasSeguidas++;
+      const motivo = resultado.motivo ? ` (${resultado.motivo})` : "";
+      if (falhasSeguidas <= 3) {
+        // Tenta de novo rápido em vez de esperar 30 s: 3 s, 6 s, 12 s
+        atualizarIndicadorSincronismo("atualizando", `Reconectando ao Google${motivo}...`);
+        clearTimeout(timerNovaTentativa);
+        timerNovaTentativa = setTimeout(() => recarregarDados(true), 3000 * Math.pow(2, falhasSeguidas - 1));
+      } else {
+        atualizarIndicadorSincronismo("local", `Sem conexão – dados salvos no aparelho${motivo}`);
+      }
     }
     return resultado;
   } catch (err) {
     console.warn("Aviso ao recarregar dados:", err);
-    atualizarIndicadorSincronismo("local", "Modo Rápido / Base Local");
+    atualizarIndicadorSincronismo("local", "Sem conexão – dados salvos no aparelho");
   } finally {
     sincronizacaoEmAndamento = false;
   }

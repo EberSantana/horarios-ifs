@@ -588,7 +588,7 @@ const API = {
 
     const controller = new AbortController();
     // Apps Script "frio" pode levar 8-12 s; a tela já está desenhada com a base local, então esperamos mais
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     try {
       const response = await fetch(`${url}?action=obterTudo`, {
@@ -622,11 +622,15 @@ const API = {
         }
         return { online: true, data: gradeMesclada };
       }
-      return { online: false, data: this.getLocalDatabase() };
+      return { online: false, data: this.getLocalDatabase(), motivo: (grade && grade.erro) ? "erro no servidor" : "resposta vazia" };
     } catch (err) {
       clearTimeout(timeoutId);
-      console.warn("Backend Google demorou para responder. Mantendo base rápida local:", err.message);
-      return { online: false, data: this.getLocalDatabase() };
+      let motivo = "falha de rede";
+      if (err.name === "AbortError") motivo = "servidor demorou";
+      else if (typeof navigator !== "undefined" && navigator.onLine === false) motivo = "sem internet";
+      else if (String(err.message).startsWith("HTTP")) motivo = "erro " + err.message;
+      console.warn("Sem resposta do Google Sheets (" + motivo + "). URL:", url, err);
+      return { online: false, data: this.getLocalDatabase(), motivo };
     }
   },
 
