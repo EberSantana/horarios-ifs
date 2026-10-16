@@ -1820,7 +1820,7 @@ function abrirModalTroca(prof, indexInicial) {
     const selectColega = document.getElementById("selectColegaTroca");
     if (selectColega) {
       selectColega.innerHTML = '<option value="" disabled selected>Selecione o professor colega...</option>';
-      const colegas = Object.keys(bancoDeDados).filter(c => c !== usuarioLogado).sort();
+      const colegas = Object.keys(bancoDeDados).filter(c => c !== usuarioLogado && c !== "A definir").sort();
       colegas.forEach((colega) => {
         const opt = document.createElement("option");
         opt.value = colega;

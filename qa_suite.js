@@ -82,7 +82,7 @@ test('Database', 'Inicialização dos 24 Professores e turmas do Campus', () => 
   const db = API.getLocalDatabase();
   assert(typeof db === 'object' && db !== null, 'Banco de dados deve ser um objeto');
   const profs = Object.keys(db);
-  assert(profs.length >= 24, `Deve conter ao menos 24 professores cadastrados (encontrados: ${profs.length})`);
+  assert(profs.length >= 22, `Deve conter os 22 professores + 'A definir' (encontrados: ${profs.length})`);
   assert(profs.includes('Eber'), 'Prof. Eber deve estar cadastrado');
   assert(profs.includes('Grayce'), 'Prof. Grayce deve estar cadastrada');
   assert(profs.includes('Alyrio'), 'Prof. Alyrio deve estar cadastrado');
@@ -153,7 +153,7 @@ test('Email Routing', 'Resolução de E-mails Docentes com Acentuação e Espaç
   assertEqual(API.obterEmailProfessor('Eber'), 'eber.santana@ifs.edu.br', 'Eber');
   assertEqual(API.obterEmailProfessor('Ângelo'), 'angelo.santos@ifs.edu.br', 'Ângelo com acento circunflexo');
   assertEqual(API.obterEmailProfessor('Sérgio'), 'sergio.costa@ifs.edu.br', 'Sérgio com acento agudo');
-  assertEqual(API.obterEmailProfessor('Luiz Felipe'), 'luiz.felipe@ifs.edu.br', 'Nome composto com espaço');
+  assertEqual(API.obterEmailProfessor('Pedro Ernesto'), 'pedro.cruz@ifs.edu.br', 'Nome composto com espaço'); assertEqual(API.obterEmailProfessor('A definir'), '', 'Aula sem professor não recebe e-mail');
 });
 
 test('Email Routing', 'Lógica de Não Lidos do Badge de E-mails (some ao visualizar)', () => {

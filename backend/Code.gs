@@ -65,14 +65,12 @@ var EMAILS_DOCENTES = {
   "Felippe": "felippe.barros@ifs.edu.br",
   "Fernanda": "fernanda.bezerra@ifs.edu.br",
   "Grayce": "grayceane.jesus@ifs.edu.br",
-  "Luiz Felipe": "luiz.felipe@ifs.edu.br",
   "Pedro Ernesto": "pedro.cruz@ifs.edu.br",
   "Pedro Goes": "pedro.gois@ifs.edu.br",
   "Rafael": "rafael@ifs.edu.br",
   "Raisa": "raisa.silveira@ifs.edu.br",
   "Sanderson": "sanderson.silva@ifs.edu.br",
   "Sérgio": "sergio.costa@ifs.edu.br",
-  "Vagner": "vagner@ifs.edu.br",
   "Vinicius": "vinicius.canhoto@ifs.edu.br",
   "Vitor": "vitor.almeida@ifs.edu.br",
   "Weder": "weder.almeida@ifs.edu.br",
@@ -140,6 +138,17 @@ var GRADE_COMPLETA_OFICIAL = [
   ["EL-11","Elliot","Segunda-feira","21:20 - 22:10","3º Info (Subsequente)","Programação 3","normal","","Aula confirmada",""],
   ["EL-12","Elliot","Terça-feira","18:40 - 19:30","3º Info (Subsequente)","Programação 3","normal","","Aula confirmada",""],
   ["EL-13","Elliot","Terça-feira","19:30 - 20:20","3º Info (Subsequente)","Programação 3","normal","","Aula confirmada",""],
+  ["EM-16","Emerson","Segunda-feira","08:40 - 09:30","2º ADM","Informática Básica","normal","","Aula confirmada",""],
+  ["EM-17","Emerson","Segunda-feira","09:30 - 10:20","2º ADM","Informática Básica","normal","","Aula confirmada",""],
+  ["EM-18","Emerson","Segunda-feira","10:20 - 11:10","2º DS","Projeto Integrador 1","normal","","Aula confirmada",""],
+  ["EM-19","Emerson","Segunda-feira","11:10 - 12:00","2º DS","Projeto Integrador 1","normal","","Aula confirmada",""],
+  ["EM-20","Emerson","Segunda-feira","12:40 - 13:30","3º DS","Redes de Comp. e Seg. da Inf.","normal","","Aula confirmada",""],
+  ["EM-21","Emerson","Segunda-feira","13:30 - 14:20","3º DS","Redes de Comp. e Seg. da Inf.","normal","","Aula confirmada",""],
+  ["EM-22","Emerson","Segunda-feira","14:20 - 15:10","3º DS","Redes de Comp. e Seg. da Inf.","normal","","Aula confirmada",""],
+  ["EM-23","Emerson","Quarta-feira","08:40 - 09:30","2º DS","Construção de Sites 2 - A","normal","","Aula confirmada",""],
+  ["EM-24","Emerson","Quarta-feira","09:30 - 10:20","2º DS","Construção de Sites 2 - A","normal","","Aula confirmada",""],
+  ["EM-25","Emerson","Quarta-feira","10:20 - 11:10","2º DS","Construção de Sites 2 - B","normal","","Aula confirmada",""],
+  ["EM-26","Emerson","Quarta-feira","11:10 - 12:00","2º DS","Construção de Sites 2 - B","normal","","Aula confirmada",""],
   ["EM-10","Emerson","Segunda-feira","20:30 - 21:20","1º Info (Subsequente)","Org. Comp. e SO","normal","","Aula confirmada",""],
   ["EM-11","Emerson","Segunda-feira","21:20 - 22:10","1º Info (Subsequente)","Org. Comp. e SO","normal","","Aula confirmada",""],
   ["EM-12","Emerson","Terça-feira","18:40 - 19:30","1º Info (Subsequente)","Org. Comp. e SO","normal","","Aula confirmada",""],
@@ -205,17 +214,6 @@ var GRADE_COMPLETA_OFICIAL = [
   ["GR-4","Grayce","Terça-feira","11:10 - 12:00","3º ADM","Gestão Ambiental","normal","","Aula confirmada",""],
   ["GR-5","Grayce","Terça-feira","12:40 - 13:30","3º ADM","Empreendedorismo","normal","","Aula confirmada",""],
   ["GR-6","Grayce","Terça-feira","13:30 - 14:20","3º ADM","Empreendedorismo","normal","","Aula confirmada",""],
-  ["LF-2","Luiz Felipe","Segunda-feira","08:40 - 09:30","2º ADM","Informática Básica","normal","","Aula confirmada",""],
-  ["LF-3","Luiz Felipe","Segunda-feira","09:30 - 10:20","2º ADM","Informática Básica","normal","","Aula confirmada",""],
-  ["LF-4","Luiz Felipe","Segunda-feira","10:20 - 11:10","2º DS","Projeto Integrador 1","normal","","Aula confirmada",""],
-  ["LF-5","Luiz Felipe","Segunda-feira","11:10 - 12:00","2º DS","Projeto Integrador 1","normal","","Aula confirmada",""],
-  ["LF-6","Luiz Felipe","Segunda-feira","12:40 - 13:30","3º DS","Redes de Comp. e Seg. da Inf.","normal","","Aula confirmada",""],
-  ["LF-7","Luiz Felipe","Segunda-feira","13:30 - 14:20","3º DS","Redes de Comp. e Seg. da Inf.","normal","","Aula confirmada",""],
-  ["LF-8","Luiz Felipe","Segunda-feira","14:20 - 15:10","3º DS","Redes de Comp. e Seg. da Inf.","normal","","Aula confirmada",""],
-  ["LF-9","Luiz Felipe","Quarta-feira","08:40 - 09:30","2º DS","Construção de Sites 2 - A","normal","","Aula confirmada",""],
-  ["LF-10","Luiz Felipe","Quarta-feira","09:30 - 10:20","2º DS","Construção de Sites 2 - A","normal","","Aula confirmada",""],
-  ["LF-11","Luiz Felipe","Quarta-feira","10:20 - 11:10","2º DS","Construção de Sites 2 - B","normal","","Aula confirmada",""],
-  ["LF-12","Luiz Felipe","Quarta-feira","11:10 - 12:00","2º DS","Construção de Sites 2 - B","normal","","Aula confirmada",""],
   ["PE-3","Pedro Ernesto","Quarta-feira","10:20 - 11:10","3º DS","Química","normal","","Aula confirmada",""],
   ["PE-4","Pedro Ernesto","Quarta-feira","11:10 - 12:00","3º DS","Química","normal","","Aula confirmada",""],
   ["PE-5","Pedro Ernesto","Quarta-feira","12:00 - 12:50","2º ADM","Química","normal","","Aula confirmada",""],
@@ -263,18 +261,6 @@ var GRADE_COMPLETA_OFICIAL = [
   ["SE-3","Sérgio","Segunda-feira","14:20 - 15:10","1º ADM","Administração Mercadológica","normal","","Aula confirmada",""],
   ["SE-2","Sérgio","Terça-feira","11:10 - 12:00","2º ADM","Téc. Vendas e Atend","normal","","Aula confirmada",""],
   ["SE-4","Sérgio","Terça-feira","12:00 - 12:50","2º ADM","Téc. Vendas e Atend","normal","","Aula confirmada",""],
-  ["VA-3","Vagner","Quarta-feira","12:00 - 12:50","2º DS","Física","normal","","Aula confirmada",""],
-  ["VA-4","Vagner","Quarta-feira","13:30 - 14:20","2º DS","Física","normal","","Aula confirmada",""],
-  ["VA-5","Vagner","Quinta-feira","08:40 - 09:30","1º DS","Física","normal","","Aula confirmada",""],
-  ["VA-6","Vagner","Quinta-feira","09:30 - 10:20","1º DS","Física","normal","","Aula confirmada",""],
-  ["VA-7","Vagner","Quinta-feira","10:20 - 11:10","3º DS","Física","normal","","Aula confirmada",""],
-  ["VA-8","Vagner","Quinta-feira","11:10 - 12:00","3º DS","Física","normal","","Aula confirmada",""],
-  ["VA-1","Vagner","Sexta-feira","08:40 - 09:30","1º ADM","Física","normal","","Aula confirmada",""],
-  ["VA-9","Vagner","Sexta-feira","09:30 - 10:20","1º ADM","Física","normal","","Aula confirmada",""],
-  ["VA-2","Vagner","Sexta-feira","10:20 - 11:10","2º ADM","Física","normal","","Aula confirmada",""],
-  ["VA-10","Vagner","Sexta-feira","11:10 - 12:00","2º ADM","Física","normal","","Aula confirmada",""],
-  ["VA-11","Vagner","Sexta-feira","12:40 - 13:30","3º ADM","Física","normal","","Aula confirmada",""],
-  ["VA-12","Vagner","Sexta-feira","13:30 - 14:20","3º ADM","Física","normal","","Aula confirmada",""],
   ["VI-3","Vinicius","Quinta-feira","11:10 - 12:00","2º ADM","Filosofia","normal","","Aula confirmada",""],
   ["VI-4","Vinicius","Quinta-feira","12:00 - 12:50","2º ADM","Filosofia","normal","","Aula confirmada",""],
   ["VI-5","Vinicius","Sexta-feira","10:20 - 11:10","1º DS","Filosofia","normal","","Aula confirmada",""],
@@ -318,7 +304,19 @@ var GRADE_COMPLETA_OFICIAL = [
   ["AG-7","Ângelo","Quarta-feira","12:40 - 13:30","1º DS","Programação 1 - B","normal","","Aula confirmada",""],
   ["AG-8","Ângelo","Quarta-feira","13:30 - 14:20","1º DS","Programação 1 - B","normal","","Aula confirmada",""],
   ["AG-11","Ângelo","Terça-feira","20:30 - 21:20","3º Info (Subsequente)","Tópicos Especiais 1","normal","","Aula confirmada",""],
-  ["AG-12","Ângelo","Terça-feira","21:20 - 22:10","3º Info (Subsequente)","Tópicos Especiais 1","normal","","Aula confirmada",""]
+  ["AG-12","Ângelo","Terça-feira","21:20 - 22:10","3º Info (Subsequente)","Tópicos Especiais 1","normal","","Aula confirmada",""],
+  ["VA-3","A definir","Quarta-feira","12:00 - 12:50","2º DS","Física","normal","","Aula confirmada",""],
+  ["VA-4","A definir","Quarta-feira","13:30 - 14:20","2º DS","Física","normal","","Aula confirmada",""],
+  ["VA-5","A definir","Quinta-feira","08:40 - 09:30","1º DS","Física","normal","","Aula confirmada",""],
+  ["VA-6","A definir","Quinta-feira","09:30 - 10:20","1º DS","Física","normal","","Aula confirmada",""],
+  ["VA-7","A definir","Quinta-feira","10:20 - 11:10","3º DS","Física","normal","","Aula confirmada",""],
+  ["VA-8","A definir","Quinta-feira","11:10 - 12:00","3º DS","Física","normal","","Aula confirmada",""],
+  ["VA-1","A definir","Sexta-feira","08:40 - 09:30","1º ADM","Física","normal","","Aula confirmada",""],
+  ["VA-9","A definir","Sexta-feira","09:30 - 10:20","1º ADM","Física","normal","","Aula confirmada",""],
+  ["VA-2","A definir","Sexta-feira","10:20 - 11:10","2º ADM","Física","normal","","Aula confirmada",""],
+  ["VA-10","A definir","Sexta-feira","11:10 - 12:00","2º ADM","Física","normal","","Aula confirmada",""],
+  ["VA-11","A definir","Sexta-feira","12:40 - 13:30","3º ADM","Física","normal","","Aula confirmada",""],
+  ["VA-12","A definir","Sexta-feira","13:30 - 14:20","3º ADM","Física","normal","","Aula confirmada",""]
 ];
 
 
@@ -363,7 +361,7 @@ function obterEmailsPorTurma(turma, config) {
  * Obtém o e-mail institucional oficial do docente
  */
 function obterEmailProfessor(ss, prof) {
-  if (!prof) return "";
+  if (!prof || prof === "A definir") return "";
   if (EMAILS_DOCENTES[prof]) return EMAILS_DOCENTES[prof];
   try {
     if (ss) {
@@ -1046,14 +1044,12 @@ function sincronizarProfessores(ss) {
     ["Felippe", "felippe.barros@ifs.edu.br", "Administração", "1234"],
     ["Fernanda", "fernanda.bezerra@ifs.edu.br", "Propedêutica / Línguas", "1234"],
     ["Grayce", "grayceane.jesus@ifs.edu.br", "Administração", "1234"],
-    ["Luiz Felipe", "luiz.felipe@ifs.edu.br", "Desenvolvimento de Sistemas", "1234"],
     ["Pedro Ernesto", "pedro.cruz@ifs.edu.br", "Propedêutica / Química", "1234"],
     ["Pedro Goes", "pedro.gois@ifs.edu.br", "Administração", "1234"],
     ["Rafael", "rafael@ifs.edu.br", "Desenvolvimento de Sistemas / Subsequente", "1234"],
     ["Raisa", "raisa.silveira@ifs.edu.br", "Propedêutica / Biologia", "1234"],
     ["Sanderson", "sanderson.silva@ifs.edu.br", "Propedêutica / Ed. Física", "1234"],
     ["Sérgio", "sergio.costa@ifs.edu.br", "Administração", "1234"],
-    ["Vagner", "vagner@ifs.edu.br", "Propedêutica / Física", "1234"],
     ["Vinicius", "vinicius.canhoto@ifs.edu.br", "Propedêutica / Filosofia", "1234"],
     ["Vitor", "vitor.almeida@ifs.edu.br", "Propedêutica / Geografia", "1234"],
     ["Weder", "weder.almeida@ifs.edu.br", "Administração", "1234"],
@@ -1424,7 +1420,33 @@ function aplicarGradeOficial() {
   sheet.getRange(2, 1, novas.length, 10).setValues(novas);
   SpreadsheetApp.flush();
   invalidarCacheGrade();
+  atualizarAbaProfessores();
   Logger.log("Grade oficial aplicada: " + novas.length + " aulas (antes: " + antigas.length + "). " +
              "Aulas removidas que tinham falta/substituição: " + removidasComStatus + " (ver Correcoes_Grade).");
   return novas.length;
+}
+
+
+/**
+ * Atualiza a aba Professores com os e-mails institucionais do código (EMAILS_DOCENTES)
+ * e remove quem não está mais na grade (ex.: professores que mudaram de campus).
+ * Os PINs que já estão na planilha são mantidos.
+ */
+function atualizarAbaProfessores() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = obterOuCriarAba(ss, "Professores", ["Professor", "Email", "Curso / Departamento", "PIN"]);
+  var last = sheet.getLastRow();
+  var atuais = last > 1 ? sheet.getRange(2, 1, last - 1, 4).getValues() : [];
+  var porNome = {};
+  atuais.forEach(function (r) { porNome[String(r[0]).trim()] = r; });
+  var naGrade = {};
+  GRADE_COMPLETA_OFICIAL.forEach(function (a) { naGrade[a[1]] = true; });
+  var linhas = Object.keys(EMAILS_DOCENTES).filter(function (n) { return naGrade[n]; }).map(function (n) {
+    var r = porNome[n] || [n, "", "", "1234"];
+    return [n, EMAILS_DOCENTES[n], r[2], r[3] || "1234"];
+  });
+  if (last > 1) sheet.getRange(2, 1, last - 1, 4).clearContent();
+  sheet.getRange(2, 1, linhas.length, 4).setValues(linhas);
+  Logger.log("Aba Professores atualizada: " + linhas.length + " professores.");
+  return linhas.length;
 }
