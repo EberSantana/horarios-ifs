@@ -1,5 +1,5 @@
 // Service Worker - Painel Docente IFS Tobias Barreto
-const CACHE_NAME = 'ifs-painel-v7-print-emails-fix';
+const CACHE_NAME = 'ifs-painel-v8-pwa-badge-alertas';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -70,3 +70,18 @@ self.addEventListener('fetch', (event) => {
       })
   );
 });
+
+// Suporte ao Badging API no Service Worker para PWA em celular e tablet
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.tipo === 'ATUALIZAR_BADGE') {
+    const count = event.data.count || 0;
+    if ('setAppBadge' in self.navigator) {
+      if (count > 0) {
+        self.navigator.setAppBadge(count).catch(() => {});
+      } else {
+        self.navigator.clearAppBadge().catch(() => {});
+      }
+    }
+  }
+});
+

@@ -87,8 +87,24 @@ function configurarEventosInterface() {
 
   // Botão de Alerta no Banner
   document.getElementById("btnVerAlertas").addEventListener("click", () => {
-    alternarAba("tab-livres");
+    const trocas = API.getTrocas();
+    const trocasParaMim = trocas.filter(t => t.colega === usuarioLogado && t.status === "pendente").length;
+    let totalLivres = 0;
+    for (const p in bancoDeDados) {
+      bancoDeDados[p].forEach(a => { if (a.status === 'alert') totalLivres++; });
+    }
+    if (totalLivres === 0 && trocasParaMim > 0) {
+      alternarAba("tab-trocas");
+    } else {
+      alternarAba("tab-livres");
+    }
   });
+
+  // Botão de Notificações / Central de Mudanças no Cabeçalho
+  const btnNotifGlobal = document.getElementById("btnNotificacoesGlobal");
+  if (btnNotifGlobal) {
+    btnNotifGlobal.addEventListener("click", abrirModalMudancasAlertas);
+  }
 
   // Filtro de Turma
   document.getElementById("filtroTurmaSelect").addEventListener("change", (e) => {
@@ -339,6 +355,11 @@ function executarLogout() {
   usuarioLogado = "";
   pararPolling();
 
+  if ('clearAppBadge' in navigator) {
+    navigator.clearAppBadge().catch(() => {});
+  }
+  document.title = 'Painel Docente - IFS Campus Tobias Barreto';
+
   document.getElementById("tela-painel").style.display = "none";
   document.getElementById("tela-login").style.display = "flex";
   document.getElementById("loginProf").value = "";
@@ -380,26 +401,275 @@ function atualizarContadoresEAlerta() {
     });
   }
 
-  // Contador de Aulas Livres
+  // Contador de Aulas Livres (Aba Disponíveis)
   const badgeLivres = document.getElementById("badgeQtdLivres");
-  badgeLivres.innerText = totalLivres;
-  badgeLivres.style.display = totalLivres > 0 ? "inline-block" : "none";
+  if (badgeLivres) {
+    badgeLivres.innerText = totalLivres;
+    badgeLivres.style.display = totalLivres > 0 ? "inline-block" : "none";
+  }
 
-  // Contador de Trocas Pendentes para o Usuário
+  // Contador de Trocas Pendentes para o Usuário (Aba Trocas)
   const trocas = API.getTrocas();
   const trocasParaMim = trocas.filter(t => t.colega === usuarioLogado && t.status === "pendente").length;
   const badgeTrocas = document.getElementById("badgeQtdTrocas");
-  badgeTrocas.innerText = trocasParaMim;
-  badgeTrocas.style.display = trocasParaMim > 0 ? "inline-block" : "none";
-
-  // Banner no topo
-  const banner = document.getElementById("alertBanner");
-  if (totalLivres > 0) {
-    document.getElementById("countAlertas").innerText = totalLivres;
-    banner.style.display = "flex";
-  } else {
-    banner.style.display = "none";
+  if (badgeTrocas) {
+    badgeTrocas.innerText = trocasParaMim;
+    badgeTrocas.style.display = trocasParaMim > 0 ? "inline-block" : "none";
   }
+
+  // Contador de E-mails / Avisos (Aba E-mails & Avisos)
+  const emailsLogs = API.getEmailsLog();
+  const badgeEmails = document.getElementById("badgeQtdEmails");
+  if (badgeEmails) {
+    badgeEmails.innerText = emailsLogs.length;
+    badgeEmails.style.display = emailsLogs.length > 0 ? "inline-block" : "none";
+  }
+
+  // QUANTITATIVO TOTAL DE MUDANÇAS / ALERTAS ATIVOS
+  const totalMudancas = totalLivres + trocasParaMim;
+
+  // 1. Bolinha vermelha com o quantitativo no topo (cabeçalho visível permanente no mobile e tablet)
+  const badgeGlobal = document.getElementById("badgeMudancasGlobal");
+  if (badgeGlobal) {
+    badgeGlobal.innerText = totalMudancas > 99 ? "99+" : totalMudancas;
+    badgeGlobal.style.display = totalMudancas > 0 ? "inline-flex" : "none";
+  }
+
+  // 2. Banner no topo da tela inicial
+  const banner = document.getElementById("alertBanner");
+  const countAlertas = document.getElementById("countAlertas");
+  const textoAlert = document.getElementById("textoAlertBanner");
+  const btnVerAlertas = document.getElementById("btnVerAlertas");
+
+  if (totalMudancas > 0) {
+    if (countAlertas) countAlertas.innerText = totalMudancas;
+    if (textoAlert) {
+      if (totalLivres > 0 && trocasParaMim > 0) {
+        textoAlert.innerText = `${totalLivres} aula(s) vaga(s) e ${trocasParaMim} permuta(s) pendente(s)!`;
+      } else if (totalLivres > 0) {
+        textoAlert.innerText = `${totalLivres} aula(s) disponível(is) para substituição!`;
+      } else {
+        textoAlert.innerText = `${trocasParaMim} proposta(s) de troca aguardando resposta!`;
+      }
+    }
+    if (btnVerAlertas) {
+      btnVerAlertas.innerText = totalLivres > 0 ? "Ver Aulas" : "Ver Trocas";
+    }
+    if (banner) banner.style.display = "flex";
+  } else {
+    if (banner) banner.style.display = "none";
+  }
+
+  // 3. Atualiza Badges nativos do PWA (Android / iPad / iPhone) e Favicon dinâmico
+  atualizarBadgesPWA(totalMudancas);
+}
+
+// ============================================================================
+// PWA BADGING API & FAVICON COM BOLINHA VERMELHA (MOBILE & TABLET)
+// ============================================================================
+function atualizarBadgesPWA(count) {
+  // 1. Web Badging API oficial (Bolinha vermelha no ícone do PWA na tela inicial do celular/tablet)
+  if ('setAppBadge' in navigator) {
+    if (count > 0) {
+      navigator.setAppBadge(count).catch(() => {});
+    } else {
+      navigator.clearAppBadge().catch(() => {});
+    }
+  }
+
+  // 2. Notificação para o Service Worker
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      tipo: 'ATUALIZAR_BADGE',
+      count: count
+    });
+  }
+
+  // 3. Título da aba do navegador / PWA
+  if (count > 0) {
+    document.title = `(${count}) Painel Docente • IFS`;
+  } else {
+    document.title = 'Painel Docente - IFS Campus Tobias Barreto';
+  }
+
+  // 4. Desenha a bolinha vermelha dinâmica no Favicon
+  desenharFaviconComBadge(count);
+}
+
+let faviconOriginalUrl = null;
+function desenharFaviconComBadge(count) {
+  try {
+    const link = document.getElementById("faviconLink");
+    if (!link) return;
+    if (!faviconOriginalUrl) faviconOriginalUrl = link.href;
+
+    if (count <= 0) {
+      link.href = faviconOriginalUrl;
+      return;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = faviconOriginalUrl;
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, 32, 32);
+
+      // Círculo vermelho de fundo
+      ctx.beginPath();
+      ctx.arc(22, 10, 8, 0, 2 * Math.PI);
+      ctx.fillStyle = "#d32f2f";
+      ctx.fill();
+
+      // Borda branca fina
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke();
+
+      // Número centralizado
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 9px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const texto = count > 9 ? "9+" : String(count);
+      ctx.fillText(texto, 22, 10);
+
+      link.href = canvas.toDataURL("image/png");
+    };
+  } catch (err) {
+    console.warn("Aviso ao desenhar badge no favicon:", err);
+  }
+}
+
+// ============================================================================
+// MODAL: CENTRAL DE MUDANÇAS & ALERTAS (RESUMO RÁPIDO PARA MOBILE & TABLET)
+// ============================================================================
+function abrirModalMudancasAlertas() {
+  const container = document.getElementById("corpoModalMudancas");
+  if (!container) return;
+  container.innerHTML = "";
+
+  // 1. Aulas Livres para Substituição
+  const aulasLivres = [];
+  for (const prof in bancoDeDados) {
+    bancoDeDados[prof].forEach((aula, idx) => {
+      if (aula.status === "alert") {
+        aulasLivres.push({ ...aula, profOriginal: prof, indexOriginal: idx });
+      }
+    });
+  }
+
+  // 2. Propostas de Permuta Pendentes
+  const trocas = API.getTrocas();
+  const trocasParaMim = trocas.filter(t => t.colega === usuarioLogado && t.status === "pendente");
+
+  // 3. E-mails e Avisos Recentes
+  const logs = API.getEmailsLog();
+  const totalMudancas = aulasLivres.length + trocasParaMim.length;
+
+  if (totalMudancas === 0 && logs.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding: 24px 0;">
+        <div class="empty-state-icon">✅</div>
+        <div class="empty-state-text" style="font-size: 15px; font-weight: 700; color: #166534;">
+          Nenhuma alteração ou ausência pendente!
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+          Todas as aulas do campus estão confirmadas e você não tem propostas de permuta pendentes.
+        </p>
+      </div>`;
+    abrirModal("modalMudancasAlertas");
+    return;
+  }
+
+  let html = "";
+
+  // Seção 1: Aulas precisando de substituto
+  if (aulasLivres.length > 0) {
+    html += `
+      <div class="notif-section-card alert-card">
+        <div class="notif-section-header" style="color: #b91c1c;">
+          <span>🔴 Aulas Precisando de Substituto (${aulasLivres.length})</span>
+          <button type="button" class="btn-notif-action" onclick="fecharTodosModais(); alternarAba('tab-livres');">
+            Ver Todas
+          </button>
+        </div>`;
+    
+    aulasLivres.slice(0, 3).forEach((aula) => {
+      html += `
+        <div class="notif-item-mini">
+          <div class="notif-item-info">
+            <span class="notif-item-title">${aula.disc} (${aula.turma})</span>
+            <span class="notif-item-subtitle">Prof. ${aula.profOriginal} • 📅 ${aula.dia} (${aula.hora})</span>
+          </div>
+          <button type="button" class="btn-notif-action" style="background:#b91c1c;" onclick="fecharTodosModais(); prepararAssumirAula('${aula.profOriginal}', ${aula.indexOriginal});">
+            Assumir
+          </button>
+        </div>`;
+    });
+
+    if (aulasLivres.length > 3) {
+      html += `<div style="font-size:11px; color:#b91c1c; text-align:center; padding-top:4px;">+ ${aulasLivres.length - 3} outra(s) aula(s) disponível(is)</div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Seção 2: Propostas de Permuta
+  if (trocasParaMim.length > 0) {
+    html += `
+      <div class="notif-section-card swap-card">
+        <div class="notif-section-header" style="color: #6b21a8;">
+          <span>🔄 Permutas Pendentes para Você (${trocasParaMim.length})</span>
+          <button type="button" class="btn-notif-action" style="background:#7b1fa2;" onclick="fecharTodosModais(); alternarAba('tab-trocas');">
+            Ver Trocas
+          </button>
+        </div>`;
+    
+    trocasParaMim.forEach((troca) => {
+      const qtdCedidas = (troca.aulasCedidas && troca.aulasCedidas.length) || 1;
+      const qtdDesejadas = (troca.aulasDesejadas && troca.aulasDesejadas.length) || 1;
+      html += `
+        <div class="notif-item-mini">
+          <div class="notif-item-info">
+            <span class="notif-item-title">Proposta de Prof. ${troca.proponente}</span>
+            <span class="notif-item-subtitle">${qtdCedidas} tempo(s) ofertado(s) ↔️ ${qtdDesejadas} tempo(s) seu(s)</span>
+          </div>
+          <button type="button" class="btn-notif-action" style="background:#7b1fa2;" onclick="fecharTodosModais(); aceitarTroca('${troca.id}');">
+            Aceitar
+          </button>
+        </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Seção 3: Últimos avisos institucionais
+  if (logs.length > 0) {
+    html += `
+      <div class="notif-section-card info-card">
+        <div class="notif-section-header" style="color: #0369a1;">
+          <span>📨 Últimos Comunicados Oficiais</span>
+          <button type="button" class="btn-notif-action" style="background:#0288d1;" onclick="fecharTodosModais(); alternarAba('tab-emails');">
+            Ver Todos
+          </button>
+        </div>`;
+    
+    logs.slice(0, 2).forEach((log) => {
+      html += `
+        <div class="notif-item-mini">
+          <div class="notif-item-info">
+            <span class="notif-item-title" style="font-size:11px;">${log.assunto}</span>
+            <span class="notif-item-subtitle">🕒 ${log.data}</span>
+          </div>
+        </div>`;
+    });
+    html += `</div>`;
+  }
+
+  container.innerHTML = html;
+  abrirModal("modalMudancasAlertas");
 }
 
 // Função utilitária global para ordenação por horário
