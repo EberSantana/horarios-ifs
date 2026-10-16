@@ -587,6 +587,19 @@ function abrirModalMudancasAlertas() {
 
   let html = "";
 
+  // Dica / Botão de ativação de permissão para iOS e Android se ainda não concedida
+  if ('Notification' in window && Notification.permission === 'default') {
+    html += `
+      <div style="background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <div style="font-size: 11px; color: #2e7d32; line-height: 1.35;">
+          <strong>🔔 Bolinha vermelha no ícone do PWA:</strong> Ative para exibir o ponto de alerta no ícone da tela inicial do seu iPhone ou Android.
+        </div>
+        <button type="button" class="btn-notif-action" onclick="solicitarPermissaoNotificacoesPWA();">
+          Ativar
+        </button>
+      </div>`;
+  }
+
   // Seção 1: Aulas precisando de substituto
   if (aulasLivres.length > 0) {
     html += `
@@ -670,6 +683,25 @@ function abrirModalMudancasAlertas() {
 
   container.innerHTML = html;
   abrirModal("modalMudancasAlertas");
+}
+
+async function solicitarPermissaoNotificacoesPWA() {
+  if ('Notification' in window) {
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        mostrarToast("Alertas no ícone do PWA ativados com sucesso!");
+        atualizarContadoresEAlerta();
+        abrirModalMudancasAlertas();
+      } else {
+        mostrarToast("Permissão de notificação não foi concedida.");
+      }
+    } catch (e) {
+      console.warn("Erro ao solicitar permissão de notificações:", e);
+    }
+  } else {
+    alert("Para exibir notificações no ícone do iPhone, adicione o app à Tela de Início (Compartilhar > Adicionar à Tela de Início).");
+  }
 }
 
 // Função utilitária global para ordenação por horário
