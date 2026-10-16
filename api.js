@@ -16,7 +16,7 @@ const STORAGE_KEY_TROCAS = 'IFS_TROCAS_PERMUTAS';
 const STORAGE_KEY_REPOSICOES = 'IFS_REPOSICOES_AULAS';
 
 // Versão do banco para auto-atualizar clientes com as turmas do Subsequente e novos docentes
-const CURRENT_DB_VERSION = 'v5_grade_sem_lf_vagner_2026_2';
+const CURRENT_DB_VERSION = 'v6_grade_pdf_xlsx_2026_2';
 
 // URL Oficial de Produção do Google Apps Script (Conectado ao Google Sheets do IFS)
 const DEFAULT_BACKEND_URL = "https://script.google.com/macros/s/AKfycbwlITC2JrJ3lFYl__oER1B86JFlHpsrjq75BRGD_q-iIhlKIphfdIcQkbIwRMtTjy2kjg/exec";
@@ -90,9 +90,9 @@ const DADOS_INICIAIS_IFS = {
   "Eber": [
     { id: "EB-4", dia: "Quinta-feira", hora: "14:20 - 15:10", turma: "1º DS", disc: "CS1 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EB-5", dia: "Quinta-feira", hora: "15:10 - 16:00", turma: "1º DS", disc: "CS1 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "EB-12", dia: "Sexta-feira", hora: "11:10 - 12:00", turma: "2º DS", disc: "Banco de Dados e Eng de Soft.", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "EB-1", dia: "Sexta-feira", hora: "12:00 - 12:50", turma: "2º DS", disc: "Banco de Dados e Eng de Soft.", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "EB-3", dia: "Sexta-feira", hora: "13:30 - 14:20", turma: "2º DS", disc: "Banco de Dados e Eng de Soft.", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "EB-1", dia: "Sexta-feira", hora: "12:00 - 12:50", turma: "2º DS", disc: "BD e ES", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "EB-13", dia: "Sexta-feira", hora: "12:50 - 13:30", turma: "2º DS", disc: "BD e ES", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "EB-3", dia: "Sexta-feira", hora: "13:30 - 14:20", turma: "2º DS", disc: "BD e ES", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EB-6", dia: "Sexta-feira", hora: "14:20 - 15:10", turma: "1º DS", disc: "CS1 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EB-7", dia: "Sexta-feira", hora: "15:10 - 16:00", turma: "1º DS", disc: "CS1 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EB-8", dia: "Sexta-feira", hora: "18:40 - 19:30", turma: "1º Info (Subsequente)", disc: "Informática Básica", status: "normal", obs: "Aula confirmada", substituto: "" },
@@ -101,10 +101,17 @@ const DADOS_INICIAIS_IFS = {
     { id: "EB-11", dia: "Sexta-feira", hora: "21:20 - 22:10", turma: "1º Info (Subsequente)", disc: "Informática Básica", status: "normal", obs: "Aula confirmada", substituto: "" }
   ],
   "Elliot": [
+    { id: "EL-14", dia: "Segunda-feira", hora: "08:40 - 09:30", turma: "3º DS", disc: "Projeto Integrador 2", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "EL-15", dia: "Segunda-feira", hora: "09:30 - 10:20", turma: "3º DS", disc: "Projeto Integrador 2", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "EL-16", dia: "Segunda-feira", hora: "10:20 - 11:10", turma: "3º DS", disc: "Projeto Integrador 2", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "EL-17", dia: "Segunda-feira", hora: "11:10 - 12:00", turma: "3º DS", disc: "Projeto Integrador 2", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EL-8", dia: "Segunda-feira", hora: "18:40 - 19:30", turma: "3º Info (Subsequente)", disc: "Programação 3", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EL-9", dia: "Segunda-feira", hora: "19:30 - 20:20", turma: "3º Info (Subsequente)", disc: "Programação 3", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EL-10", dia: "Segunda-feira", hora: "20:30 - 21:20", turma: "3º Info (Subsequente)", disc: "Programação 3", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EL-11", dia: "Segunda-feira", hora: "21:20 - 22:10", turma: "3º Info (Subsequente)", disc: "Programação 3", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "EL-18", dia: "Terça-feira", hora: "11:50 - 12:40", turma: "1º DS", disc: "Introd. à Inform. - A", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "EL-19", dia: "Terça-feira", hora: "12:40 - 13:30", turma: "1º DS", disc: "Introd. à Inform. - A", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "EL-20", dia: "Terça-feira", hora: "13:30 - 14:20", turma: "1º DS", disc: "Introd. à Inform. - A", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EL-12", dia: "Terça-feira", hora: "18:40 - 19:30", turma: "3º Info (Subsequente)", disc: "Programação 3", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EL-13", dia: "Terça-feira", hora: "19:30 - 20:20", turma: "3º Info (Subsequente)", disc: "Programação 3", status: "normal", obs: "Aula confirmada", substituto: "" }
   ],
@@ -113,37 +120,35 @@ const DADOS_INICIAIS_IFS = {
     { id: "EM-17", dia: "Segunda-feira", hora: "09:30 - 10:20", turma: "2º ADM", disc: "Informática Básica", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EM-18", dia: "Segunda-feira", hora: "10:20 - 11:10", turma: "2º DS", disc: "Projeto Integrador 1", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EM-19", dia: "Segunda-feira", hora: "11:10 - 12:00", turma: "2º DS", disc: "Projeto Integrador 1", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "EM-20", dia: "Segunda-feira", hora: "12:40 - 13:30", turma: "3º DS", disc: "Redes de Comp. e Seg. da Inf.", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "EM-21", dia: "Segunda-feira", hora: "13:30 - 14:20", turma: "3º DS", disc: "Redes de Comp. e Seg. da Inf.", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "EM-22", dia: "Segunda-feira", hora: "14:20 - 15:10", turma: "3º DS", disc: "Redes de Comp. e Seg. da Inf.", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "EM-23", dia: "Quarta-feira", hora: "08:40 - 09:30", turma: "2º DS", disc: "Construção de Sites 2 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "EM-24", dia: "Quarta-feira", hora: "09:30 - 10:20", turma: "2º DS", disc: "Construção de Sites 2 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "EM-25", dia: "Quarta-feira", hora: "10:20 - 11:10", turma: "2º DS", disc: "Construção de Sites 2 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "EM-26", dia: "Quarta-feira", hora: "11:10 - 12:00", turma: "2º DS", disc: "Construção de Sites 2 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "EM-20", dia: "Segunda-feira", hora: "12:40 - 13:30", turma: "3º DS", disc: "Redes de Computadores e SI", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "EM-21", dia: "Segunda-feira", hora: "13:30 - 14:20", turma: "3º DS", disc: "Redes de Computadores e SI", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "EM-22", dia: "Segunda-feira", hora: "14:20 - 15:10", turma: "3º DS", disc: "Redes de Computadores e SI", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EM-10", dia: "Segunda-feira", hora: "20:30 - 21:20", turma: "1º Info (Subsequente)", disc: "Org. Comp. e SO", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EM-11", dia: "Segunda-feira", hora: "21:20 - 22:10", turma: "1º Info (Subsequente)", disc: "Org. Comp. e SO", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EM-12", dia: "Terça-feira", hora: "18:40 - 19:30", turma: "1º Info (Subsequente)", disc: "Org. Comp. e SO", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EM-13", dia: "Terça-feira", hora: "19:30 - 20:20", turma: "1º Info (Subsequente)", disc: "Org. Comp. e SO", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "EM-14", dia: "Terça-feira", hora: "20:30 - 21:20", turma: "1º Info (Subsequente)", disc: "Org. Comp. e SO", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "EM-15", dia: "Terça-feira", hora: "21:20 - 22:10", turma: "1º Info (Subsequente)", disc: "Org. Comp. e SO", status: "normal", obs: "Aula confirmada", substituto: "" }
+    { id: "EM-15", dia: "Terça-feira", hora: "21:20 - 22:10", turma: "1º Info (Subsequente)", disc: "Org. Comp. e SO", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "EM-23", dia: "Quarta-feira", hora: "08:40 - 09:30", turma: "2º DS", disc: "CS2 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "EM-24", dia: "Quarta-feira", hora: "09:30 - 10:20", turma: "2º DS", disc: "CS2 - A", status: "normal", obs: "Aula confirmada", substituto: "" }
   ],
   "Eric": [
     { id: "ER-1", dia: "Quarta-feira", hora: "08:40 - 09:30", turma: "2º DS", disc: "Programação 2 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "ER-2", dia: "Quarta-feira", hora: "09:30 - 10:20", turma: "2º DS", disc: "Programação 2 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "ER-3", dia: "Quarta-feira", hora: "10:20 - 11:10", turma: "2º DS", disc: "Programação 2 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "ER-4", dia: "Quarta-feira", hora: "11:10 - 12:00", turma: "2º DS", disc: "Programação 2 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "ER-5", dia: "Quinta-feira", hora: "14:20 - 15:10", turma: "2º DS", disc: "Programação 2 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "ER-6", dia: "Quinta-feira", hora: "15:10 - 16:00", turma: "2º DS", disc: "Programação 2 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "ER-7", dia: "Sexta-feira", hora: "14:20 - 15:10", turma: "2º DS", disc: "Programação 2 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "ER-8", dia: "Sexta-feira", hora: "15:10 - 16:00", turma: "2º DS", disc: "Programação 2 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "ER-9", dia: "Quarta-feira", hora: "18:40 - 19:30", turma: "1º Info (Subsequente)", disc: "Programação 1", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "ER-10", dia: "Quarta-feira", hora: "19:30 - 20:20", turma: "1º Info (Subsequente)", disc: "Programação 1", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "ER-11", dia: "Quarta-feira", hora: "20:30 - 21:20", turma: "1º Info (Subsequente)", disc: "Programação 1", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "ER-12", dia: "Quarta-feira", hora: "21:20 - 22:10", turma: "1º Info (Subsequente)", disc: "Programação 1", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "ER-5", dia: "Quinta-feira", hora: "14:20 - 15:10", turma: "2º DS", disc: "Programação 2 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "ER-6", dia: "Quinta-feira", hora: "15:10 - 16:00", turma: "2º DS", disc: "Programação 2 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "ER-13", dia: "Quinta-feira", hora: "18:40 - 19:30", turma: "1º Info (Subsequente)", disc: "Programação 1", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "ER-14", dia: "Quinta-feira", hora: "19:30 - 20:20", turma: "1º Info (Subsequente)", disc: "Programação 1", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "ER-15", dia: "Quinta-feira", hora: "20:30 - 21:20", turma: "1º Info (Subsequente)", disc: "Programação 1", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "ER-16", dia: "Quinta-feira", hora: "21:20 - 22:10", turma: "1º Info (Subsequente)", disc: "Programação 1", status: "normal", obs: "Aula confirmada", substituto: "" }
+    { id: "ER-16", dia: "Quinta-feira", hora: "21:20 - 22:10", turma: "1º Info (Subsequente)", disc: "Programação 1", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "ER-7", dia: "Sexta-feira", hora: "14:20 - 15:10", turma: "2º DS", disc: "Programação 2 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "ER-8", dia: "Sexta-feira", hora: "15:10 - 16:00", turma: "2º DS", disc: "Programação 2 - B", status: "normal", obs: "Aula confirmada", substituto: "" }
   ],
   "Felippe": [
     { id: "FL-1", dia: "Quarta-feira", hora: "08:40 - 09:30", turma: "2º ADM", disc: "Matemática Financeira", status: "normal", obs: "Aula confirmada", substituto: "" },
@@ -159,6 +164,8 @@ const DADOS_INICIAIS_IFS = {
     { id: "FE-9", dia: "Segunda-feira", hora: "12:40 - 13:30", turma: "1º ADM", disc: "Português", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "FE-10", dia: "Segunda-feira", hora: "14:20 - 15:10", turma: "2º ADM", disc: "Inglês", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "FE-11", dia: "Segunda-feira", hora: "15:10 - 16:00", turma: "2º ADM", disc: "Inglês", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "FE-4", dia: "Segunda-feira", hora: "18:40 - 19:30", turma: "1º Info (Subsequente)", disc: "Inglês Instrumental", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "FE-5", dia: "Segunda-feira", hora: "19:30 - 20:20", turma: "1º Info (Subsequente)", disc: "Inglês Instrumental", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "FE-12", dia: "Terça-feira", hora: "08:40 - 09:30", turma: "1º DS", disc: "Português", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "FE-13", dia: "Terça-feira", hora: "08:40 - 09:30", turma: "2º DS", disc: "Português", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "FE-14", dia: "Terça-feira", hora: "09:30 - 10:20", turma: "1º DS", disc: "Português", status: "normal", obs: "Aula confirmada", substituto: "" },
@@ -182,9 +189,7 @@ const DADOS_INICIAIS_IFS = {
     { id: "FE-31", dia: "Quinta-feira", hora: "10:20 - 11:10", turma: "2º ADM", disc: "Português", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "FE-32", dia: "Quinta-feira", hora: "11:10 - 12:00", turma: "3º ADM", disc: "Espanhol", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "FE-33", dia: "Quinta-feira", hora: "12:40 - 13:30", turma: "3º DS", disc: "Português", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "FE-34", dia: "Quinta-feira", hora: "13:30 - 14:20", turma: "3º DS", disc: "Português", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "FE-4", dia: "Segunda-feira", hora: "18:40 - 19:30", turma: "1º Info (Subsequente)", disc: "Inglês Instrumental", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "FE-5", dia: "Segunda-feira", hora: "19:30 - 20:20", turma: "1º Info (Subsequente)", disc: "Inglês Instrumental", status: "normal", obs: "Aula confirmada", substituto: "" }
+    { id: "FE-34", dia: "Quinta-feira", hora: "13:30 - 14:20", turma: "3º DS", disc: "Português", status: "normal", obs: "Aula confirmada", substituto: "" }
   ],
   "Grayce": [
     { id: "GR-1", dia: "Segunda-feira", hora: "12:00 - 12:50", turma: "2º ADM", disc: "Gestão de Projetos", status: "normal", obs: "Aula confirmada", substituto: "" },
@@ -215,6 +220,11 @@ const DADOS_INICIAIS_IFS = {
     { id: "PG-4", dia: "Quarta-feira", hora: "10:20 - 11:10", turma: "1º ADM", disc: "Administração Geral", status: "normal", obs: "Aula confirmada", substituto: "" }
   ],
   "Rafael": [
+    { id: "RF-10", dia: "Quarta-feira", hora: "10:20 - 11:10", turma: "2º DS", disc: "CS2 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "RF-11", dia: "Quarta-feira", hora: "11:10 - 12:00", turma: "2º DS", disc: "CS2 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "RF-12", dia: "Quarta-feira", hora: "11:50 - 12:40", turma: "1º DS", disc: "Introd. à Inform. - B", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "RF-13", dia: "Quarta-feira", hora: "12:40 - 13:30", turma: "1º DS", disc: "Introd. à Inform. - B", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "RF-14", dia: "Quarta-feira", hora: "13:30 - 14:20", turma: "1º DS", disc: "Introd. à Inform. - B", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "RF-6", dia: "Quinta-feira", hora: "18:40 - 19:30", turma: "3º Info (Subsequente)", disc: "Eng. Software", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "RF-7", dia: "Quinta-feira", hora: "19:30 - 20:20", turma: "3º Info (Subsequente)", disc: "Eng. Software", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "RF-8", dia: "Quinta-feira", hora: "20:30 - 21:20", turma: "3º Info (Subsequente)", disc: "Eng. Software", status: "normal", obs: "Aula confirmada", substituto: "" },
@@ -296,16 +306,16 @@ const DADOS_INICIAIS_IFS = {
   "Ângelo": [
     { id: "AG-9", dia: "Segunda-feira", hora: "14:20 - 15:10", turma: "1º DS", disc: "Programação 1 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "AG-10", dia: "Segunda-feira", hora: "15:10 - 16:00", turma: "1º DS", disc: "Programação 1 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "AG-1", dia: "Terça-feira", hora: "11:50 - 12:40", turma: "1º DS", disc: "Programação 1 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "AG-2", dia: "Terça-feira", hora: "12:40 - 13:30", turma: "1º DS", disc: "Programação 1 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "AG-3", dia: "Terça-feira", hora: "13:30 - 14:20", turma: "1º DS", disc: "Programação 1 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "AG-1", dia: "Terça-feira", hora: "11:50 - 12:40", turma: "1º DS", disc: "Programação 1 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "AG-2", dia: "Terça-feira", hora: "12:40 - 13:30", turma: "1º DS", disc: "Programação 1 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "AG-3", dia: "Terça-feira", hora: "13:30 - 14:20", turma: "1º DS", disc: "Programação 1 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "AG-4", dia: "Terça-feira", hora: "14:20 - 15:10", turma: "1º DS", disc: "Programação 1 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "AG-5", dia: "Terça-feira", hora: "15:10 - 16:00", turma: "1º DS", disc: "Programação 1 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "AG-6", dia: "Quarta-feira", hora: "11:50 - 12:40", turma: "1º DS", disc: "Programação 1 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "AG-7", dia: "Quarta-feira", hora: "12:40 - 13:30", turma: "1º DS", disc: "Programação 1 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "AG-8", dia: "Quarta-feira", hora: "13:30 - 14:20", turma: "1º DS", disc: "Programação 1 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "AG-11", dia: "Terça-feira", hora: "20:30 - 21:20", turma: "3º Info (Subsequente)", disc: "Tópicos Especiais 1", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "AG-12", dia: "Terça-feira", hora: "21:20 - 22:10", turma: "3º Info (Subsequente)", disc: "Tópicos Especiais 1", status: "normal", obs: "Aula confirmada", substituto: "" }
+    { id: "AG-12", dia: "Terça-feira", hora: "21:20 - 22:10", turma: "3º Info (Subsequente)", disc: "Tópicos Especiais 1", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "AG-6", dia: "Quarta-feira", hora: "11:50 - 12:40", turma: "1º DS", disc: "Programação 1 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "AG-7", dia: "Quarta-feira", hora: "12:40 - 13:30", turma: "1º DS", disc: "Programação 1 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "AG-8", dia: "Quarta-feira", hora: "13:30 - 14:20", turma: "1º DS", disc: "Programação 1 - A", status: "normal", obs: "Aula confirmada", substituto: "" }
   ],
   "A definir": [
     { id: "VA-3", dia: "Quarta-feira", hora: "12:00 - 12:50", turma: "2º DS", disc: "Física", status: "normal", obs: "Aula confirmada", substituto: "" },
