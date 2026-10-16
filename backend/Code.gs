@@ -327,72 +327,126 @@ function encontrarOuCriarLinhaAula(sheet, prof, aulaObj, indexFallback) {
 }
 
 // Limpa o cache acelerado da grade para que a próxima leitura venha atualizada
+var CHAVES_CACHE = ["BANCO_GRADE_IFS", "BANCO_TUDO_IFS_V2"];
 function invalidarCacheGrade() {
   try {
-    CacheService.getScriptCache().remove("BANCO_GRADE_IFS");
+    CacheService.getScriptCache().removeAll(CHAVES_CACHE);
   } catch (e) {}
 }
 
+// Monta o objeto { professor: [aulas] } a partir da aba Horarios
+function montarGrade_(ss) {
+  var sheetHorarios = ss.getSheetByName("Horarios");
+  if (!sheetHorarios) {
+    configurarPlanilhaInicial();
+    sheetHorarios = ss.getSheetByName("Horarios");
+  }
+  var lastRow = sheetHorarios.getLastRow();
+  var banco = {};
+  if (lastRow < 2) return banco;
+  var rows = sheetHorarios.getRange(2, 1, lastRow - 1, 10).getValues();
+
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var professor = r[1];
+    if (!professor) continue;
+    if (!banco[professor]) banco[professor] = [];
+    banco[professor].push({
+      id: r[0] || ("ID-" + (i + 2)),
+      dia: r[2],
+      hora: r[3],
+      turma: r[4],
+      disc: r[5],
+      status: r[6] || "normal",
+      substituto: r[7] || "",
+      obs: r[8] || "",
+      dataFalta: formatarDataBR(r[9] || ""),
+      linhaExcel: i + 2
+    });
+  }
+  return banco;
+}
+
+// Lê objetos JSON completos guardados na coluna 10 de Trocas_Permutas / Reposicoes
+function lerObjetosJSON_(ss, nomeAba) {
+  var sheet = ss.getSheetByName(nomeAba);
+  if (!sheet) return [];
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2 || sheet.getLastColumn() < 10) return [];
+  var valores = sheet.getRange(2, 10, lastRow - 1, 1).getValues();
+  var lista = [];
+  for (var i = valores.length - 1; i >= 0; i--) { // mais recentes primeiro
+    var txt = valores[i][0];
+    if (!txt) continue;
+    try { lista.push(JSON.parse(txt)); } catch (e) {}
+    if (lista.length >= 200) break;
+  }
+  return lista;
+}
+
+// Localiza a linha (1-based) de um registro pelo ID (coluna B)
+function linhaPorId_(sheet, id) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return -1;
+  var ids = sheet.getRange(2, 2, lastRow - 1, 1).getValues();
+  for (var i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]) === String(id)) return i + 2;
+  }
+  return -1;
+}
+
+// Atualiza o status de uma troca na planilha (coluna 9) e no JSON (coluna 10)
+function atualizarStatusTroca_(ss, trocaId, statusTexto, statusJson) {
+  var sheet = obterOuCriarAba(ss, "Trocas_Permutas", CAB_TROCAS);
+  var linha = linhaPorId_(sheet, trocaId);
+  if (linha === -1) return false;
+  sheet.getRange(linha, 9).setValue(statusTexto);
+  var txt = sheet.getRange(linha, 10).getValue();
+  if (txt) {
+    try {
+      var obj = JSON.parse(txt);
+      obj.status = statusJson;
+      sheet.getRange(linha, 10).setValue(JSON.stringify(obj));
+    } catch (e) {}
+  }
+  return true;
+}
+
+var CAB_TROCAS = ["Data Registro", "ID", "Proponente", "Colega", "Aula Cedida", "Aula Desejada", "Data Prevista", "Justificativa", "Status", "JSON"];
+var CAB_REPOSICOES = ["Data Registro", "ID", "Professor", "Disciplina", "Turma", "Data Reposição", "Horário", "Sala / Local", "Justificativa", "JSON"];
+
 /**
  * 1. REQUISIÇÕES GET (Retorna os horários e dados para o frontend em alta velocidade)
+ *    ?action=obterTudo  -> { grade, trocas, reposicoes, geradoEm }  (usado pelo app novo)
+ *    ?action=obterGrade -> { professor: [aulas] }                   (formato antigo, compatibilidade)
  */
 function doGet(e) {
   try {
+    var acao = (e && e.parameter && e.parameter.action) || "obterGrade";
+    var chave = acao === "obterTudo" ? "BANCO_TUDO_IFS_V2" : "BANCO_GRADE_IFS";
     var cache = CacheService.getScriptCache();
-    var cached = cache.get("BANCO_GRADE_IFS");
+    var cached = cache.get(chave);
     if (cached) {
       return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON);
     }
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheetHorarios = ss.getSheetByName("Horarios");
-    
-    if (!sheetHorarios) {
-      configurarPlanilhaInicial();
-      sheetHorarios = ss.getSheetByName("Horarios");
+    var resposta;
+    if (acao === "obterTudo") {
+      resposta = {
+        grade: montarGrade_(ss),
+        trocas: lerObjetosJSON_(ss, "Trocas_Permutas"),
+        reposicoes: lerObjetosJSON_(ss, "Reposicoes"),
+        geradoEm: new Date().getTime()
+      };
+    } else {
+      resposta = montarGrade_(ss);
     }
 
-    var rows = sheetHorarios.getDataRange().getValues();
-    rows.shift(); // Remove cabeçalho
-    
-    var bancoFormatado = {};
-
-    for (var i = 0; i < rows.length; i++) {
-      var r = rows[i];
-      var id = r[0] || ("ID-" + (i + 1));
-      var professor = r[1];
-      var dia = r[2];
-      var hora = r[3];
-      var turma = r[4];
-      var disc = r[5];
-      var status = r[6] || "normal";
-      var substituto = r[7] || "";
-      var obs = r[8] || "";
-      var dataFalta = formatarDataBR(r[9] || "");
-
-      if (!professor) continue;
-
-      if (!bancoFormatado[professor]) {
-        bancoFormatado[professor] = [];
-      }
-
-      bancoFormatado[professor].push({
-        id: id,
-        dia: dia,
-        hora: hora,
-        turma: turma,
-        disc: disc,
-        status: status,
-        substituto: substituto,
-        obs: obs,
-        dataFalta: dataFalta,
-        linhaExcel: i + 2
-      });
-    }
-
-    var jsonStr = JSON.stringify(bancoFormatado);
+    var jsonStr = JSON.stringify(resposta);
     try {
-      cache.put("BANCO_GRADE_IFS", jsonStr, 600); // 10 minutos de cache ultrarrápido em RAM
+      // O cache agora é invalidado DEPOIS de cada gravação, então pode durar mais (6 h)
+      cache.put(chave, jsonStr, 21600);
     } catch (eC) {}
 
     return ContentService.createTextOutput(jsonStr).setMimeType(ContentService.MimeType.JSON);
@@ -405,6 +459,15 @@ function doGet(e) {
  * 2. REQUISIÇÕES POST (Processa Liberações, Substituições, Trocas, Reposições, PIN e Sincronização)
  */
 function doPost(e) {
+  var resposta = doPostInterno_(e);
+  // Garante que tudo foi gravado ANTES de limpar o cache. Antes o cache era limpo
+  // no início do POST: um GET concorrente regravava dados velhos por 10 minutos.
+  try { SpreadsheetApp.flush(); } catch (eF) {}
+  invalidarCacheGrade();
+  return resposta;
+}
+
+function doPostInterno_(e) {
   var lock = LockService.getScriptLock();
   var lockObtido = lock.tryLock(10000); // Aguarda até 10 segundos
 
@@ -418,7 +481,6 @@ function doPost(e) {
   try {
     var dados = JSON.parse(e.postData.contents);
     var acao = dados.acao;
-    invalidarCacheGrade(); // Invalida o cache para que o próximo GET busque dados atualizados
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var config = dados.emailsConfig || CONFIG_PADRAO;
 
@@ -555,7 +617,12 @@ function doPost(e) {
     // =========================================================================
     else if (acao === "propor_troca") {
       var t = dados.troca;
-      var sheetTrocas = obterOuCriarAba(ss, "Trocas_Permutas", ["Data Registro", "ID", "Proponente", "Colega", "Aula Cedida", "Aula Desejada", "Data Prevista", "Justificativa", "Status"]);
+      var sheetTrocas = obterOuCriarAba(ss, "Trocas_Permutas", CAB_TROCAS);
+      if (linhaPorId_(sheetTrocas, t.id) !== -1) {
+        lock.releaseLock();
+        return criarRespostaJSON({ sucesso: true, mensagem: "Troca já registrada." });
+      }
+      t.status = "pendente";
       sheetTrocas.appendRow([
         new Date(),
         t.id,
@@ -565,7 +632,8 @@ function doPost(e) {
         (t.aulaDesejada ? t.aulaDesejada.disc + " (" + t.aulaDesejada.turma + ") - " + t.aulaDesejada.dia + " " + t.aulaDesejada.hora : "-"),
         formatarDataBR(t.dataPrevista) || "-",
         t.motivo || "-",
-        "Pendente"
+        "Pendente",
+        JSON.stringify(t)
       ]);
 
       var turmaTroca = (t.aulaCedida && t.aulaCedida.turma) || "";
@@ -595,14 +663,7 @@ function doPost(e) {
 
     else if (acao === "aceitar_troca") {
       var t = dados.troca;
-      var sheetTrocas = obterOuCriarAba(ss, "Trocas_Permutas", ["Data Registro", "ID", "Proponente", "Colega", "Aula Cedida", "Aula Desejada", "Data Prevista", "Justificativa", "Status"]);
-      var rowsT = sheetTrocas.getDataRange().getValues();
-      for (var idxT = 1; idxT < rowsT.length; idxT++) {
-        if (rowsT[idxT][1] === t.id) {
-          sheetTrocas.getRange(idxT + 1, 9).setValue("Aceita / Homologada");
-          break;
-        }
-      }
+      atualizarStatusTroca_(ss, dados.trocaId || t.id, "Aceita / Homologada", "aceita");
 
       var turmaTroca = (t.aulaCedida && t.aulaCedida.turma) || "";
       var emailsArray = [];
@@ -634,7 +695,12 @@ function doPost(e) {
     // =========================================================================
     else if (acao === "agendar_reposicao") {
       var r = dados.reposicao;
-      var sheetRep = obterOuCriarAba(ss, "Reposicoes", ["Data Registro", "ID", "Professor", "Disciplina", "Turma", "Data Reposição", "Horário", "Sala / Local", "Justificativa"]);
+      var sheetRep = obterOuCriarAba(ss, "Reposicoes", CAB_REPOSICOES);
+      if (linhaPorId_(sheetRep, r.id) !== -1) {
+        lock.releaseLock();
+        return criarRespostaJSON({ sucesso: true, mensagem: "Reposição já registrada." });
+      }
+      r.data = formatarDataBR(r.data);
       sheetRep.appendRow([
         new Date(),
         r.id,
@@ -644,7 +710,8 @@ function doPost(e) {
         formatarDataBR(r.data),
         r.horario,
         r.sala,
-        r.motivo || "-"
+        r.motivo || "-",
+        JSON.stringify(r)
       ]);
 
       var emailsArray = [];
@@ -710,6 +777,37 @@ function doPost(e) {
     }
 
     // =========================================================================
+    // CASO 6b: CANCELAR VÁRIAS AUSÊNCIAS DE UMA VEZ (antes não existia no backend)
+    // =========================================================================
+    else if (acao === "recuperar_multiplos") {
+      var sheetH = ss.getSheetByName("Horarios");
+      var lista = dados.aulas || [];
+      var idxs = dados.indices || [];
+      for (var q = 0; q < idxs.length; q++) {
+        var linhaQ = encontrarOuCriarLinhaAula(sheetH, dados.profOriginal, lista[q] || null, idxs[q]);
+        if (linhaQ !== -1) {
+          sheetH.getRange(linhaQ, 7, 1, 4).setValues([["normal", "", "Aula confirmada", ""]]);
+        }
+      }
+      lock.releaseLock();
+      return criarRespostaJSON({ sucesso: true, mensagem: "Ausências canceladas." });
+    }
+
+    else if (acao === "recusar_troca") {
+      atualizarStatusTroca_(ss, dados.trocaId, "Recusada", "recusada");
+      lock.releaseLock();
+      return criarRespostaJSON({ sucesso: true, mensagem: "Troca recusada." });
+    }
+
+    else if (acao === "cancelar_reposicao") {
+      var sheetR2 = obterOuCriarAba(ss, "Reposicoes", CAB_REPOSICOES);
+      var linhaR = linhaPorId_(sheetR2, dados.id);
+      if (linhaR !== -1) sheetR2.deleteRow(linhaR);
+      lock.releaseLock();
+      return criarRespostaJSON({ sucesso: true, mensagem: "Reposição cancelada." });
+    }
+
+    // =========================================================================
     // CASO 7: SINCRONIZAR BANCO COMPLETO COM TODAS AS 121 AULAS E 24 PROFESSORES
     // =========================================================================
     else if (acao === "sincronizar_banco_completo") {
@@ -764,10 +862,10 @@ function configurarPlanilhaInicial() {
   sincronizarProfessores(ss);
 
   // 3. Demais abas
-  var sheetT = obterOuCriarAba(ss, "Trocas_Permutas", ["Data Registro", "ID", "Proponente", "Colega", "Aula Cedida", "Aula Desejada", "Data Prevista", "Justificativa", "Status"]);
+  var sheetT = obterOuCriarAba(ss, "Trocas_Permutas", CAB_TROCAS);
   formatarCabecalho(sheetT, "#7b1fa2");
 
-  var sheetR = obterOuCriarAba(ss, "Reposicoes", ["Data Registro", "ID", "Professor", "Disciplina", "Turma", "Data Reposição", "Horário", "Sala / Local", "Justificativa"]);
+  var sheetR = obterOuCriarAba(ss, "Reposicoes", CAB_REPOSICOES);
   formatarCabecalho(sheetR, "#0288d1");
 
   var sheetHist = obterOuCriarAba(ss, "Historico", ["Data/Hora Registro", "Tipo de Ação", "Professor Titular", "Professor Substituto", "Disciplina", "Turma", "Horário", "Data da Aula"]);
@@ -856,6 +954,10 @@ function obterOuCriarAba(ss, nome, cabecalhos) {
   if (!sheet) {
     sheet = ss.insertSheet(nome);
     sheet.appendRow(cabecalhos);
+  } else if (cabecalhos && sheet.getLastColumn() < cabecalhos.length) {
+    // Acrescenta colunas novas (ex.: "JSON") em abas criadas por versões antigas
+    var col = sheet.getLastColumn() + 1;
+    sheet.getRange(1, col, 1, cabecalhos.length - col + 1).setValues([cabecalhos.slice(col - 1)]);
   }
   return sheet;
 }
