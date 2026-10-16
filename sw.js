@@ -1,5 +1,5 @@
 // Service Worker - Painel Docente IFS Tobias Barreto
-const CACHE_NAME = 'ifs-painel-v17-instant-sync';
+const CACHE_NAME = 'ifs-painel-v18-stale-while-revalidate';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -44,30 +44,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Estratégia Network-First: Sempre tenta buscar a versão mais recente do GitHub Pages primeiro.
-  // Se houver rede, atualiza o cache e entrega os arquivos frescos.
-  // Se estiver offline ou a rede falhar, entrega o cache como fallback imediato.
+  // Estratégia Stale-While-Revalidate para velocidade nativa máxima (0ms) no celular
+  // Entrega o arquivo do cache local imediatamente e atualiza o cache em segundo plano
   event.respondWith(
-    fetch(event.request)
-      .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return networkResponse;
-      })
-      .catch(() => {
-        return caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
+    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
           }
+          return networkResponse;
+        })
+        .catch(() => {
           if (event.request.mode === 'navigate') {
-            return caches.match('./index.html');
+            return caches.match('./index.html', { ignoreSearch: true });
           }
         });
-      })
+
+      return cachedResponse || fetchPromise;
+    })
   );
 });
 

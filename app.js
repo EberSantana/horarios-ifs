@@ -55,19 +55,30 @@ function formatarDataBR(dataStr) {
 // ============================================================================
 // INICIALIZAÇÃO
 // ============================================================================
+let ultimaSincronizacao = 0;
+
 document.addEventListener("DOMContentLoaded", () => {
   registrarServiceWorker();
   configurarEventosInterface();
-  carregarDadosIniciais();
-  verificarLoginSalvo();
+  bancoDeDados = API.getLocalDatabase();
+
+  const usuarioSalvo = localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER");
+  if (usuarioSalvo) {
+    usuarioLogado = usuarioSalvo;
+    entrarNoPainel();
+  } else {
+    document.getElementById("tela-login").style.display = "flex";
+    document.getElementById("tela-painel").style.display = "none";
+  }
+
+  // Sincronização em segundo plano suave após a interface estar 100% pronta
+  setTimeout(() => recarregarDados(true), 1200);
 });
 
 function registrarServiceWorker() {
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js")
       .then((reg) => {
-        console.log("Service Worker registrado com sucesso!");
-        // Checar atualização no servidor imediatamente
         reg.update().catch(() => {});
 
         reg.addEventListener("updatefound", () => {
@@ -94,32 +105,19 @@ function registrarServiceWorker() {
   }
 }
 
-// Detecta quando o usuário volta para o app no iOS / celular (tira do estado congelado na memória)
+// Detecta quando o usuário volta para o app no iOS / celular com throttle de 20s
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.ready.then((reg) => reg.update().catch(() => {}));
     }
-    recarregarDados(true);
+    const agora = Date.now();
+    if (agora - ultimaSincronizacao > 20000 && usuarioLogado) {
+      ultimaSincronizacao = agora;
+      recarregarDados(true);
+    }
   }
 });
-
-function carregarDadosIniciais() {
-  // 1. Carregamento ultra-rápido instantâneo do cache local (0ms)
-  bancoDeDados = API.getLocalDatabase();
-  renderizarTudo();
-
-  // 2. Sincronização em segundo plano sem travar o app
-  recarregarDados(true);
-}
-
-function verificarLoginSalvo() {
-  const usuarioSalvo = localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER");
-  if (usuarioSalvo) {
-    usuarioLogado = usuarioSalvo;
-    entrarNoPainel();
-  }
-}
 
 // ============================================================================
 // CONFIGURAÇÃO DE EVENTOS DA INTERFACE
@@ -330,13 +328,6 @@ function configurarEventosInterface() {
     btn.addEventListener("click", fecharTodosModais);
   });
 
-  // Reconexão inteligente instantânea (ao desbloquear tela / trocar de app ou voltar online)
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && usuarioLogado) {
-      recarregarDados(true);
-    }
-  });
-
   window.addEventListener("online", () => {
     if (usuarioLogado) {
       recarregarDados(false);
@@ -456,10 +447,8 @@ function alternarAba(tabId) {
   });
   if (tabId === "tab-emails") {
     marcarEmailsComoLidos();
-    renderizarEmailsLog();
   }
-  if (tabId === "tab-trocas") renderizarTrocasEReposicoes();
-  if (tabId === "tab-relatorios") renderizarRelatorios();
+  renderizarAbaAtiva();
 }
 
 function marcarEmailsComoLidos() {
@@ -473,12 +462,28 @@ function marcarEmailsComoLidos() {
 
 function renderizarTudo() {
   atualizarContadoresEAlerta();
-  renderizarMinhaGrade();
-  renderizarAulasLivres();
-  renderizarTrocasEReposicoes();
-  renderizarGradePorTurma(document.getElementById("filtroTurmaSelect").value || "1º DS");
-  renderizarRelatorios();
-  renderizarEmailsLog();
+  renderizarAbaAtiva();
+}
+
+// Renderização cirúrgica rápida apenas da aba atualmente visível na tela
+function renderizarAbaAtiva() {
+  const activePane = document.querySelector(".tab-pane.active");
+  const tabId = activePane ? activePane.id : "tab-minha";
+
+  if (tabId === "tab-minha") {
+    renderizarMinhaGrade();
+  } else if (tabId === "tab-livres") {
+    renderizarAulasLivres();
+  } else if (tabId === "tab-trocas") {
+    renderizarTrocasEReposicoes();
+  } else if (tabId === "tab-turmas") {
+    const select = document.getElementById("filtroTurmaSelect");
+    renderizarGradePorTurma(select ? select.value : "1º DS");
+  } else if (tabId === "tab-relatorios") {
+    renderizarRelatorios();
+  } else if (tabId === "tab-emails") {
+    renderizarEmailsLog();
+  }
 }
 
 function atualizarContadoresEAlerta() {
@@ -594,8 +599,14 @@ function atualizarBadgesPWA(count) {
 }
 
 let faviconOriginalUrl = null;
+let ultimoCountFavicon = -1;
 function desenharFaviconComBadge(count) {
   try {
+    // Em celular / PWA não há abas de desktop, poupando processador e GPU
+    if (typeof window !== "undefined" && window.innerWidth <= 768) return;
+    if (count === ultimoCountFavicon) return;
+    ultimoCountFavicon = count;
+
     const link = document.getElementById("faviconLink");
     if (!link) return;
     if (!faviconOriginalUrl) faviconOriginalUrl = link.href;
@@ -851,18 +862,18 @@ function renderizarMinhaGrade() {
     aulasPorDia[a.dia].push(a);
   });
 
+  const htmlChunks = [];
   diasOrdem.forEach((dia) => {
     if (aulasPorDia[dia] && aulasPorDia[dia].length > 0) {
       aulasPorDia[dia].sort((a, b) => extrairMinutosDoHorario(a.hora) - extrairMinutosDoHorario(b.hora));
-      container.innerHTML += `<div class="day-header">${dia}</div>`;
-      let cardsHTML = `<div class="cards-grid">`;
+      htmlChunks.push(`<div class="day-header">${dia}</div><div class="cards-grid">`);
       aulasPorDia[dia].forEach((aula) => {
-        cardsHTML += criarCardHTML(aula, "minha_grade");
+        htmlChunks.push(criarCardHTML(aula, "minha_grade"));
       });
-      cardsHTML += `</div>`;
-      container.innerHTML += cardsHTML;
+      htmlChunks.push(`</div>`);
     }
   });
+  container.innerHTML = htmlChunks.join("");
 }
 
 // ============================================================================
@@ -1048,18 +1059,18 @@ function renderizarGradePorTurma(turmaAlvo) {
     agrupado[a.dia].push(a);
   });
 
+  const htmlChunks = [];
   diasOrdem.forEach((dia) => {
     if (agrupado[dia] && agrupado[dia].length > 0) {
       agrupado[dia].sort((a, b) => extrairMinutosDoHorario(a.hora) - extrairMinutosDoHorario(b.hora));
-      container.innerHTML += `<div class="day-header">${dia}</div>`;
-      let cardsHTML = `<div class="cards-grid">`;
+      htmlChunks.push(`<div class="day-header">${dia}</div><div class="cards-grid">`);
       agrupado[dia].forEach((aula) => {
-        cardsHTML += criarCardHTML(aula, "grade_turma");
+        htmlChunks.push(criarCardHTML(aula, "grade_turma"));
       });
-      cardsHTML += `</div>`;
-      container.innerHTML += cardsHTML;
+      htmlChunks.push(`</div>`);
     }
   });
+  container.innerHTML = htmlChunks.join("");
 }
 
 // ============================================================================
@@ -1136,6 +1147,7 @@ function renderizarRelatorios() {
     return;
   }
 
+  const rowsHTML = [];
   filtrados.forEach((ev) => {
     let badgeHTML = "";
     if (ev.tipo === "AUSENCIA") {
@@ -1158,7 +1170,7 @@ function renderizarRelatorios() {
     else if (ev.status === "Agendada") statusBadgeClass = "badge-status-info";
     else if (ev.status === "Recusada") statusBadgeClass = "badge-status-danger";
 
-    tbody.innerHTML += `
+    rowsHTML.push(`
       <tr>
         <td class="col-data">
           <div class="row-data-main">${formatarDataBR(ev.data)}</div>
@@ -1179,8 +1191,9 @@ function renderizarRelatorios() {
         <td class="col-status">
           <span class="report-status-badge ${statusBadgeClass}">${ev.status}</span>
         </td>
-      </tr>`;
+      </tr>`);
   });
+  tbody.innerHTML = rowsHTML.join("");
 }
 
 function exportarRelatorioCSV() {
@@ -1306,8 +1319,9 @@ function renderizarEmailsLog() {
     return;
   }
 
+  const htmlChunks = [];
   logs.forEach((log) => {
-    container.innerHTML += `
+    htmlChunks.push(`
       <div class="email-log-item">
         <div class="email-log-top">
           <span class="email-tag ${log.tipo}">${log.tipo}</span>
@@ -1318,8 +1332,9 @@ function renderizarEmailsLog() {
         <div class="email-log-status">
           <span>✓</span> <span>${log.status}</span>
         </div>
-      </div>`;
+      </div>`);
   });
+  container.innerHTML = htmlChunks.join("");
 }
 
 // ============================================================================
