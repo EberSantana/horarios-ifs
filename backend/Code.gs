@@ -371,7 +371,13 @@ function configurarPlanilhaInicial() {
     ["VI-1", "Vinicius", "Quarta-feira", "10:20 - 11:10", "1º DS", "Filosofia", "normal", "", "Aula confirmada", ""],
     ["VT-1", "Vitor", "Quinta-feira", "10:20 - 11:10", "1º ADM", "Geografia", "normal", "", "Aula confirmada", ""],
     ["WE-1", "Weder", "Terça-feira", "08:40 - 09:30", "2º ADM", "Sociologia", "normal", "", "Aula confirmada", ""],
-    ["WK-1", "Welkson", "Quinta-feira", "08:40 - 09:30", "3º ADM", "Gestão da Operação", "normal", "", "Aula confirmada", ""]
+    ["WK-1", "Welkson", "Quinta-feira", "08:40 - 09:30", "3º ADM", "Gestão da Operação", "normal", "", "Aula confirmada", ""],
+    ["EL-8", "Elliot", "Segunda-feira", "18:40 - 19:30", "3º Info", "Programação 3", "normal", "", "Aula confirmada (Lab 2)", ""],
+    ["EL-9", "Elliot", "Segunda-feira", "19:30 - 20:20", "3º Info", "Programação 3", "normal", "", "Aula confirmada (Lab 2)", ""],
+    ["EM-10", "Emerson", "Segunda-feira", "20:30 - 21:20", "1º Info", "Org. Comp. e SO", "normal", "", "Aula confirmada (Lab 1)", ""],
+    ["EM-11", "Emerson", "Segunda-feira", "21:20 - 22:10", "1º Info", "Org. Comp. e SO", "normal", "", "Aula confirmada (Lab 1)", ""],
+    ["RF-6", "Rafael", "Quinta-feira", "18:40 - 19:30", "3º Info", "Eng. Software", "normal", "", "Aula confirmada (Lab 1)", ""],
+    ["RF-7", "Rafael", "Quinta-feira", "19:30 - 20:20", "3º Info", "Eng. Software", "normal", "", "Aula confirmada (Lab 1)", ""]
   ];
 
   if (sheetH.getLastRow() <= 1) {
@@ -380,7 +386,7 @@ function configurarPlanilhaInicial() {
     }
   }
 
-  // 2. Aba 'Professores' (Com os 21 professores, seus e-mails e PINs)
+  // 2. Aba 'Professores' (Com todos os 24 professores, seus e-mails e PINs)
   var sheetP = obterOuCriarAba(ss, "Professores", ["Professor", "Email", "Curso / Departamento", "PIN"]);
   formatarCabecalho(sheetP, "#1565c0");
 
@@ -391,6 +397,8 @@ function configurarPlanilhaInicial() {
     ["Alyrio", "alyrio@ifs.edu.br", "Administração", "1234"],
     ["Ângelo", "angelo@ifs.edu.br", "Desenvolvimento de Sistemas", "1234"],
     ["Christiano", "christiano@ifs.edu.br", "Desenvolvimento de Sistemas", "1234"],
+    ["Elliot", "elliot@ifs.edu.br", "Desenvolvimento de Sistemas / Subsequente", "1234"],
+    ["Emerson", "emerson@ifs.edu.br", "Subsequente em Informática", "1234"],
     ["Eric", "eric@ifs.edu.br", "Desenvolvimento de Sistemas", "1234"],
     ["Felippe", "felippe@ifs.edu.br", "Administração", "1234"],
     ["Fernanda", "fernanda@ifs.edu.br", "Propedêutica / Línguas", "1234"],
@@ -398,6 +406,7 @@ function configurarPlanilhaInicial() {
     ["Luiz Felipe", "luiz.felipe@ifs.edu.br", "Desenvolvimento de Sistemas", "1234"],
     ["Pedro Ernesto", "pedro.ernesto@ifs.edu.br", "Propedêutica / Química", "1234"],
     ["Pedro Goes", "pedro.goes@ifs.edu.br", "Administração", "1234"],
+    ["Rafael", "rafael@ifs.edu.br", "Desenvolvimento de Sistemas / Subsequente", "1234"],
     ["Raisa", "raisa@ifs.edu.br", "Propedêutica / Biologia", "1234"],
     ["Sanderson", "sanderson@ifs.edu.br", "Propedêutica / Ed. Física", "1234"],
     ["Sérgio", "sergio@ifs.edu.br", "Administração", "1234"],
