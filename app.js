@@ -401,13 +401,6 @@ function atualizarContadoresEAlerta() {
     });
   }
 
-  // Contador de Aulas Livres (Aba Disponíveis)
-  const badgeLivres = document.getElementById("badgeQtdLivres");
-  if (badgeLivres) {
-    badgeLivres.innerText = totalLivres;
-    badgeLivres.style.display = totalLivres > 0 ? "inline-block" : "none";
-  }
-
   // Contador de Trocas Pendentes para o Usuário (Aba Trocas)
   const trocas = API.getTrocas();
   const trocasParaMim = trocas.filter(t => t.colega === usuarioLogado && t.status === "pendente").length;
