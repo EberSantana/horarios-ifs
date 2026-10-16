@@ -233,7 +233,7 @@ const DEFAULT_PIN = "1234";
 const EMAILS_DOCENTES_IFS = {
   "Eber": "eber.santana@ifs.edu.br",
   "Adriano": "adriano.vilela@ifs.edu.br",
-  "Alex": "alex@ifs.edu.br",
+  "Alex": "alexmar.santos@ifs.edu.br",
   "Alyrio": "alyrio.neto@ifs.edu.br",
   "Ângelo": "angelo.santos@ifs.edu.br",
   "Christiano": "christiano.santos@ifs.edu.br",
@@ -249,7 +249,7 @@ const EMAILS_DOCENTES_IFS = {
   "Rafael": "rafael@ifs.edu.br",
   "Raisa": "raisa.silveira@ifs.edu.br",
   "Sanderson": "sanderson.silva@ifs.edu.br",
-  "Sérgio": "sergio@ifs.edu.br",
+  "Sérgio": "sergio.costa@ifs.edu.br",
   "Vagner": "vagner@ifs.edu.br",
   "Vinicius": "vinicius.canhoto@ifs.edu.br",
   "Vitor": "vitor.almeida@ifs.edu.br",
