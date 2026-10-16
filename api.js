@@ -371,7 +371,7 @@ const EMAILS_DOCENTES_IFS = {
   "Grayce": "grayceane.jesus@ifs.edu.br",
   "Pedro Ernesto": "pedro.cruz@ifs.edu.br",
   "Pedro Goes": "pedro.gois@ifs.edu.br",
-  "Rafael": "rafael@ifs.edu.br",
+  "Rafael": "luiz.freitas@ifs.edu.br",
   "Raisa": "raisa.silveira@ifs.edu.br",
   "Sanderson": "sanderson.silva@ifs.edu.br",
   "Sérgio": "sergio.costa@ifs.edu.br",
