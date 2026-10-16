@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconLink" type="image/png" href="./icons/icon-192.png">
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=3.9">
+  <link rel="stylesheet" href="./styles.css?v=4.0">
 </head>
 <body>
 
@@ -98,70 +98,73 @@
   <!-- ===================================================================== -->
   <section id="tela-painel">
     
-    <!-- Cabeçalho -->
-    <header class="app-header">
-      <div class="header-top">
-        <div class="brand-info">
-          <h1>Painel Docente • IFS</h1>
-          <p>Campus Tobias Barreto</p>
+    <!-- Header e Navegação Unificados (Sticky sem sobreposição) -->
+    <div class="header-nav-sticky-wrapper">
+      <!-- Cabeçalho -->
+      <header class="app-header">
+        <div class="header-top">
+          <div class="brand-info">
+            <h1>Painel Docente • IFS</h1>
+            <p>Campus Tobias Barreto</p>
+          </div>
+          
+          <div class="user-status">
+            <button type="button" id="btnNotificacoesGlobal" class="btn-header-notif" title="Ver Central de Mudanças e Alertas" aria-label="Notificações e Mudanças">
+              <span>🔔</span>
+              <span id="badgeMudancasGlobal" class="badge-notif-counter" style="display:none;">0</span>
+            </button>
+            <div id="userAvatar" class="user-avatar">EB</div>
+            <button type="button" id="btnOpenSettings" class="btn-header-action" title="Configurações e E-mails">⚙️</button>
+            <button type="button" id="btnLogout" class="btn-header-action" title="Sair da Conta">Sair</button>
+          </div>
         </div>
-        
-        <div class="user-status">
-          <button type="button" id="btnNotificacoesGlobal" class="btn-header-notif" title="Ver Central de Mudanças e Alertas" aria-label="Notificações e Mudanças">
-            <span>🔔</span>
-            <span id="badgeMudancasGlobal" class="badge-notif-counter" style="display:none;">0</span>
-          </button>
-          <div id="userAvatar" class="user-avatar">EB</div>
-          <button type="button" id="btnOpenSettings" class="btn-header-action" title="Configurações e E-mails">⚙️</button>
-          <button type="button" id="btnLogout" class="btn-header-action" title="Sair da Conta">Sair</button>
+
+        <!-- Barra de Sincronização -->
+        <div class="sync-bar">
+          <div class="sync-status">
+            <span id="syncDot" class="sync-dot"></span>
+            <span id="syncText">Sincronizado</span>
+          </div>
+          <div>
+            <span id="nomeUsuarioLogado" style="font-weight: 600; margin-right: 6px;">Prof. Eber</span>
+            <button type="button" id="btnManualRefresh" class="btn-refresh">Atualizar</button>
+          </div>
         </div>
+      </header>
+
+      <!-- Banner Global de Alerta -->
+      <div id="alertBanner" class="alert-banner">
+        <div class="alert-banner-content">
+          <div class="alert-pulse-badge" id="countAlertas">0</div>
+          <span id="textoAlertBanner">Aulas disponíveis para substituição!</span>
+        </div>
+        <button type="button" id="btnVerAlertas" class="btn-view-alert">Ver Aulas</button>
       </div>
 
-      <!-- Barra de Sincronização -->
-      <div class="sync-bar">
-        <div class="sync-status">
-          <span id="syncDot" class="sync-dot"></span>
-          <span id="syncText">Sincronizado</span>
-        </div>
-        <div>
-          <span id="nomeUsuarioLogado" style="font-weight: 600; margin-right: 6px;">Prof. Eber</span>
-          <button type="button" id="btnManualRefresh" class="btn-refresh">Atualizar</button>
-        </div>
-      </div>
-    </header>
-
-    <!-- Banner Global de Alerta -->
-    <div id="alertBanner" class="alert-banner">
-      <div class="alert-banner-content">
-        <div class="alert-pulse-badge" id="countAlertas">0</div>
-        <span id="textoAlertBanner">Aulas disponíveis para substituição!</span>
-      </div>
-      <button type="button" id="btnVerAlertas" class="btn-view-alert">Ver Aulas</button>
+      <!-- Navegação por Abas (Tabs) -->
+      <nav class="tab-navigation">
+        <button type="button" class="tab-btn active" data-tab="tab-minha">
+          <span>📅 Minha Grade</span>
+        </button>
+        <button type="button" class="tab-btn" data-tab="tab-livres">
+          <span>🔴 Disponíveis</span>
+        </button>
+        <button type="button" class="tab-btn" data-tab="tab-trocas">
+          <span>🔄 Trocas & Reposições</span>
+          <span class="badge-counter" id="badgeQtdTrocas" style="display:none; background: var(--accent-swap);">0</span>
+        </button>
+        <button type="button" class="tab-btn" data-tab="tab-turmas">
+          <span>🏫 Turmas</span>
+        </button>
+        <button type="button" class="tab-btn" data-tab="tab-relatorios">
+          <span>📊 Relatórios</span>
+        </button>
+        <button type="button" class="tab-btn" data-tab="tab-emails">
+          <span>📧 E-mails & Avisos</span>
+          <span class="badge-counter" id="badgeQtdEmails" style="display:none; background: #0288d1;">0</span>
+        </button>
+      </nav>
     </div>
-
-    <!-- Navegação por Abas (Tabs) -->
-    <nav class="tab-navigation">
-      <button type="button" class="tab-btn active" data-tab="tab-minha">
-        <span>📅 Minha Grade</span>
-      </button>
-      <button type="button" class="tab-btn" data-tab="tab-livres">
-        <span>🔴 Disponíveis</span>
-      </button>
-      <button type="button" class="tab-btn" data-tab="tab-trocas">
-        <span>🔄 Trocas & Reposições</span>
-        <span class="badge-counter" id="badgeQtdTrocas" style="display:none; background: var(--accent-swap);">0</span>
-      </button>
-      <button type="button" class="tab-btn" data-tab="tab-turmas">
-        <span>🏫 Turmas</span>
-      </button>
-      <button type="button" class="tab-btn" data-tab="tab-relatorios">
-        <span>📊 Relatórios</span>
-      </button>
-      <button type="button" class="tab-btn" data-tab="tab-emails">
-        <span>📧 E-mails & Avisos</span>
-        <span class="badge-counter" id="badgeQtdEmails" style="display:none; background: #0288d1;">0</span>
-      </button>
-    </nav>
 
     <!-- Área de Conteúdo das Abas -->
     <main class="content-area">
@@ -750,8 +753,8 @@
 <!-- Toast de Notificações -->
 <div id="toast">Notificação</div>
 
-<script src="./api.js?v=3.9"></script>
-<script src="./app.js?v=3.9"></script>
+<script src="./api.js?v=4.0"></script>
+<script src="./app.js?v=4.0"></script>
 
 </body>
 </html>

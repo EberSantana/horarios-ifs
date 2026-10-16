@@ -1,5 +1,5 @@
 // Service Worker - Painel Docente IFS Tobias Barreto
-const CACHE_NAME = 'ifs-painel-v10-clean-tabs';
+const CACHE_NAME = 'ifs-painel-v11-balanced-menu';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
