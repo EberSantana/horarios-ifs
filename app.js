@@ -410,9 +410,21 @@ function alternarAba(tabId) {
   document.querySelectorAll(".tab-pane").forEach((pane) => {
     pane.classList.toggle("active", pane.id === tabId);
   });
-  if (tabId === "tab-emails") renderizarEmailsLog();
+  if (tabId === "tab-emails") {
+    marcarEmailsComoLidos();
+    renderizarEmailsLog();
+  }
   if (tabId === "tab-trocas") renderizarTrocasEReposicoes();
   if (tabId === "tab-relatorios") renderizarRelatorios();
+}
+
+function marcarEmailsComoLidos() {
+  const emailsLogs = API.getEmailsLog();
+  localStorage.setItem("IFS_LAST_READ_EMAILS_COUNT", String(emailsLogs.length));
+  const badgeEmails = document.getElementById("badgeQtdEmails");
+  if (badgeEmails) {
+    badgeEmails.style.display = "none";
+  }
 }
 
 function renderizarTudo() {
@@ -442,12 +454,28 @@ function atualizarContadoresEAlerta() {
     badgeTrocas.style.display = trocasParaMim > 0 ? "inline-block" : "none";
   }
 
-  // Contador de E-mails / Avisos (Aba E-mails & Avisos)
+  // Contador inteligente de E-mails / Avisos Não Lidos (Aba E-mails & Avisos)
   const emailsLogs = API.getEmailsLog();
   const badgeEmails = document.getElementById("badgeQtdEmails");
-  if (badgeEmails) {
-    badgeEmails.innerText = emailsLogs.length;
-    badgeEmails.style.display = emailsLogs.length > 0 ? "inline-block" : "none";
+  const tabEmailsPane = document.getElementById("tab-emails");
+  const tabEmailsAtiva = tabEmailsPane && tabEmailsPane.classList.contains("active");
+
+  if (tabEmailsAtiva) {
+    localStorage.setItem("IFS_LAST_READ_EMAILS_COUNT", String(emailsLogs.length));
+    if (badgeEmails) badgeEmails.style.display = "none";
+  } else {
+    const salvo = localStorage.getItem("IFS_LAST_READ_EMAILS_COUNT");
+    if (salvo === null) {
+      // Primeira execução: considera o histórico atual como já visto para não exibir o número 8 fixo
+      localStorage.setItem("IFS_LAST_READ_EMAILS_COUNT", String(emailsLogs.length));
+    }
+    const lastRead = parseInt(localStorage.getItem("IFS_LAST_READ_EMAILS_COUNT") || "0", 10);
+    const naoLidos = Math.max(0, emailsLogs.length - lastRead);
+
+    if (badgeEmails) {
+      badgeEmails.innerText = naoLidos;
+      badgeEmails.style.display = naoLidos > 0 ? "inline-block" : "none";
+    }
   }
 
   // QUANTITATIVO TOTAL DE MUDANÇAS / ALERTAS ATIVOS
@@ -1220,6 +1248,7 @@ function copiarRelatorioTabela() {
 // 6. ABA: CENTRAL DE E-MAILS & NOTIFICAÇÕES
 // ============================================================================
 function renderizarEmailsLog() {
+  marcarEmailsComoLidos();
   const container = document.getElementById("emailsLogContainer");
   container.innerHTML = "";
 

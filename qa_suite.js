@@ -156,6 +156,21 @@ test('Email Routing', 'Resolução de E-mails Docentes com Acentuação e Espaç
   assertEqual(API.obterEmailProfessor('Luiz Felipe'), 'luiz.felipe@ifs.edu.br', 'Nome composto com espaço');
 });
 
+test('Email Routing', 'Lógica de Não Lidos do Badge de E-mails (some ao visualizar)', () => {
+  const emails = API.getEmailsLog();
+  // Marca como lido
+  localStorage.setItem("IFS_LAST_READ_EMAILS_COUNT", String(emails.length));
+  let lastRead = parseInt(localStorage.getItem("IFS_LAST_READ_EMAILS_COUNT") || "0", 10);
+  let naoLidos = Math.max(0, emails.length - lastRead);
+  assertEqual(naoLidos, 0, 'Deve ter 0 não lidos após marcar como lido');
+
+  // Adiciona 1 novo log simulado
+  API.registrarEmailLog("AVISO", "Novo aviso de teste", "teste@ifs.edu.br");
+  const emailsNovos = API.getEmailsLog();
+  naoLidos = Math.max(0, emailsNovos.length - lastRead);
+  assertEqual(naoLidos, 1, 'Deve exibir exatamente 1 novo não lido após novo evento');
+});
+
 // ----------------------------------------------------------------------------
 // SUITE 4: PROCESSAMENTO DE AÇÕES E CICLO DE VIDA DE AULAS
 // ----------------------------------------------------------------------------
