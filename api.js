@@ -588,7 +588,7 @@ const API = {
 
     const controller = new AbortController();
     // Apps Script "frio" pode levar 8-12 s; a tela já está desenhada com a base local, então esperamos mais
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       const response = await fetch(`${url}?action=obterTudo`, {

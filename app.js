@@ -2358,6 +2358,7 @@ function pararPolling() {
 let sincronizacaoEmAndamento = false;
 let assinaturaUltimosDados = "";
 let falhasSeguidas = 0;
+let ultimoSucesso = null;
 let timerNovaTentativa = null;
 
 // Assinatura simples para saber se algo mudou (evita redesenhar a tela toda a cada 30 s)
@@ -2376,7 +2377,7 @@ async function recarregarDados(silencioso = false) {
   sincronizacaoEmAndamento = true;
   ultimaSincronizacao = Date.now();
 
-  if (!silencioso) atualizarIndicadorSincronismo("atualizando", "Sincronizando...");
+  if (!silencioso || !ultimoSucesso) atualizarIndicadorSincronismo("atualizando", "Sincronizando com o Google...");
   try {
     const resultado = await API.carregarGradeCompleta();
     bancoDeDados = resultado.data;
@@ -2392,17 +2393,24 @@ async function recarregarDados(silencioso = false) {
 
     if (resultado.online) {
       falhasSeguidas = 0;
+      ultimoSucesso = new Date();
       atualizarIndicadorSincronismo("online", "Conectado ao Google Sheets");
     } else {
       falhasSeguidas++;
       const motivo = resultado.motivo ? ` (${resultado.motivo})` : "";
-      if (falhasSeguidas <= 3) {
+      const hora = ultimoSucesso ? ultimoSucesso.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
+      if (ultimoSucesso && (Date.now() - ultimoSucesso.getTime()) < 5 * 60 * 1000) {
+        // Falha pontual logo após sincronizar: os dados ainda são recentes, não alarma o professor
+        atualizarIndicadorSincronismo("online", `Atualizado às ${hora}`);
+        clearTimeout(timerNovaTentativa);
+        timerNovaTentativa = setTimeout(() => recarregarDados(true), 5000);
+      } else if (falhasSeguidas <= 3) {
         // Tenta de novo rápido em vez de esperar 30 s: 3 s, 6 s, 12 s
-        atualizarIndicadorSincronismo("atualizando", `Reconectando ao Google${motivo}...`);
+        atualizarIndicadorSincronismo("atualizando", hora ? `Atualizado às ${hora} • reconectando...` : `Conectando ao Google${motivo}...`);
         clearTimeout(timerNovaTentativa);
         timerNovaTentativa = setTimeout(() => recarregarDados(true), 3000 * Math.pow(2, falhasSeguidas - 1));
       } else {
-        atualizarIndicadorSincronismo("local", `Sem conexão – dados salvos no aparelho${motivo}`);
+        atualizarIndicadorSincronismo("local", hora ? `Sem conexão desde ${hora}${motivo}` : `Sem conexão – dados salvos no aparelho${motivo}`);
       }
     }
     return resultado;

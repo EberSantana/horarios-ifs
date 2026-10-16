@@ -1162,3 +1162,35 @@ function criarRespostaJSON(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }
+
+
+/**
+ * ==============================================================================
+ * MANTER O SERVIDOR "ACORDADO" (evita respostas de 10-20 s por arranque a frio)
+ * ==============================================================================
+ * Execute UMA VEZ a função instalarGatilhoAquecimento() pelo editor do Apps Script.
+ * Ela agenda manterAquecido() a cada 5 minutos, que deixa o script ativo e o
+ * cache da grade sempre pronto para os professores.
+ */
+function manterAquecido() {
+  var cache = CacheService.getScriptCache();
+  if (!cache.get("BANCO_TUDO_IFS_V2")) {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var resposta = {
+      grade: montarGrade_(ss),
+      trocas: lerObjetosJSON_(ss, "Trocas_Permutas"),
+      reposicoes: lerObjetosJSON_(ss, "Reposicoes"),
+      geradoEm: new Date().getTime()
+    };
+    try { cache.put("BANCO_TUDO_IFS_V2", JSON.stringify(resposta), 21600); } catch (e) {}
+  }
+}
+
+function instalarGatilhoAquecimento() {
+  ScriptApp.getProjectTriggers().forEach(function (g) {
+    if (g.getHandlerFunction() === "manterAquecido") ScriptApp.deleteTrigger(g);
+  });
+  ScriptApp.newTrigger("manterAquecido").timeBased().everyMinutes(5).create();
+  manterAquecido();
+  Logger.log("Gatilho de aquecimento instalado: manterAquecido a cada 5 minutos.");
+}
