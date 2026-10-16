@@ -29,6 +29,29 @@ var CONFIG_PADRAO = {
   LINK_PAINEL: "https://ebersantana.github.io/horarios-ifs/"
 };
 
+// Função universal para padronização de datas no padrão brasileiro DD-MM-YYYY
+function formatarDataBR(dataStr) {
+  if (!dataStr) return "";
+  if (dataStr instanceof Date) {
+    var dia = ("0" + dataStr.getDate()).slice(-2);
+    var mes = ("0" + (dataStr.getMonth() + 1)).slice(-2);
+    var ano = dataStr.getFullYear();
+    return dia + "-" + mes + "-" + ano;
+  }
+  var str = String(dataStr).trim();
+  if (!str) return "";
+  if (/^\d{2}-\d{2}-\d{4}$/.test(str)) return str;
+  var matchIso = str.match(/^(\d{4})[-/](\d{2})[-/](\d{2})/);
+  if (matchIso) {
+    return matchIso[3] + "-" + matchIso[2] + "-" + matchIso[1];
+  }
+  var matchBarra = str.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (matchBarra) {
+    return matchBarra[1] + "-" + matchBarra[2] + "-" + matchBarra[3];
+  }
+  return str;
+}
+
 var EMAILS_DOCENTES = {
   "Eber": "eber.santana@ifs.edu.br",
   "Adriano": "adriano@ifs.edu.br",
@@ -332,7 +355,7 @@ function doGet(e) {
       var status = r[6] || "normal";
       var substituto = r[7] || "";
       var obs = r[8] || "";
-      var dataFalta = r[9] || "";
+      var dataFalta = formatarDataBR(r[9] || "");
 
       if (!professor) continue;
 
@@ -458,7 +481,7 @@ function doPost(e) {
           sheetHorarios.getRange(linhaAlvo, 7).setValue("alert");
           sheetHorarios.getRange(linhaAlvo, 8).setValue("");
           sheetHorarios.getRange(linhaAlvo, 9).setValue(dados.motivo ? "⚠️ " + dados.motivo : "⚠️ Prof. " + dados.profOriginal + " ausente");
-          sheetHorarios.getRange(linhaAlvo, 10).setValue(dados.dataFalta || "");
+          sheetHorarios.getRange(linhaAlvo, 10).setValue(formatarDataBR(dados.dataFalta) || "");
 
           var disc = sheetHorarios.getRange(linhaAlvo, 6).getValue() || (aulaAlvo ? aulaAlvo.disc : "");
           var turma = sheetHorarios.getRange(linhaAlvo, 5).getValue() || (aulaAlvo ? aulaAlvo.turma : "");
@@ -469,7 +492,7 @@ function doPost(e) {
           if (disc && discsSet.indexOf(disc) === -1) discsSet.push(disc);
           contagem++;
 
-          registrarHistorico(ss, "AULA_DISPONIBILIZADA", dados.profOriginal, "", disc, turma, dia + " às " + hora, dados.dataFalta);
+          registrarHistorico(ss, "AULA_DISPONIBILIZADA", dados.profOriginal, "", disc, turma, dia + " às " + hora, formatarDataBR(dados.dataFalta));
         }
       }
 
@@ -495,7 +518,7 @@ function doPost(e) {
         var descDiscs = discsSet.join(", ");
         var descTurmas = turmasSet.join(", ");
         var labelTempos = contagem > 1 ? contagem + " tempos" : "1 tempo";
-        resEnvio = dispararEmailAulaDisponibilizada(destFinal, dados.profOriginal, descDiscs, descTurmas, labelTempos, "", dados.dataFalta, dados.motivo);
+        resEnvio = dispararEmailAulaDisponibilizada(destFinal, dados.profOriginal, descDiscs, descTurmas, labelTempos, "", formatarDataBR(dados.dataFalta), dados.motivo);
       }
 
       lock.releaseLock();
@@ -521,7 +544,7 @@ function doPost(e) {
         t.colega,
         (t.aulaCedida ? t.aulaCedida.disc + " (" + t.aulaCedida.turma + ") - " + t.aulaCedida.dia + " " + t.aulaCedida.hora : "-"),
         (t.aulaDesejada ? t.aulaDesejada.disc + " (" + t.aulaDesejada.turma + ") - " + t.aulaDesejada.dia + " " + t.aulaDesejada.hora : "-"),
-        t.dataPrevista,
+        formatarDataBR(t.dataPrevista) || "-",
         t.motivo || "-",
         "Pendente"
       ]);
@@ -599,7 +622,7 @@ function doPost(e) {
         r.professor,
         r.disciplina,
         r.turma,
-        r.data,
+        formatarDataBR(r.data),
         r.horario,
         r.sala,
         r.motivo || "-"

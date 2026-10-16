@@ -21,6 +21,38 @@ let pollingInterval = null;
 let aulaSelecionadaParaAcao = null;
 
 // ============================================================================
+// AUXILIARES DE FORMATAÇÃO DE DATA
+// ============================================================================
+function formatarDataISO(dataObj) {
+  const d = dataObj instanceof Date ? dataObj : new Date();
+  const ano = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
+
+function formatarDataBR(dataStr) {
+  if (typeof window !== "undefined" && window.formatarDataBR && window.formatarDataBR !== formatarDataBR) {
+    return window.formatarDataBR(dataStr);
+  }
+  if (!dataStr) return "";
+  if (dataStr instanceof Date) {
+    const dia = String(dataStr.getDate()).padStart(2, "0");
+    const mes = String(dataStr.getMonth() + 1).padStart(2, "0");
+    const ano = dataStr.getFullYear();
+    return `${dia}-${mes}-${ano}`;
+  }
+  const str = String(dataStr).trim();
+  if (!str) return "";
+  if (/^\d{2}-\d{2}-\d{4}$/.test(str)) return str;
+  const matchIso = str.match(/^(\d{4})[-/](\d{2})[-/](\d{2})/);
+  if (matchIso) return `${matchIso[3]}-${matchIso[2]}-${matchIso[1]}`;
+  const matchBarra = str.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (matchBarra) return `${matchBarra[1]}-${matchBarra[2]}-${matchBarra[3]}`;
+  return str;
+}
+
+// ============================================================================
 // INICIALIZAÇÃO
 // ============================================================================
 document.addEventListener("DOMContentLoaded", () => {
@@ -873,7 +905,7 @@ function renderizarTrocasEReposicoes() {
             </div>
           </div>
           <div style="font-size:13px; color:var(--text-secondary); line-height: 1.4;">
-            📅 Data Prevista: <strong>${t.dataPrevista}</strong> ${t.motivo ? `• Justificativa: <em>${t.motivo}</em>` : ""}
+            📅 Data Prevista: <strong>${formatarDataBR(t.dataPrevista)}</strong> ${t.motivo ? `• Justificativa: <em>${t.motivo}</em>` : ""}
           </div>
           ${acaoTroca}
         </div>`;
@@ -898,7 +930,7 @@ function renderizarTrocasEReposicoes() {
       reposHTML += `
         <div class="class-card reposicao">
           <div class="card-top">
-            <div class="card-time">📅 ${r.data} • 🕒 ${r.horario}</div>
+            <div class="card-time">📅 ${formatarDataBR(r.data)} • 🕒 ${r.horario}</div>
             <span class="card-badge-room" style="background:#e1f5fe; color:#0288d1; font-weight:800;">${r.turma}</span>
           </div>
           <div class="card-title">${r.disciplina}</div>
@@ -1057,7 +1089,7 @@ function renderizarRelatorios() {
     tbody.innerHTML += `
       <tr>
         <td class="col-data">
-          <div class="row-data-main">${ev.data}</div>
+          <div class="row-data-main">${formatarDataBR(ev.data)}</div>
           <div class="row-data-sub">🕒 ${ev.horario}</div>
         </td>
         <td class="col-tipo">${badgeHTML}</td>
@@ -1227,7 +1259,7 @@ function criarCardHTML(aula, contexto) {
   const ehDono = aula.profOriginal === usuarioLogado;
   const ehSubstituto = aula.substituto === usuarioLogado;
 
-  const dataInfo = aula.dataFalta ? `<div class="card-note">📅 Ausência marcada para: <strong>${aula.dataFalta}</strong></div>` : "";
+  const dataInfo = aula.dataFalta ? `<div class="card-note">📅 Ausência marcada para: <strong>${formatarDataBR(aula.dataFalta)}</strong></div>` : "";
 
   if (contexto === "minha_grade") {
     if (aula.status === "normal") {
@@ -1400,13 +1432,13 @@ function calcularProximaDataParaDia(diaSemanaStr) {
   const targetDay = mapDias[diaSemanaStr];
   const hoje = new Date();
   if (targetDay === undefined) {
-    return hoje.toISOString().split("T")[0];
+    return formatarDataISO(hoje);
   }
   const currentDay = hoje.getDay();
   let diff = targetDay - currentDay;
   if (diff < 0) diff += 7; // Próxima semana
-  const targetDate = new Date(hoje.getTime() + diff * 86400000);
-  return targetDate.toISOString().split("T")[0];
+  const targetDate = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + diff);
+  return formatarDataISO(targetDate);
 }
 
 function atualizarChecklistTemposFalta(prof, diaSelecionado, indexPreselecionado) {
@@ -1530,7 +1562,7 @@ document.getElementById("btnConfirmarLiberar").addEventListener("click", () => {
   }
 
   const indicesSelecionados = checkboxes.map((chk) => parseInt(chk.value, 10));
-  const dataFalta = document.getElementById("inputDataFalta").value;
+  const dataFalta = formatarDataBR(document.getElementById("inputDataFalta").value);
   const motivo = document.getElementById("inputMotivoFalta").value.trim();
 
   fecharTodosModais();
@@ -1695,7 +1727,7 @@ function abrirModalTroca(prof, indexInicial) {
     // 3. Data e Justificativa padrão
     const inputData = document.getElementById("inputDataTroca");
     if (inputData) {
-      inputData.value = new Date().toISOString().split("T")[0];
+      inputData.value = formatarDataISO(new Date());
     }
     const inputMotivo = document.getElementById("inputMotivoTroca");
     if (inputMotivo) inputMotivo.value = "";
@@ -1913,7 +1945,8 @@ async function executarPropostaTroca() {
   const chkMinhas = Array.from(document.querySelectorAll(".minha-troca-chk:checked"));
   const chkColega = Array.from(document.querySelectorAll(".colega-troca-chk:checked"));
   const colega = document.getElementById("selectColegaTroca").value;
-  const dataPrevista = document.getElementById("inputDataTroca").value;
+  const rawDataTroca = document.getElementById("inputDataTroca").value;
+  const dataPrevista = rawDataTroca ? formatarDataBR(rawDataTroca) : "A combinar";
   const motivo = document.getElementById("inputMotivoTroca").value.trim();
 
   if (chkMinhas.length === 0) {
@@ -2028,7 +2061,7 @@ function abrirModalReposicao() {
   }
 
   const inputData = document.getElementById("inputDataReposicao");
-  inputData.value = new Date().toISOString().split("T")[0];
+  inputData.value = formatarDataISO(new Date());
   document.getElementById("inputHorarioReposicao").value = "";
   document.getElementById("inputSalaReposicao").value = "";
   document.getElementById("inputMotivoReposicao").value = "";
@@ -2039,7 +2072,7 @@ function abrirModalReposicao() {
 function executarAgendarReposicao() {
   const val = document.getElementById("selectDisciplinaReposicao").value;
   const [disc, turma] = val.includes("|") ? val.split("|") : [val, "Geral"];
-  const data = document.getElementById("inputDataReposicao").value;
+  const data = formatarDataBR(document.getElementById("inputDataReposicao").value);
   const horario = document.getElementById("inputHorarioReposicao").value.trim();
   const sala = document.getElementById("inputSalaReposicao").value.trim() || "Sala a definir";
   const motivo = document.getElementById("inputMotivoReposicao").value.trim();

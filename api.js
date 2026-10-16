@@ -257,7 +257,46 @@ const EMAILS_DOCENTES_IFS = {
   "Welkson": "welkson@ifs.edu.br"
 };
 
+// Função universal para padronização de datas no formato DD-MM-YYYY (padrão brasileiro)
+function formatarDataBR(dataStr) {
+  if (!dataStr) return "";
+  if (dataStr instanceof Date) {
+    const dia = String(dataStr.getDate()).padStart(2, "0");
+    const mes = String(dataStr.getMonth() + 1).padStart(2, "0");
+    const ano = dataStr.getFullYear();
+    return `${dia}-${mes}-${ano}`;
+  }
+  const str = String(dataStr).trim();
+  if (!str) return "";
+
+  // Se já estiver no padrão DD-MM-YYYY
+  if (/^\d{2}-\d{2}-\d{4}$/.test(str)) {
+    return str;
+  }
+
+  // YYYY-MM-DD ou YYYY/MM/DD -> DD-MM-YYYY
+  const matchIso = str.match(/^(\d{4})[-/](\d{2})[-/](\d{2})/);
+  if (matchIso) {
+    return `${matchIso[3]}-${matchIso[2]}-${matchIso[1]}`;
+  }
+
+  // DD/MM/YYYY -> DD-MM-YYYY
+  const matchBarra = str.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (matchBarra) {
+    return `${matchBarra[1]}-${matchBarra[2]}-${matchBarra[3]}`;
+  }
+
+  return str;
+}
+if (typeof window !== "undefined") {
+  window.formatarDataBR = formatarDataBR;
+}
+
 const API = {
+  formatarDataBR(dataStr) {
+    return formatarDataBR(dataStr);
+  },
+
   obterEmailProfessor(nome) {
     if (!nome) return "";
     if (EMAILS_DOCENTES_IFS[nome]) return EMAILS_DOCENTES_IFS[nome];
@@ -411,7 +450,7 @@ const API = {
             status: sAula.status || aulasLocais[idx].status,
             substituto: sAula.substituto || aulasLocais[idx].substituto,
             obs: sAula.obs || aulasLocais[idx].obs,
-            dataFalta: sAula.dataFalta || aulasLocais[idx].dataFalta,
+            dataFalta: this.formatarDataBR(sAula.dataFalta) || this.formatarDataBR(aulasLocais[idx].dataFalta),
             linhaExcel: sAula.linhaExcel || aulasLocais[idx].linhaExcel
           };
         }
@@ -572,7 +611,7 @@ const API = {
           const aula = localDb[profOriginal][idx];
           aula.status = "alert";
           aula.obs = motivo ? `⚠️ ${motivo}` : `⚠️ Prof. ${profOriginal} ausente`;
-          aula.dataFalta = dataFalta || "Próxima aula";
+          aula.dataFalta = this.formatarDataBR(dataFalta) || "Próxima aula";
           aula.substituto = "";
           turmasAfetadas.add(aula.turma);
           discsAfetadas.add(aula.disc);
@@ -625,6 +664,9 @@ const API = {
       this.saveLocalDatabase(localDb);
     } else if (acao === "propor_troca") {
       const { troca } = payload;
+      if (troca && troca.dataPrevista) {
+        troca.dataPrevista = this.formatarDataBR(troca.dataPrevista);
+      }
       this.salvarTroca(troca);
       if (config.notificarTroca) {
         const dests1 = this.obterDestinatariosPorTurma(troca.aulaCedida?.turma || "");
@@ -652,12 +694,15 @@ const API = {
       this.atualizarStatusTroca(trocaId, "recusada");
     } else if (acao === "agendar_reposicao") {
       const { reposicao } = payload;
+      if (reposicao && reposicao.data) {
+        reposicao.data = this.formatarDataBR(reposicao.data);
+      }
       this.salvarReposicao(reposicao);
       if (config.notificarReposicao) {
         const dests = this.obterDestinatariosPorTurma(reposicao.turma);
         const emailProf = payload.emailDocente || this.obterEmailProfessor(reposicao.professor);
         const destsCompletos = emailProf ? `${emailProf}, ${dests}` : dests;
-        this.registrarEmailLog("REPOSICAO", `📅 [REPOSIÇÃO AGENDADA] ${reposicao.disciplina} (${reposicao.turma}) - Prof. ${reposicao.professor} para ${reposicao.data}`, destsCompletos);
+        this.registrarEmailLog("REPOSICAO", `📅 [REPOSIÇÃO AGENDADA] ${reposicao.disciplina} (${reposicao.turma}) - Prof. ${reposicao.professor} para ${this.formatarDataBR(reposicao.data)}`, destsCompletos);
       }
     } else if (acao === "cancelar_reposicao") {
       const { id } = payload;
@@ -669,6 +714,9 @@ const API = {
     // 2. Dispara envio assíncrono em segundo plano para o Google Apps Script
     if (url) {
       const payloadEnvio = { ...payload, emailsConfig: config };
+      if (payloadEnvio.dataFalta) {
+        payloadEnvio.dataFalta = this.formatarDataBR(payloadEnvio.dataFalta);
+      }
       if (!payloadEnvio.emailDocente && profOriginal) {
         payloadEnvio.emailDocente = this.obterEmailProfessor(profOriginal);
       }
@@ -718,7 +766,7 @@ const API = {
           eventos.push({
             id: aula.id || `EV-FALTA-${prof}-${idx}`,
             tipo: "AUSENCIA",
-            data: aula.dataFalta || "Próxima Ocorrência",
+            data: this.formatarDataBR(aula.dataFalta) || "Próxima Ocorrência",
             horario: `${aula.dia} às ${aula.hora}`,
             turma: aula.turma,
             disciplina: aula.disc,
@@ -731,7 +779,7 @@ const API = {
           eventos.push({
             id: aula.id || `EV-SUBS-${prof}-${idx}`,
             tipo: "SUBSTITUICAO",
-            data: aula.dataFalta || "Aula Recorrente",
+            data: this.formatarDataBR(aula.dataFalta) || "Aula Recorrente",
             horario: `${aula.dia} às ${aula.hora}`,
             turma: aula.turma,
             disciplina: aula.disc,
@@ -762,7 +810,7 @@ const API = {
       eventos.push({
         id: t.id,
         tipo: "PERMUTA",
-        data: t.dataPrevista || "-",
+        data: this.formatarDataBR(t.dataPrevista) || "-",
         horario: horarioDesc,
         turma: turmaDesc,
         disciplina: discDesc,
@@ -779,7 +827,7 @@ const API = {
       eventos.push({
         id: r.id,
         tipo: "REPOSICAO",
-        data: r.data,
+        data: this.formatarDataBR(r.data),
         horario: r.horario,
         turma: r.turma,
         disciplina: r.disciplina,
