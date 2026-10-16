@@ -274,12 +274,19 @@ function obterEmailProfessor(ss, prof) {
 function encontrarOuCriarLinhaAula(sheet, prof, aulaObj, indexFallback) {
   var rows = sheet.getDataRange().getValues();
   
-  // 1. Busca por ID da aula (Coluna A)
+  var norm = function (v) { return String(v || "").trim().toLowerCase(); };
+
+  // 1. Busca por ID da aula (Coluna A) — só aceita se dia/hora/turma também batem.
+  //    Antes bastava o ID: com linhas antigas na planilha, a falta de quinta caía numa aula de quarta.
   if (aulaObj && aulaObj.id) {
     var idAlvo = String(aulaObj.id).trim().toUpperCase();
     for (var i = 1; i < rows.length; i++) {
       if (String(rows[i][0]).trim().toUpperCase() === idAlvo) {
-        return i + 1;
+        var mesmoHorario = !aulaObj.dia || !aulaObj.hora ||
+          (norm(rows[i][2]) === norm(aulaObj.dia) && norm(rows[i][3]) === norm(aulaObj.hora) &&
+           (!aulaObj.turma || norm(rows[i][4]) === norm(aulaObj.turma)));
+        if (mesmoHorario) return i + 1;
+        break; // ID existe mas aponta para outra aula: procura pelo horário abaixo
       }
     }
   }
@@ -301,8 +308,10 @@ function encontrarOuCriarLinhaAula(sheet, prof, aulaObj, indexFallback) {
     }
   }
 
-  // 3. Fallback: Busca por índice de ocorrência do professor
-  if (typeof indexFallback === "number" && indexFallback >= 0) {
+  // 3. Fallback por posição: só quando o app NÃO informou dia/hora (a posição pode
+  //    apontar para outra aula se a planilha estiver em ordem diferente da do app)
+  var temHorario = aulaObj && aulaObj.dia && aulaObj.hora;
+  if (!temHorario && typeof indexFallback === "number" && indexFallback >= 0) {
     var contador = 0;
     for (var k = 1; k < rows.length; k++) {
       if (String(rows[k][1]).trim().toLowerCase() === String(prof).trim().toLowerCase()) {
@@ -812,6 +821,7 @@ function doPostInterno_(e) {
     // =========================================================================
     else if (acao === "sincronizar_banco_completo") {
       var totalAdicionadas = sincronizarGradeCompleta(ss);
+      corrigirGradeDivergente();
       sincronizarProfessores(ss);
       lock.releaseLock();
       return criarRespostaJSON({
@@ -1193,4 +1203,46 @@ function instalarGatilhoAquecimento() {
   ScriptApp.newTrigger("manterAquecido").timeBased().everyMinutes(5).create();
   manterAquecido();
   Logger.log("Gatilho de aquecimento instalado: manterAquecido a cada 5 minutos.");
+}
+
+
+/**
+ * ==============================================================================
+ * REPARO DA GRADE: corrige linhas antigas cujo ID aponta para outro dia/horário
+ * ==============================================================================
+ * Execute UMA VEZ pelo editor: corrigirGradeDivergente()
+ * - Ajusta Professor/Dia/Hora/Turma/Disciplina de cada ID conforme GRADE_COMPLETA_OFICIAL
+ * - PRESERVA Status, Substituto, Obs e DataFalta (faltas já lançadas vão para a aula certa)
+ * - Registra cada alteração na aba "Correcoes_Grade" (dados antigos x novos)
+ */
+function corrigirGradeDivergente() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Horarios");
+  var lastRow = sheet.getLastRow();
+  var rows = sheet.getRange(2, 1, lastRow - 1, 10).getValues();
+  var oficial = {};
+  GRADE_COMPLETA_OFICIAL.forEach(function (a) { oficial[String(a[0]).trim().toUpperCase()] = a; });
+
+  var log = obterOuCriarAba(ss, "Correcoes_Grade", ["Data", "Linha", "ID", "Antes (prof | dia | hora | turma | disc)", "Depois (prof | dia | hora | turma | disc)", "Status preservado"]);
+  var corrigidas = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var id = String(r[0]).trim().toUpperCase();
+    var of = oficial[id];
+    if (!of) continue;
+    var difere = false;
+    for (var c = 1; c <= 5; c++) {
+      if (String(r[c]).trim() !== String(of[c]).trim()) { difere = true; break; }
+    }
+    if (!difere) continue;
+    var antes = [r[1], r[2], r[3], r[4], r[5]].join(" | ");
+    var depois = [of[1], of[2], of[3], of[4], of[5]].join(" | ");
+    sheet.getRange(i + 2, 2, 1, 5).setValues([[of[1], of[2], of[3], of[4], of[5]]]);
+    log.appendRow([new Date(), i + 2, id, antes, depois, (r[6] || "normal") + (r[9] ? " (" + r[9] + ")" : "")]);
+    corrigidas++;
+  }
+  SpreadsheetApp.flush();
+  invalidarCacheGrade();
+  Logger.log("Linhas corrigidas: " + corrigidas + ". Detalhes na aba Correcoes_Grade.");
+  return corrigidas;
 }
