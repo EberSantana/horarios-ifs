@@ -1,5 +1,5 @@
 // Service Worker - Painel Docente IFS Tobias Barreto
-const CACHE_NAME = 'ifs-painel-v16-fast-sync';
+const CACHE_NAME = 'ifs-painel-v17-instant-sync';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

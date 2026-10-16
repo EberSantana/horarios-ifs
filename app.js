@@ -145,12 +145,15 @@ function configurarEventosInterface() {
 
   // Refresh manual com feedback imediato
   document.getElementById("btnManualRefresh").addEventListener("click", () => {
-    mostrarToast("Consultando atualizações no Google Sheets...");
+    const btn = document.getElementById("btnManualRefresh");
+    if (btn) btn.innerText = "⏳...";
+    mostrarToast("Verificando atualizações...");
     recarregarDados(false).then((resultado) => {
+      if (btn) btn.innerText = "Atualizar";
       if (resultado && resultado.online) {
         mostrarToast("Grade sincronizada com o Google Sheets!");
       } else {
-        mostrarToast("Modo local ativo (Google Sheets demorou a responder)");
+        mostrarToast("Grade pronta (Modo Rápido / Base Local)");
       }
     });
   });

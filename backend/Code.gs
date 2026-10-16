@@ -326,11 +326,24 @@ function encontrarOuCriarLinhaAula(sheet, prof, aulaObj, indexFallback) {
   return -1;
 }
 
+// Limpa o cache acelerado da grade para que a próxima leitura venha atualizada
+function invalidarCacheGrade() {
+  try {
+    CacheService.getScriptCache().remove("BANCO_GRADE_IFS");
+  } catch (e) {}
+}
+
 /**
- * 1. REQUISIÇÕES GET (Retorna os horários e dados para o frontend)
+ * 1. REQUISIÇÕES GET (Retorna os horários e dados para o frontend em alta velocidade)
  */
 function doGet(e) {
   try {
+    var cache = CacheService.getScriptCache();
+    var cached = cache.get("BANCO_GRADE_IFS");
+    if (cached) {
+      return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON);
+    }
+
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheetHorarios = ss.getSheetByName("Horarios");
     
@@ -377,7 +390,12 @@ function doGet(e) {
       });
     }
 
-    return criarRespostaJSON(bancoFormatado);
+    var jsonStr = JSON.stringify(bancoFormatado);
+    try {
+      cache.put("BANCO_GRADE_IFS", jsonStr, 600); // 10 minutos de cache ultrarrápido em RAM
+    } catch (eC) {}
+
+    return ContentService.createTextOutput(jsonStr).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return criarRespostaJSON({ erro: err.toString() });
   }
@@ -400,6 +418,7 @@ function doPost(e) {
   try {
     var dados = JSON.parse(e.postData.contents);
     var acao = dados.acao;
+    invalidarCacheGrade(); // Invalida o cache para que o próximo GET busque dados atualizados
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var config = dados.emailsConfig || CONFIG_PADRAO;
 

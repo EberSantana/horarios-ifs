@@ -565,7 +565,7 @@ const API = {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    const timeoutId = setTimeout(() => controller.abort(), 9000);
 
     try {
       const response = await fetch(`${url}?action=obterGrade`, {
