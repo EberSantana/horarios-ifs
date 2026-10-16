@@ -52,15 +52,23 @@ function formatarDataBR(dataStr) {
   return str;
 }
 
+// Liga um evento só se o elemento existir: um botão faltando no HTML
+// não pode mais derrubar toda a inicialização do app (era o que travava a tela).
+function ligarEvento(id, ...args) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener(...args);
+  else console.warn("Elemento não encontrado no HTML:", id);
+}
+
 // ============================================================================
 // INICIALIZAÇÃO
 // ============================================================================
 let ultimaSincronizacao = 0;
 
 document.addEventListener("DOMContentLoaded", () => {
-  registrarServiceWorker();
-  configurarEventosInterface();
   bancoDeDados = API.getLocalDatabase();
+  try { registrarServiceWorker(); } catch (e) { console.error("Falha no Service Worker:", e); }
+  try { configurarEventosInterface(); } catch (e) { console.error("Falha ao configurar a interface:", e); }
 
   const usuarioSalvo = localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER");
   if (usuarioSalvo) {
@@ -134,15 +142,15 @@ document.addEventListener("visibilitychange", () => {
 // ============================================================================
 function configurarEventosInterface() {
   // Login e Recuperação de PIN
-  document.getElementById("btnLogin").addEventListener("click", executarLogin);
-  document.getElementById("btnEsqueciPin").addEventListener("click", abrirModalEsqueciPin);
-  document.getElementById("btnConfirmarRecuperarPin").addEventListener("click", executarRecuperarPin);
-  document.getElementById("pinInput").addEventListener("keyup", (e) => {
+  ligarEvento("btnLogin", "click", executarLogin);
+  ligarEvento("btnEsqueciPin", "click", abrirModalEsqueciPin);
+  ligarEvento("btnConfirmarRecuperarPin", "click", executarRecuperarPin);
+  ligarEvento("pinInput", "keyup", (e) => {
     if (e.key === "Enter") executarLogin();
   });
 
   // Logout
-  document.getElementById("btnLogout").addEventListener("click", executarLogout);
+  ligarEvento("btnLogout", "click", executarLogout);
 
   // Troca de Abas
   document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -152,7 +160,7 @@ function configurarEventosInterface() {
   });
 
   // Refresh manual com feedback imediato
-  document.getElementById("btnManualRefresh").addEventListener("click", () => {
+  ligarEvento("btnManualRefresh", "click", () => {
     const btn = document.getElementById("btnManualRefresh");
     if (btn) btn.innerText = "⏳...";
     mostrarToast("Verificando atualizações...");
@@ -167,7 +175,7 @@ function configurarEventosInterface() {
   });
 
   // Botão de Alerta no Banner
-  document.getElementById("btnVerAlertas").addEventListener("click", () => {
+  ligarEvento("btnVerAlertas", "click", () => {
     const trocas = API.getTrocas();
     const trocasParaMim = trocas.filter(t => t.colega === usuarioLogado && t.status === "pendente").length;
     let totalLivres = 0;
@@ -188,7 +196,7 @@ function configurarEventosInterface() {
   }
 
   // Filtro de Turma
-  document.getElementById("filtroTurmaSelect").addEventListener("change", (e) => {
+  ligarEvento("filtroTurmaSelect", "change", (e) => {
     renderizarGradePorTurma(e.target.value);
   });
 
@@ -229,10 +237,10 @@ function configurarEventosInterface() {
     });
   }
 
-  document.getElementById("btnOpenModalReposicao").addEventListener("click", abrirModalReposicao);
-  document.getElementById("btnNovaReposicaoTab").addEventListener("click", abrirModalReposicao);
-  document.getElementById("btnConfirmarReposicao").addEventListener("click", executarAgendarReposicao);
-  document.getElementById("btnNovaTrocaTab").addEventListener("click", iniciarTrocaPelaAba);
+  ligarEvento("btnOpenModalReposicao", "click", abrirModalReposicao);
+  ligarEvento("btnNovaReposicaoTab", "click", abrirModalReposicao);
+  ligarEvento("btnConfirmarReposicao", "click", executarAgendarReposicao);
+  ligarEvento("btnNovaTrocaTab", "click", iniciarTrocaPelaAba);
 
   // Proposta de Troca (Permuta Multi-Tempos)
   const selectDiaMinhasTroca = document.getElementById("selectDiaMinhasAulasTroca");
@@ -311,27 +319,27 @@ function configurarEventosInterface() {
   }
 
   // Filtros e Exportações da Aba de Relatórios
-  document.getElementById("filtroRelatorioTipo").addEventListener("change", renderizarRelatorios);
-  document.getElementById("filtroRelatorioProf").addEventListener("change", renderizarRelatorios);
-  document.getElementById("filtroRelatorioTurma").addEventListener("change", renderizarRelatorios);
-  document.getElementById("btnImprimirRelatorio").addEventListener("click", () => {
+  ligarEvento("filtroRelatorioTipo", "change", renderizarRelatorios);
+  ligarEvento("filtroRelatorioProf", "change", renderizarRelatorios);
+  ligarEvento("filtroRelatorioTurma", "change", renderizarRelatorios);
+  ligarEvento("btnImprimirRelatorio", "click", () => {
     renderizarRelatorios();
     window.print();
   });
-  document.getElementById("btnExportarCsv").addEventListener("click", exportarRelatorioCSV);
-  document.getElementById("btnCopiarTabela").addEventListener("click", copiarRelatorioTabela);
+  ligarEvento("btnExportarCsv", "click", exportarRelatorioCSV);
+  ligarEvento("btnCopiarTabela", "click", copiarRelatorioTabela);
 
   // Modal Configurações
-  document.getElementById("btnOpenSettings").addEventListener("click", abrirModalConfig);
-  document.getElementById("btnSalvarConfig").addEventListener("click", salvarConfiguracoes);
-  document.getElementById("btnResetarDemo").addEventListener("click", resetarDadosDemo);
+  ligarEvento("btnOpenSettings", "click", abrirModalConfig);
+  ligarEvento("btnSalvarConfig", "click", salvarConfiguracoes);
+  ligarEvento("btnResetarDemo", "click", resetarDadosDemo);
   const btnForcarAtualizar = document.getElementById("btnForcarAtualizacaoApp");
   if (btnForcarAtualizar) {
     btnForcarAtualizar.addEventListener("click", forcarAtualizacaoApp);
   }
 
   // Modal Alterar PIN
-  document.getElementById("btnSalvarNovoPin").addEventListener("click", salvarNovoPin);
+  ligarEvento("btnSalvarNovoPin", "click", salvarNovoPin);
 
   // Fechamento de Modais
   document.querySelectorAll(".btn-close-modal, .btn-cancelar-modal").forEach((btn) => {
@@ -1653,7 +1661,7 @@ function atualizarContadorTemposSelecionados() {
   }
 }
 
-document.getElementById("btnConfirmarLiberar").addEventListener("click", () => {
+ligarEvento("btnConfirmarLiberar", "click", () => {
   const checkboxes = Array.from(document.querySelectorAll(".tempo-chk:checked"));
   if (checkboxes.length === 0) {
     mostrarToast("Por favor, selecione pelo menos um tempo de aula.");
@@ -1705,7 +1713,7 @@ function prepararAssumirAula(profOriginal, index) {
   abrirModal("modalAssumir");
 }
 
-document.getElementById("btnConfirmarAssumir").addEventListener("click", () => {
+ligarEvento("btnConfirmarAssumir", "click", () => {
   if (!aulaSelecionadaParaAcao) return;
   const { profOriginal, index, aula } = aulaSelecionadaParaAcao;
 
