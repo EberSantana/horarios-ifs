@@ -70,6 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
   try { registrarServiceWorker(); } catch (e) { console.error("Falha no Service Worker:", e); }
   try { configurarEventosInterface(); } catch (e) { console.error("Falha ao configurar a interface:", e); }
 
+  migrarNomesAntigos();
   const usuarioSalvo = localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER");
   if (usuarioSalvo) {
     usuarioLogado = usuarioSalvo;
@@ -82,6 +83,20 @@ document.addEventListener("DOMContentLoaded", () => {
   // Sincronização em segundo plano suave após a interface estar 100% pronta
   setTimeout(() => recarregarDados(true), 50);
 });
+
+// Professores que mudaram de nome no sistema: mantém login salvo e PIN no aparelho
+const NOMES_ANTIGOS = { "Rafael": "Luiz Rafael Freitas" };
+function migrarNomesAntigos() {
+  try {
+    for (const antigo in NOMES_ANTIGOS) {
+      const novo = NOMES_ANTIGOS[antigo];
+      ["IFS_SAVED_USER"].forEach((k) => { if (localStorage.getItem(k) === antigo) localStorage.setItem(k, novo); });
+      if (sessionStorage.getItem("IFS_SESSION_USER") === antigo) sessionStorage.setItem("IFS_SESSION_USER", novo);
+      const pins = API.getTeacherPins();
+      if (pins[antigo] && !pins[novo]) { pins[novo] = pins[antigo]; delete pins[antigo]; localStorage.setItem("IFS_TEACHER_PINS", JSON.stringify(pins)); }
+    }
+  } catch (e) { console.warn("Aviso ao migrar nomes antigos:", e); }
+}
 
 function registrarServiceWorker() {
   if ("serviceWorker" in navigator) {
@@ -1473,7 +1488,8 @@ function abrirModalLiberar(prof, indexInicial) {
       prof = usuarioLogado;
     }
     if (!prof || !bancoDeDados[prof]) {
-      const usuarioSalvo = localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER");
+      migrarNomesAntigos();
+  const usuarioSalvo = localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER");
       if (usuarioSalvo && bancoDeDados[usuarioSalvo]) {
         prof = usuarioSalvo;
         usuarioLogado = usuarioSalvo;
@@ -1774,7 +1790,8 @@ function abrirModalTroca(prof, indexInicial) {
   try {
     prof = prof || usuarioLogado;
     if (!prof || !bancoDeDados[prof]) {
-      const usuarioSalvo = localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER");
+      migrarNomesAntigos();
+  const usuarioSalvo = localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER");
       if (usuarioSalvo && bancoDeDados[usuarioSalvo]) {
         prof = usuarioSalvo;
         usuarioLogado = usuarioSalvo;

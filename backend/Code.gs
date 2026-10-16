@@ -67,7 +67,7 @@ var EMAILS_DOCENTES = {
   "Grayce": "grayceane.jesus@ifs.edu.br",
   "Pedro Ernesto": "pedro.cruz@ifs.edu.br",
   "Pedro Goes": "pedro.gois@ifs.edu.br",
-  "Rafael": "luiz.freitas@ifs.edu.br",
+  "Luiz Rafael Freitas": "luiz.freitas@ifs.edu.br",
   "Raisa": "raisa.silveira@ifs.edu.br",
   "Sanderson": "sanderson.silva@ifs.edu.br",
   "Sérgio": "sergio.costa@ifs.edu.br",
@@ -235,15 +235,15 @@ var GRADE_COMPLETA_OFICIAL = [
   ["PG-3","Pedro Goes","Segunda-feira","11:10 - 12:00","2º ADM","Gestão de Pessoas","normal","","Aula confirmada",""],
   ["PG-1","Pedro Goes","Quarta-feira","09:30 - 10:20","1º ADM","Administração Geral","normal","","Aula confirmada",""],
   ["PG-4","Pedro Goes","Quarta-feira","10:20 - 11:10","1º ADM","Administração Geral","normal","","Aula confirmada",""],
-  ["RF-10","Rafael","Quarta-feira","10:20 - 11:10","2º DS","CS2 - B","normal","","Aula confirmada",""],
-  ["RF-11","Rafael","Quarta-feira","11:10 - 12:00","2º DS","CS2 - B","normal","","Aula confirmada",""],
-  ["RF-12","Rafael","Quarta-feira","11:50 - 12:40","1º DS","Introd. à Inform. - B","normal","","Aula confirmada",""],
-  ["RF-13","Rafael","Quarta-feira","12:40 - 13:30","1º DS","Introd. à Inform. - B","normal","","Aula confirmada",""],
-  ["RF-14","Rafael","Quarta-feira","13:30 - 14:20","1º DS","Introd. à Inform. - B","normal","","Aula confirmada",""],
-  ["RF-6","Rafael","Quinta-feira","18:40 - 19:30","3º Info (Subsequente)","Eng. Software","normal","","Aula confirmada",""],
-  ["RF-7","Rafael","Quinta-feira","19:30 - 20:20","3º Info (Subsequente)","Eng. Software","normal","","Aula confirmada",""],
-  ["RF-8","Rafael","Quinta-feira","20:30 - 21:20","3º Info (Subsequente)","Eng. Software","normal","","Aula confirmada",""],
-  ["RF-9","Rafael","Quinta-feira","21:20 - 22:10","3º Info (Subsequente)","Eng. Software","normal","","Aula confirmada",""],
+  ["RF-10","Luiz Rafael Freitas","Quarta-feira","10:20 - 11:10","2º DS","CS2 - B","normal","","Aula confirmada",""],
+  ["RF-11","Luiz Rafael Freitas","Quarta-feira","11:10 - 12:00","2º DS","CS2 - B","normal","","Aula confirmada",""],
+  ["RF-12","Luiz Rafael Freitas","Quarta-feira","11:50 - 12:40","1º DS","Introd. à Inform. - B","normal","","Aula confirmada",""],
+  ["RF-13","Luiz Rafael Freitas","Quarta-feira","12:40 - 13:30","1º DS","Introd. à Inform. - B","normal","","Aula confirmada",""],
+  ["RF-14","Luiz Rafael Freitas","Quarta-feira","13:30 - 14:20","1º DS","Introd. à Inform. - B","normal","","Aula confirmada",""],
+  ["RF-6","Luiz Rafael Freitas","Quinta-feira","18:40 - 19:30","3º Info (Subsequente)","Eng. Software","normal","","Aula confirmada",""],
+  ["RF-7","Luiz Rafael Freitas","Quinta-feira","19:30 - 20:20","3º Info (Subsequente)","Eng. Software","normal","","Aula confirmada",""],
+  ["RF-8","Luiz Rafael Freitas","Quinta-feira","20:30 - 21:20","3º Info (Subsequente)","Eng. Software","normal","","Aula confirmada",""],
+  ["RF-9","Luiz Rafael Freitas","Quinta-feira","21:20 - 22:10","3º Info (Subsequente)","Eng. Software","normal","","Aula confirmada",""],
   ["RA-3","Raisa","Quinta-feira","08:40 - 09:30","3º DS","Biologia","normal","","Aula confirmada",""],
   ["RA-4","Raisa","Quinta-feira","09:30 - 10:20","3º DS","Biologia","normal","","Aula confirmada",""],
   ["RA-5","Raisa","Quinta-feira","10:20 - 11:10","2º DS","Biologia","normal","","Aula confirmada",""],
@@ -1056,7 +1056,7 @@ function sincronizarProfessores(ss) {
     ["Grayce", "grayceane.jesus@ifs.edu.br", "Administração", "1234"],
     ["Pedro Ernesto", "pedro.cruz@ifs.edu.br", "Propedêutica / Química", "1234"],
     ["Pedro Goes", "pedro.gois@ifs.edu.br", "Administração", "1234"],
-    ["Rafael", "luiz.freitas@ifs.edu.br", "Desenvolvimento de Sistemas / Subsequente", "1234"],
+    ["Luiz Rafael Freitas", "luiz.freitas@ifs.edu.br", "Desenvolvimento de Sistemas / Subsequente", "1234"],
     ["Raisa", "raisa.silveira@ifs.edu.br", "Propedêutica / Biologia", "1234"],
     ["Sanderson", "sanderson.silva@ifs.edu.br", "Propedêutica / Ed. Física", "1234"],
     ["Sérgio", "sergio.costa@ifs.edu.br", "Administração", "1234"],
@@ -1405,8 +1405,9 @@ function aplicarGradeOficial() {
   var novas = GRADE_COMPLETA_OFICIAL.map(function (a) {
     var slot = chaveSlot(a[1], a[2], a[3], a[4]);
     var velha = porId[String(a[0]).toUpperCase()];
-    if (!velha || chaveSlot(velha[1], velha[2], velha[3], velha[4]) !== slot) velha = porSlot[slot];
-    if (velha) usadas[String(velha[0]).toUpperCase() + "|" + slot] = true;
+    var mesmoHorario = velha && norm(velha[2]) === norm(a[2]) && norm(velha[3]) === norm(a[3]) && norm(velha[4]) === norm(a[4]);
+    if (!mesmoHorario) velha = porSlot[slot];
+    if (velha) usadas[String(velha[0]).toUpperCase() + "|" + chaveSlot(velha[1], velha[2], velha[3], velha[4])] = true;
     return [a[0], a[1], a[2], a[3], a[4], a[5],
             velha ? (velha[6] || "normal") : "normal",
             velha ? velha[7] : "",

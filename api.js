@@ -16,7 +16,7 @@ const STORAGE_KEY_TROCAS = 'IFS_TROCAS_PERMUTAS';
 const STORAGE_KEY_REPOSICOES = 'IFS_REPOSICOES_AULAS';
 
 // Versão do banco para auto-atualizar clientes com as turmas do Subsequente e novos docentes
-const CURRENT_DB_VERSION = 'v6_grade_pdf_xlsx_2026_2';
+const CURRENT_DB_VERSION = 'v7_nome_luiz_rafael_freitas';
 
 // URL Oficial de Produção do Google Apps Script (Conectado ao Google Sheets do IFS)
 const DEFAULT_BACKEND_URL = "https://script.google.com/macros/s/AKfycbwlITC2JrJ3lFYl__oER1B86JFlHpsrjq75BRGD_q-iIhlKIphfdIcQkbIwRMtTjy2kjg/exec";
@@ -219,7 +219,7 @@ const DADOS_INICIAIS_IFS = {
     { id: "PG-1", dia: "Quarta-feira", hora: "09:30 - 10:20", turma: "1º ADM", disc: "Administração Geral", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "PG-4", dia: "Quarta-feira", hora: "10:20 - 11:10", turma: "1º ADM", disc: "Administração Geral", status: "normal", obs: "Aula confirmada", substituto: "" }
   ],
-  "Rafael": [
+  "Luiz Rafael Freitas": [
     { id: "RF-10", dia: "Quarta-feira", hora: "10:20 - 11:10", turma: "2º DS", disc: "CS2 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "RF-11", dia: "Quarta-feira", hora: "11:10 - 12:00", turma: "2º DS", disc: "CS2 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "RF-12", dia: "Quarta-feira", hora: "11:50 - 12:40", turma: "1º DS", disc: "Introd. à Inform. - B", status: "normal", obs: "Aula confirmada", substituto: "" },
@@ -371,7 +371,7 @@ const EMAILS_DOCENTES_IFS = {
   "Grayce": "grayceane.jesus@ifs.edu.br",
   "Pedro Ernesto": "pedro.cruz@ifs.edu.br",
   "Pedro Goes": "pedro.gois@ifs.edu.br",
-  "Rafael": "luiz.freitas@ifs.edu.br",
+  "Luiz Rafael Freitas": "luiz.freitas@ifs.edu.br",
   "Raisa": "raisa.silveira@ifs.edu.br",
   "Sanderson": "sanderson.silva@ifs.edu.br",
   "Sérgio": "sergio.costa@ifs.edu.br",
