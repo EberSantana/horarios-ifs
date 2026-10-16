@@ -229,7 +229,41 @@ const EMAILS_LOG_INICIAL = [
 
 const DEFAULT_PIN = "1234";
 
+// E-mails institucionais oficiais dos 24 docentes do IFS Campus Tobias Barreto
+const EMAILS_DOCENTES_IFS = {
+  "Eber": "eber.santana@ifs.edu.br",
+  "Adriano": "adriano@ifs.edu.br",
+  "Alex": "alex@ifs.edu.br",
+  "Alyrio": "alyrio@ifs.edu.br",
+  "Ângelo": "angelo@ifs.edu.br",
+  "Christiano": "christiano@ifs.edu.br",
+  "Elliot": "elliot@ifs.edu.br",
+  "Emerson": "emerson@ifs.edu.br",
+  "Eric": "eric@ifs.edu.br",
+  "Felippe": "felippe@ifs.edu.br",
+  "Fernanda": "fernanda@ifs.edu.br",
+  "Grayce": "grayce@ifs.edu.br",
+  "Luiz Felipe": "luiz.felipe@ifs.edu.br",
+  "Pedro Ernesto": "pedro.ernesto@ifs.edu.br",
+  "Pedro Goes": "pedro.goes@ifs.edu.br",
+  "Rafael": "rafael@ifs.edu.br",
+  "Raisa": "raisa@ifs.edu.br",
+  "Sanderson": "sanderson@ifs.edu.br",
+  "Sérgio": "sergio@ifs.edu.br",
+  "Vagner": "vagner@ifs.edu.br",
+  "Vinicius": "vinicius@ifs.edu.br",
+  "Vitor": "vitor@ifs.edu.br",
+  "Weder": "weder@ifs.edu.br",
+  "Welkson": "welkson@ifs.edu.br"
+};
+
 const API = {
+  obterEmailProfessor(nome) {
+    if (!nome) return "";
+    if (EMAILS_DOCENTES_IFS[nome]) return EMAILS_DOCENTES_IFS[nome];
+    return `${nome.toLowerCase().replace(/[^a-z0-9.]/g, '')}@ifs.edu.br`;
+  },
+
   getBackendUrl() {
     const salvo = localStorage.getItem(STORAGE_KEY_API_URL);
     if (salvo && salvo.trim() !== "") return salvo.trim();
@@ -462,7 +496,7 @@ const API = {
 
   recuperarPin(professor) {
     this.saveNewPin(professor, DEFAULT_PIN);
-    const emailProf = `${professor.toLowerCase().replace(/\s+/g, '.')}@ifs.edu.br`;
+    const emailProf = this.obterEmailProfessor(professor);
     const config = this.getEmailsConfig();
     
     this.registrarEmailLog(
@@ -551,9 +585,11 @@ const API = {
       if (config.notificarFalta && contagem > 0) {
         const turmasStr = Array.from(turmasAfetadas).join(", ");
         const discsStr = Array.from(discsAfetadas).join(", ");
-        const dests = Array.from(turmasAfetadas).map(t => this.obterDestinatariosPorTurma(t)).join(", ");
+        const emailDocente = payload.emailDocente || this.obterEmailProfessor(profOriginal);
+        const destsCoord = Array.from(turmasAfetadas).map(t => this.obterDestinatariosPorTurma(t)).join(", ");
+        const destsCompleto = emailDocente ? `${emailDocente}, ${destsCoord}` : destsCoord;
         const labelTempos = contagem > 1 ? `${contagem} TEMPOS` : "1 TEMPO";
-        this.registrarEmailLog("AUSENCIA", `🔴 [AUSÊNCIA - ${labelTempos}] ${discsStr} (${turmasStr}) - Prof. ${profOriginal}`, dests);
+        this.registrarEmailLog("AUSENCIA", `🔴 [AUSÊNCIA - ${labelTempos}] ${discsStr} (${turmasStr}) - Prof. ${profOriginal}`, destsCompleto);
       }
     } else if (acao === "recuperar_multiplos" && localDb[profOriginal]) {
       const indicesArray = payload.indices || [];
@@ -576,7 +612,9 @@ const API = {
 
       if (config.notificarSubstituicao) {
         const dests = this.obterDestinatariosPorTurma(aula.turma);
-        this.registrarEmailLog("SUBSTITUICAO", `✅ [SUBSTITUIÇÃO HOMOLOGADA] ${aula.disc} (${aula.turma}) assumida por Prof. ${substituto}`, `${dests}, ${profOriginal.toLowerCase()}@ifs.edu.br`);
+        const emailTitular = this.obterEmailProfessor(profOriginal);
+        const emailSubs = payload.emailSubstituto || this.obterEmailProfessor(substituto);
+        this.registrarEmailLog("SUBSTITUICAO", `✅ [SUBSTITUIÇÃO HOMOLOGADA] ${aula.disc} (${aula.turma}) assumida por Prof. ${substituto}`, `${dests}, ${emailTitular}, ${emailSubs}`);
       }
     } else if ((acao === "recuperar" || acao === "cancelar") && localDb[profOriginal] && localDb[profOriginal][index]) {
       const aula = localDb[profOriginal][index];
@@ -593,7 +631,9 @@ const API = {
         const qtdCedidas = (troca.aulasCedidas && troca.aulasCedidas.length) || 1;
         const qtdDesejadas = (troca.aulasDesejadas && troca.aulasDesejadas.length) || 1;
         const temposLabel = (qtdCedidas > 1 || qtdDesejadas > 1) ? ` (${qtdCedidas} ↔️ ${qtdDesejadas} tempos)` : "";
-        this.registrarEmailLog("PERMUTA_PROPOSTA", `🔄 [PROPOSTA DE TROCA${temposLabel}] Prof. ${troca.proponente} solicitou permuta com Prof. ${troca.colega}`, `${dests1}, ${troca.colega.toLowerCase()}@ifs.edu.br`);
+        const emailProp = payload.emailProponente || this.obterEmailProfessor(troca.proponente);
+        const emailColega = payload.emailColega || this.obterEmailProfessor(troca.colega);
+        this.registrarEmailLog("PERMUTA_PROPOSTA", `🔄 [PROPOSTA DE TROCA${temposLabel}] Prof. ${troca.proponente} solicitou permuta com Prof. ${troca.colega}`, `${dests1}, ${emailProp}, ${emailColega}`);
       }
     } else if (acao === "aceitar_troca") {
       const { trocaId, troca } = payload;
@@ -603,7 +643,9 @@ const API = {
         const qtdCedidas = (troca.aulasCedidas && troca.aulasCedidas.length) || 1;
         const qtdDesejadas = (troca.aulasDesejadas && troca.aulasDesejadas.length) || 1;
         const temposLabel = (qtdCedidas > 1 || qtdDesejadas > 1) ? ` (${qtdCedidas} ↔️ ${qtdDesejadas} tempos)` : "";
-        this.registrarEmailLog("PERMUTA_ACEITA", `✅ [TROCA CONFIRMADA${temposLabel}] Permuta aprovada entre Prof. ${troca.proponente} e Prof. ${troca.colega}`, `${dests2}, ${troca.proponente.toLowerCase()}@ifs.edu.br`);
+        const emailProp = payload.emailProponente || this.obterEmailProfessor(troca.proponente);
+        const emailColega = payload.emailColega || this.obterEmailProfessor(troca.colega);
+        this.registrarEmailLog("PERMUTA_ACEITA", `✅ [TROCA CONFIRMADA${temposLabel}] Permuta aprovada entre Prof. ${troca.proponente} e Prof. ${troca.colega}`, `${dests2}, ${emailProp}, ${emailColega}`);
       }
     } else if (acao === "recusar_troca") {
       const { trocaId } = payload;
@@ -613,7 +655,9 @@ const API = {
       this.salvarReposicao(reposicao);
       if (config.notificarReposicao) {
         const dests = this.obterDestinatariosPorTurma(reposicao.turma);
-        this.registrarEmailLog("REPOSICAO", `📅 [REPOSIÇÃO AGENDADA] ${reposicao.disciplina} (${reposicao.turma}) - Prof. ${reposicao.professor} para ${reposicao.data}`, dests);
+        const emailProf = payload.emailDocente || this.obterEmailProfessor(reposicao.professor);
+        const destsCompletos = emailProf ? `${emailProf}, ${dests}` : dests;
+        this.registrarEmailLog("REPOSICAO", `📅 [REPOSIÇÃO AGENDADA] ${reposicao.disciplina} (${reposicao.turma}) - Prof. ${reposicao.professor} para ${reposicao.data}`, destsCompletos);
       }
     } else if (acao === "cancelar_reposicao") {
       const { id } = payload;
@@ -624,18 +668,35 @@ const API = {
 
     // 2. Dispara envio assíncrono em segundo plano para o Google Apps Script
     if (url) {
+      const payloadEnvio = { ...payload, emailsConfig: config };
+      if (!payloadEnvio.emailDocente && profOriginal) {
+        payloadEnvio.emailDocente = this.obterEmailProfessor(profOriginal);
+      }
       fetch(url, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ ...payload, emailsConfig: config }),
+        body: JSON.stringify(payloadEnvio),
         redirect: "follow"
-      }).then(() => {
-        if (typeof atualizarIndicadorSincronismo === "function") {
-          atualizarIndicadorSincronismo("online", "Conectado ao Google Sheets");
-        }
-      }).catch(err => {
-        console.warn("Aviso ao sincronizar remotamente em segundo plano:", err);
-      });
+      }).then(res => res.json().catch(() => null))
+        .then(resData => {
+          if (resData) {
+            console.log("Sincronismo Google Apps Script:", resData);
+            if (resData.sucesso) {
+              if (typeof atualizarIndicadorSincronismo === "function") {
+                atualizarIndicadorSincronismo("online", "Conectado ao Google Sheets");
+              }
+              if (resData.destinatarios) {
+                console.info("E-mails institucionais enviados com sucesso para:", resData.destinatarios);
+              }
+            } else if (resData.concorrencia) {
+              if (typeof mostrarToast === "function") {
+                mostrarToast("Aviso: " + resData.erro);
+              }
+            }
+          }
+        }).catch(err => {
+          console.warn("Aviso ao sincronizar remotamente em segundo plano:", err);
+        });
     }
 
     return dbAtualizado;

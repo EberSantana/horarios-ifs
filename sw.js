@@ -1,5 +1,5 @@
 // Service Worker - Painel Docente IFS Tobias Barreto
-const CACHE_NAME = 'ifs-painel-v8-pwa-badge-alertas';
+const CACHE_NAME = 'ifs-painel-v9-email-sync-autoappend';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

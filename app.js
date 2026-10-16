@@ -1542,12 +1542,17 @@ document.getElementById("btnConfirmarLiberar").addEventListener("click", () => {
 
   fecharTodosModais();
 
-  const profAlvo = usuarioLogado || localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER");
+  const profAlvo = usuarioLogado || localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER") || "Eber";
+  const minhasAulas = (bancoDeDados && bancoDeDados[profAlvo]) || [];
+  const aulasSelecionadas = indicesSelecionados.map((idx) => minhasAulas[idx]).filter(Boolean);
+  const emailDocente = API.obterEmailProfessor(profAlvo);
 
   bancoDeDados = API.processarAcao({
     acao: "libertar_multiplos",
     profOriginal: profAlvo,
     indices: indicesSelecionados,
+    aulas: aulasSelecionadas,
+    emailDocente: emailDocente,
     dataFalta: dataFalta,
     motivo: motivo
   });
@@ -1582,11 +1587,17 @@ document.getElementById("btnConfirmarAssumir").addEventListener("click", () => {
 
   fecharTodosModais();
 
+  const emailSubstituto = API.obterEmailProfessor(usuarioLogado);
+  const emailOriginal = API.obterEmailProfessor(profOriginal);
+
   bancoDeDados = API.processarAcao({
     acao: "assumir",
     profOriginal,
     index,
-    substituto: usuarioLogado
+    aula,
+    substituto: usuarioLogado,
+    emailSubstituto,
+    emailOriginal
   });
 
   renderizarTudo();
@@ -1596,7 +1607,8 @@ document.getElementById("btnConfirmarAssumir").addEventListener("click", () => {
 function cancelarAusencia(prof, index) {
   const aula = bancoDeDados[prof][index];
   if (confirm(`Deseja cancelar a ausência e lecionar a aula de ${aula.disc} normalmente?`)) {
-    bancoDeDados = API.processarAcao({ acao: "recuperar", profOriginal: prof, index });
+    const emailDocente = API.obterEmailProfessor(prof);
+    bancoDeDados = API.processarAcao({ acao: "recuperar", profOriginal: prof, index, aula, emailDocente });
     renderizarTudo();
     mostrarToast("Aula restaurada na sua grade normal!");
   }
@@ -1604,7 +1616,9 @@ function cancelarAusencia(prof, index) {
 
 function desistirSubstituicao(profOriginal, index) {
   if (confirm("Deseja desistir desta substituição? A aula voltará a ficar disponível para outros colegas.")) {
-    bancoDeDados = API.processarAcao({ acao: "libertar", profOriginal, index });
+    const aula = bancoDeDados[profOriginal][index];
+    const emailDocente = API.obterEmailProfessor(profOriginal);
+    bancoDeDados = API.processarAcao({ acao: "libertar", profOriginal, index, aula, emailDocente });
     renderizarTudo();
     mostrarToast("Substituição desfeita. A aula voltou para o mural de disponíveis.");
   }
@@ -1969,7 +1983,9 @@ async function executarPropostaTroca() {
 
   bancoDeDados = API.processarAcao({
     acao: "propor_troca",
-    troca: novaTroca
+    troca: novaTroca,
+    emailProponente: API.obterEmailProfessor(novaTroca.proponente),
+    emailColega: API.obterEmailProfessor(novaTroca.colega)
   });
 
   renderizarTudo();
@@ -1985,7 +2001,9 @@ function aceitarTroca(trocaId) {
     bancoDeDados = API.processarAcao({
       acao: "aceitar_troca",
       trocaId,
-      troca
+      troca,
+      emailProponente: API.obterEmailProfessor(troca.proponente),
+      emailColega: API.obterEmailProfessor(troca.colega)
     });
     renderizarTudo();
     mostrarToast("Permuta confirmada com sucesso!");
@@ -2054,7 +2072,8 @@ function executarAgendarReposicao() {
 
   bancoDeDados = API.processarAcao({
     acao: "agendar_reposicao",
-    reposicao: novaReposicao
+    reposicao: novaReposicao,
+    emailDocente: API.obterEmailProfessor(usuarioLogado)
   });
 
   renderizarTudo();
