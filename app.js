@@ -375,7 +375,6 @@ function entrarNoPainel() {
   document.getElementById("tela-login").style.display = "none";
   document.getElementById("tela-painel").style.display = "flex";
   document.getElementById("nomeUsuarioLogado").innerText = `Prof. ${usuarioLogado}`;
-  document.getElementById("userAvatar").innerText = usuarioLogado.substring(0, 2).toUpperCase();
 
   renderizarTudo();
   iniciarPolling();

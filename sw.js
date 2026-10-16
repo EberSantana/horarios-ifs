@@ -1,5 +1,5 @@
 // Service Worker - Painel Docente IFS Tobias Barreto
-const CACHE_NAME = 'ifs-painel-v14-unread-badge';
+const CACHE_NAME = 'ifs-painel-v15-clean-header';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
