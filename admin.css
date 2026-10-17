@@ -97,6 +97,8 @@ textarea.input { min-height: 80px; resize: vertical; }
   grid-template-columns: 232px minmax(0, 1fr);
   grid-template-rows: 56px 1fr;
   grid-template-areas: "topo topo" "lateral main";
+  /* o menu lateral segue até o fim da página, mesmo em telas longas */
+  background: linear-gradient(90deg, var(--branco) 0 231px, var(--linha) 231px 232px, var(--papel) 232px);
 }
 .topo {
   grid-area: topo; position: sticky; top: 0; z-index: 30;
@@ -255,7 +257,7 @@ td.acoes .btn + .btn { margin-left: 6px; }
 
 /* ---------------------------------------------------------------- celular */
 @media (max-width: 760px) {
-  #app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "topo" "main"; }
+  #app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "topo" "main"; background: var(--papel); }
   .lateral { display: none; }
   .topo { padding: 0 16px; }
   .topo .marca span { display: none; }
@@ -280,3 +282,50 @@ td.acoes .btn + .btn { margin-left: 6px; }
   .numero { padding: 14px 16px; }
   .numero .valor { font-size: 26px; }
 }
+
+/* ---------------------------------------------------------------- grade de aulas */
+.alternador { display: inline-flex; border: 1px solid var(--linha-forte); border-radius: var(--r-ctrl); overflow: hidden; background: var(--branco); }
+.alternador button { border: 0; background: none; padding: 0 14px; min-height: 34px; font-size: 14px; font-weight: 500; color: var(--grafite); cursor: pointer; }
+.alternador button + button { border-left: 1px solid var(--linha-forte); }
+.alternador button[aria-pressed="true"] { background: var(--mata-claro); color: var(--mata); font-weight: 600; }
+
+.quadro { table-layout: fixed; min-width: 760px; }
+.quadro th { text-align: center; }
+.quadro th.q-hora, .quadro td { border-right: 1px solid #eef1ee; }
+.quadro th.q-hora { width: 112px; text-align: left; font-weight: 600; color: var(--grafite); background: #fafbf9; white-space: nowrap; }
+.quadro tbody th.q-hora { font-size: 13px; vertical-align: top; padding-top: 12px; }
+.quadro td { padding: 6px; vertical-align: top; height: 64px; }
+.quadro tbody tr:hover td { background: transparent; }
+.q-aula {
+  display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left; cursor: pointer;
+  padding: 7px 9px 7px 11px; border: 1px solid var(--linha); border-left: 3px solid var(--mata); border-radius: var(--r-ctrl);
+  background: var(--branco); font-size: 13px; line-height: 1.3;
+}
+.q-aula + .q-aula { margin-top: 4px; }
+.q-aula:hover { border-color: var(--linha-forte); border-left-color: var(--mata); background: #fafbf9; }
+.q-disc { font-weight: 600; color: var(--tinta); overflow-wrap: anywhere; }
+.q-quem { color: var(--grafite); font-size: 12.5px; }
+.q-st { font-size: 12px; font-weight: 600; }
+.q-aula.falta { border-left-color: var(--falta); background: var(--falta-fundo); }
+.q-aula.falta .q-st { color: var(--falta); }
+.q-aula.subs { border-left-color: #f79009; background: var(--atencao-fundo); }
+.q-aula.subs .q-st { color: var(--atencao); }
+.q-aula.def { border-left-color: #2e90fa; border-style: dashed; border-left-style: solid; }
+.q-aula.def .q-quem { color: var(--info); font-weight: 600; }
+.q-vazio { text-align: center; }
+.q-add { width: 100%; height: 100%; min-height: 50px; border: 1px dashed transparent; border-radius: var(--r-ctrl); background: none; color: transparent; font-size: 18px; cursor: pointer; }
+.q-vazio:hover .q-add, .q-add:focus-visible { border-color: var(--linha-forte); color: var(--nevoa); }
+.legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 13px; color: var(--grafite); margin-top: -8px; }
+.lg { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: -8px; vertical-align: -1px; }
+.lg-falta { background: var(--falta); } .lg-subs { background: #f79009; } .lg-def { background: #2e90fa; }
+
+.tabela-aulas { table-layout: fixed; min-width: 640px; }
+.tabela-aulas td { padding-top: 9px; padding-bottom: 9px; }
+.tabela-aulas .col-chk { padding-right: 0; }
+.tabela-aulas .col-hora { white-space: nowrap; color: var(--grafite); }
+.tabela-aulas .disc { font-weight: 500; }
+.tabela-aulas .sit:empty { display: none; }
+.tabela-aulas .sit { margin-top: 3px; }
+.tabela-aulas tr.dia-grupo th { background: var(--papel); color: var(--tinta); font-size: 13px; font-weight: 700; padding: 8px 14px; border-top: 1px solid var(--linha); }
+.tabela-aulas tr.dia-grupo:first-child th { border-top: 0; }
+.tabela-aulas td.acoes { padding-right: 16px; }

@@ -382,32 +382,47 @@ async function telaGrade(main) {
   await Promise.all([carregarGrade(), carregarProfessores()]);
   estado.selAulas.clear();
   const f = estado.filtrosGrade;
+  if (!estado.vistaGrade) estado.vistaGrade = "quadro";
   const turmas = [...new Set(estado.grade.map((a) => a.turma))].sort((a, b) => a.localeCompare(b, "pt-BR"));
   const profs = [...new Set(estado.grade.map((a) => a.prof))].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  main.innerHTML = cabecalho("Grade de aulas", `${estado.grade.length} aulas · ${turmas.length} turmas · edite, mova ou atribua professor a qualquer aula`,
-      `<button class="btn btn-primario" data-acao="nova-aula">+ Nova aula</button>`) + `
+  // No quadro é preciso escolher uma turma ou um professor
+  if (estado.vistaGrade === "quadro" && !f.turma && !f.prof) f.turma = turmas[0] || "";
+  const quadro = estado.vistaGrade === "quadro";
+  main.innerHTML = cabecalho("Grade de aulas", `${estado.grade.length} aulas em ${turmas.length} turmas`,
+      `<div class="alternador" role="group" aria-label="Forma de ver a grade">
+         <button type="button" data-acao="vista-grade" data-vista="quadro" aria-pressed="${quadro}">Quadro semanal</button>
+         <button type="button" data-acao="vista-grade" data-vista="lista" aria-pressed="${!quadro}">Lista</button></div>
+       <button class="btn btn-primario" data-acao="nova-aula">Nova aula</button>`) + `
     <section class="cartao">
       <div class="filtros">
-        <div class="campo"><label for="gTurma">Turma</label><select id="gTurma" class="input"><option value="">Todas</option>
+        <div class="campo"><label for="gTurma">Turma</label><select id="gTurma" class="input"><option value="">${quadro ? "Escolha…" : "Todas"}</option>
           ${turmas.map((t) => `<option ${f.turma === t ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></div>
-        <div class="campo"><label for="gProf">Professor</label><select id="gProf" class="input"><option value="">Todos</option>
+        <div class="campo"><label for="gProf">Professor</label><select id="gProf" class="input"><option value="">${quadro ? "Escolha…" : "Todos"}</option>
           ${profs.map((p) => `<option ${f.prof === p ? "selected" : ""}>${esc(p)}</option>`).join("")}</select></div>
-        <div class="campo"><label for="gDia">Dia</label><select id="gDia" class="input"><option value="">Todos</option>
+        ${quadro ? "" : `<div class="campo"><label for="gDia">Dia</label><select id="gDia" class="input"><option value="">Todos</option>
           ${DIAS.map((d) => `<option ${f.dia === d ? "selected" : ""}>${d}</option>`).join("")}</select></div>
-        <div class="campo largo"><label for="gBusca">Disciplina</label><input id="gBusca" class="input" type="search" placeholder="Buscar disciplina" value="${esc(f.busca)}"></div>
+        <div class="campo largo"><label for="gBusca">Disciplina</label><input id="gBusca" class="input" type="search" placeholder="Buscar disciplina" value="${esc(f.busca)}"></div>`}
       </div>
       <div id="barraAulas"></div>
       <div class="tabela-rolagem" id="tabAulas"></div>
-    </section>`;
-  const ligar = (id, campo) => $(id, main).addEventListener("input", (e) => { f[campo] = e.target.value; estado.selAulas.clear(); desenharAulas(); });
+    </section>
+    ${quadro ? `<p class="legenda"><span class="lg lg-falta"></span>Falta sem substituto <span class="lg lg-subs"></span>Substituída <span class="lg lg-def"></span>Sem professor <span class="mudo">· Clique numa aula para editar ou num horário vazio para cadastrar.</span></p>` : ""}`;
+  const ligar = (id, campo) => { const el = $(id, main); if (el) el.addEventListener("input", (e) => {
+    f[campo] = e.target.value;
+    // No quadro, turma e professor são alternativos: escolher um limpa o outro
+    if (quadro && campo === "turma" && f.turma) { f.prof = ""; $("#gProf", main).value = ""; }
+    if (quadro && campo === "prof" && f.prof) { f.turma = ""; $("#gTurma", main).value = ""; }
+    estado.selAulas.clear(); desenharAulas();
+  }); };
   ligar("#gTurma", "turma"); ligar("#gProf", "prof"); ligar("#gDia", "dia"); ligar("#gBusca", "busca");
   desenharAulas();
 }
 
 function aulasFiltradas() {
   const f = estado.filtrosGrade, b = f.busca.trim().toLowerCase();
+  const quadro = estado.vistaGrade === "quadro";
   return estado.grade.filter((a) => (!f.turma || a.turma === f.turma) && (!f.prof || a.prof === f.prof) &&
-    (!f.dia || a.dia === f.dia) && (!b || String(a.disc).toLowerCase().includes(b)));
+    (quadro || ((!f.dia || a.dia === f.dia) && (!b || String(a.disc).toLowerCase().includes(b)))));
 }
 
 function etiquetaSituacao(a) {
@@ -417,32 +432,73 @@ function etiquetaSituacao(a) {
   return "";
 }
 
+function classeAula(a) {
+  if (a.status === "alert") return "falta";
+  if (a.status === "assumed") return "subs";
+  if (a.prof === "A definir") return "def";
+  return "";
+}
+
 function desenharAulas() {
+  if (estado.vistaGrade === "quadro") return desenharQuadro();
   const lista = aulasFiltradas(), sel = estado.selAulas;
   $("#barraAulas").innerHTML = sel.size ? `<div class="barra-selecao"><strong>${sel.size} aula${sel.size > 1 ? "s" : ""} selecionada${sel.size > 1 ? "s" : ""}</strong>
     <button class="btn btn-pequeno btn-primario" data-acao="atribuir">Atribuir professor</button>
     <button class="btn btn-pequeno" data-acao="limpar-sel">Limpar seleção</button></div>` : "";
   if (!lista.length) { $("#tabAulas").innerHTML = `<div class="vazio">Nenhuma aula com esses filtros.</div>`; return; }
   const todos = lista.every((a) => sel.has(a.id));
-  $("#tabAulas").innerHTML = `<table><thead><tr>
-      <th style="width:36px"><input type="checkbox" class="chk" data-chk-todas-aulas aria-label="Selecionar todas" ${todos ? "checked" : ""}></th>
-      <th>Dia</th><th>Horário</th><th>Turma</th><th>Disciplina</th><th>Professor</th><th class="esconder-celular">Situação</th><th></th></tr></thead><tbody>
-    ${lista.map((a) => `<tr class="${sel.has(a.id) ? "selecionada" : ""}">
-      <td><input type="checkbox" class="chk" data-chk-aula="${esc(a.id)}" ${sel.has(a.id) ? "checked" : ""} aria-label="Selecionar"></td>
-      <td>${esc(diaCurto(a.dia))}</td><td style="white-space:nowrap">${esc(a.hora)}</td><td>${esc(a.turma)}</td>
-      <td>${esc(a.disc)}${salaDaObs(a.obs) ? ` <span class="mudo pequeno">(${esc(salaDaObs(a.obs))})</span>` : ""}</td>
-      <td>${a.prof === "A definir" ? `<span class="etiqueta et-azul">A definir</span>` : esc(a.prof)}</td>
-      <td class="esconder-celular">${etiquetaSituacao(a)}</td>
-      <td class="acoes"><button class="btn btn-pequeno" data-acao="editar-aula" data-id="${esc(a.id)}">Editar</button></td></tr>`).join("")}
-    </tbody></table><div class="paginacao"><span>${lista.length} aula${lista.length > 1 ? "s" : ""}</span><span>Código da aula aparece ao editar</span></div>`;
+  let diaAtual = "";
+  const linhas = lista.map((a) => {
+    const cab = a.dia !== diaAtual ? `<tr class="dia-grupo"><th colspan="6">${esc(a.dia)}</th></tr>` : "";
+    diaAtual = a.dia;
+    return cab + `<tr class="${sel.has(a.id) ? "selecionada" : ""}">
+      <td class="col-chk"><input type="checkbox" class="chk" data-chk-aula="${esc(a.id)}" ${sel.has(a.id) ? "checked" : ""} aria-label="Selecionar ${esc(a.disc)} ${esc(a.hora)}"></td>
+      <td class="col-hora">${esc(a.hora.replace(" - ", "–"))}</td>
+      <td>${esc(a.turma)}</td>
+      <td><span class="disc">${esc(a.disc)}</span>${salaDaObs(a.obs) ? ` <span class="mudo pequeno">${esc(salaDaObs(a.obs))}</span>` : ""}
+        <div class="sit">${etiquetaSituacao(a)}</div></td>
+      <td>${a.prof === "A definir" ? `<span class="mudo">A definir</span>` : esc(a.prof)}</td>
+      <td class="acoes"><button class="btn-link" data-acao="editar-aula" data-id="${esc(a.id)}">Editar</button></td></tr>`;
+  }).join("");
+  $("#tabAulas").innerHTML = `<table class="tabela-aulas"><colgroup><col style="width:44px"><col style="width:120px"><col style="width:22%"><col><col style="width:20%"><col style="width:72px"></colgroup>
+    <thead><tr><th class="col-chk"><input type="checkbox" class="chk" data-chk-todas-aulas aria-label="Selecionar todas" ${todos ? "checked" : ""}></th>
+      <th>Horário</th><th>Turma</th><th>Disciplina</th><th>Professor</th><th></th></tr></thead><tbody>${linhas}</tbody></table>
+    <div class="paginacao"><span>${lista.length} aula${lista.length > 1 ? "s" : ""}</span><span>Marque aulas para atribuir professor de uma vez</span></div>`;
 }
 
-async function modalAula(id) {
+function desenharQuadro() {
+  $("#barraAulas").innerHTML = "";
+  const f = estado.filtrosGrade;
+  const lista = aulasFiltradas();
+  if (!f.turma && !f.prof) { $("#tabAulas").innerHTML = `<div class="vazio">Escolha uma turma ou um professor para ver o quadro da semana.</div>`; return; }
+  const porTurma = !!f.turma;
+  // Linhas: horários usados por essa turma/professor (e, para a turma, o turno completo dela)
+  const base = porTurma ? estado.grade.filter((a) => a.turma === f.turma) : lista;
+  const horas = [...new Set(base.map((a) => a.hora))].sort();
+  const dias = DIAS.filter((d, i) => i < 5 || base.some((a) => a.dia === d));
+  if (!horas.length) { $("#tabAulas").innerHTML = `<div class="vazio">Nenhuma aula para ${esc(f.turma || f.prof)}.</div>`; return; }
+  const total = lista.length;
+  const corpo = horas.map((h) => `<tr><th class="q-hora" scope="row">${esc(h.replace(" - ", "–"))}</th>${dias.map((d) => {
+    const aulas = lista.filter((a) => a.dia === d && a.hora === h);
+    if (!aulas.length) return `<td class="q-vazio"><button class="q-add" data-acao="nova-aula-slot" data-dia="${esc(d)}" data-hora="${esc(h)}" aria-label="Cadastrar aula ${esc(d)} ${esc(h)}">+</button></td>`;
+    return `<td>${aulas.map((a) => `<button class="q-aula ${classeAula(a)}" data-acao="editar-aula" data-id="${esc(a.id)}">
+        <span class="q-disc">${esc(a.disc)}</span>
+        <span class="q-quem">${esc(porTurma ? a.prof : a.turma)}${salaDaObs(a.obs) ? " · " + esc(salaDaObs(a.obs)) : ""}</span>
+        ${a.status === "assumed" ? `<span class="q-st">Substituto: ${esc(a.substituto)}</span>` : a.status === "alert" ? `<span class="q-st">Falta${a.dataFalta ? " · " + esc(a.dataFalta) : ""}</span>` : ""}
+      </button>`).join("")}</td>`;
+  }).join("")}</tr>`).join("");
+  $("#tabAulas").innerHTML = `<table class="quadro"><thead><tr><th class="q-hora">Horário</th>${dias.map((d) => `<th>${esc(diaCurto(d))}</th>`).join("")}</tr></thead>
+    <tbody>${corpo}</tbody></table>
+    <div class="paginacao"><span>${esc(porTurma ? "Turma " + f.turma : "Prof. " + f.prof)} · ${total} aula${total === 1 ? "" : "s"} na semana</span>
+      <button class="btn-link" data-acao="imprimir-quadro">Imprimir este quadro</button></div>`;
+}
+
+async function modalAula(id, pre) {
   await Promise.all([carregarGrade(), carregarProfessores()]);
   const a = id ? estado.grade.find((x) => x.id === id) : null;
   if (id && !a) { toast("Aula não encontrada.", true); return; }
   const f = estado.filtrosGrade;
-  const v = a || { prof: f.prof || "", dia: f.dia || "Segunda-feira", hora: "", turma: f.turma || "", disc: "", obs: "" };
+  const v = a || Object.assign({ prof: f.prof || "", dia: f.dia || "Segunda-feira", hora: "", turma: f.turma || "", disc: "", obs: "" }, pre || {});
   const horas = [...new Set(estado.grade.map((x) => x.hora))].sort();
   const turmas = [...new Set(estado.grade.map((x) => x.turma))].sort((x, y) => x.localeCompare(y, "pt-BR"));
   const discs = [...new Set(estado.grade.map((x) => x.disc))].sort((x, y) => x.localeCompare(y, "pt-BR"));
@@ -835,6 +891,24 @@ function exportarEmails() {
     ...l.map((e) => [new Date(e.data).toLocaleString("pt-BR"), e.tipo, e.assunto, e.para, e.status, e.erro])]), "text/csv;charset=utf-8");
 }
 
+function imprimirQuadroAtual() {
+  const tabela = $("#tabAulas .quadro");
+  if (!tabela) return;
+  const f = estado.filtrosGrade;
+  const w = document.createElement("iframe");
+  w.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+  document.body.appendChild(w);
+  w.contentDocument.open();
+  w.contentDocument.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(f.turma || f.prof)}</title><style>
+    body{font-family:Arial,sans-serif;color:#111;margin:0;padding:8px} h1{font-size:12px;color:#1f5135;margin:0 0 2px} h2{font-size:18px;margin:0 0 10px}
+    table{width:100%;border-collapse:collapse;font-size:11px} th,td{border:1px solid #999;padding:5px;vertical-align:top;text-align:left} th{background:#ecf3ee}
+    button{all:unset;display:block} .q-add{display:none} .q-disc{display:block;font-weight:bold} .q-quem,.q-st{display:block;color:#444}
+    .q-aula+.q-aula{border-top:1px dashed #bbb;margin-top:3px;padding-top:3px} @page{size:A4 landscape;margin:10mm}</style></head><body>
+    <h1>IFS Campus Tobias Barreto · gerado em ${new Date().toLocaleDateString("pt-BR")}</h1><h2>${esc(f.turma ? "Turma " + f.turma : "Prof. " + f.prof)}</h2>${tabela.outerHTML}</body></html>`);
+  w.contentDocument.close();
+  setTimeout(() => { w.contentWindow.focus(); w.contentWindow.print(); setTimeout(() => w.remove(), 60000); }, 300);
+}
+
 async function imprimirGrade(porTurma) {
   await carregarGrade(true);
   const chave = porTurma ? "turma" : "prof";
@@ -918,8 +992,12 @@ document.addEventListener("click", (ev) => {
     case "liberar": mudarStatus(d.id, "liberar"); break;
     case "normalizar": mudarStatus(d.id, "normal"); break;
     case "ver-grade":
-      estado.filtrosGrade = { turma: "", prof: d.prof || "", dia: d.dia || "", busca: "" }; irPara("grade"); break;
+      estado.filtrosGrade = { turma: "", prof: d.prof || "", dia: d.dia || "", busca: "" };
+      estado.vistaGrade = d.prof === "A definir" ? "lista" : "quadro"; irPara("grade"); break;
     case "nova-aula": modalAula(null); break;
+    case "nova-aula-slot": modalAula(null, { dia: d.dia, hora: d.hora }); break;
+    case "vista-grade": estado.vistaGrade = d.vista; estado.selAulas.clear(); recarregarTela(); break;
+    case "imprimir-quadro": imprimirQuadroAtual(); break;
     case "editar-aula": modalAula(d.id); break;
     case "atribuir": modalAtribuir(); break;
     case "limpar-sel": estado.selAulas.clear(); desenharAulas(); break;
