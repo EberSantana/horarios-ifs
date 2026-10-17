@@ -219,13 +219,12 @@ async function telaInicio(main) {
   const ultima = r.ultimaVersao ? `Última grade aplicada: ${esc(nomeBackup(r.ultimaVersao.nome))} (cópia de segurança guardada)` : "Nenhuma cópia de segurança ainda.";
   main.innerHTML = cabecalho("Visão geral", esc(hoje.charAt(0).toUpperCase() + hoje.slice(1)),
       `<button class="btn" data-acao="recarregar">Atualizar</button>
-       <button class="btn so-celular" data-acao="ir" data-tela="config">Configurações</button>
-       <button class="btn so-celular" data-acao="sair">Sair</button>`) + `
+       <button class="btn so-celular" data-acao="ir" data-tela="config">Configurações</button>`) + `
     <div class="grade-numeros">
-      <div class="cartao numero"><span class="valor">${r.totalAulas}</span><span class="rotulo">Aulas na grade</span><span class="detalhe">${r.aDefinir} sem professor (A definir)</span></div>
-      <div class="cartao numero"><span class="valor">${r.professoresAtivos}</span><span class="rotulo">Professores ativos</span><span class="detalhe">${r.professoresInativos} desligado${r.professoresInativos === 1 ? "" : "s"}</span></div>
-      <div class="cartao numero ${r.faltas.length ? "alerta" : ""}"><span class="valor">${r.faltas.length}</span><span class="rotulo">Faltas sem substituto</span><span class="detalhe">${r.faltas[0] ? esc(r.faltas[0].disc + " · " + r.faltas[0].turma) : "nenhuma agora"}</span></div>
-      <div class="cartao numero ${r.emails.erros ? "alerta" : ""}"><span class="valor">${r.emails.total}</span><span class="rotulo">E-mails nesta semana</span><span class="detalhe">${r.emails.total - r.emails.erros} enviado${r.emails.total - r.emails.erros === 1 ? "" : "s"} · ${r.emails.erros} com erro</span></div>
+      <div class="numero"><span class="valor">${r.totalAulas}</span><span class="rotulo">Aulas na grade</span><span class="detalhe">${r.aDefinir} sem professor (A definir)</span></div>
+      <div class="numero"><span class="valor">${r.professoresAtivos}</span><span class="rotulo">Professores ativos</span><span class="detalhe">${r.professoresInativos} desligado${r.professoresInativos === 1 ? "" : "s"}</span></div>
+      <div class="numero ${r.faltas.length ? "alerta" : ""}"><span class="valor">${r.faltas.length}</span><span class="rotulo">Faltas sem substituto</span><span class="detalhe">${r.faltas[0] ? esc(r.faltas[0].disc + " · " + r.faltas[0].turma) : "nenhuma agora"}</span></div>
+      <div class="numero ${r.emails.erros ? "alerta" : ""}"><span class="valor">${r.emails.total}</span><span class="rotulo">E-mails nesta semana</span><span class="detalhe">${r.emails.total - r.emails.erros} enviado${r.emails.total - r.emails.erros === 1 ? "" : "s"} · ${r.emails.erros} com erro</span></div>
     </div>
     <div class="duas-colunas">
       <section class="cartao cartao-pad"><h2 class="secao-titulo">Precisa da sua atenção</h2>${avisos.join("")}</section>
@@ -630,6 +629,7 @@ async function telaArquivos(main) {
   const pv = estado.previa;
   main.innerHTML = cabecalho("Importar e exportar grade", "Troque a grade do semestre sem perder faltas, substituições e trocas já lançadas") + `
     <div class="duas-colunas">
+      <div style="min-width:0">
       <section class="cartao cartao-pad" style="display:flex;flex-direction:column;gap:16px">
         <div class="passos">
           <div class="passo ${!pv ? "ativo" : ""}"><span>${pv ? "✓" : "1"}</span>Enviar arquivo</div>
@@ -638,7 +638,16 @@ async function telaArquivos(main) {
         </div>
         <div id="areaImport">${pv ? htmlPrevia(pv) : htmlZonaArquivo()}</div>
       </section>
-      <div style="display:flex;flex-direction:column;gap:18px">
+        <section class="cartao cartao-pad" style="margin-top:20px"><h2 class="secao-titulo">Versões anteriores</h2><p class="mudo pequeno" style="margin:-8px 0 10px">Cópias guardadas antes de cada mudança na grade.</p>
+          ${versoes.length ? `<table class="versoes"><tbody>${versoes.map((x) => `<tr>
+            <td><div class="quando">${esc(nomeBackup(x.nome))}</div><div class="aulas">${x.aulas} aulas</div></td>
+            <td class="acoes"><button class="btn btn-pequeno" data-acao="restaurar" data-nome="${esc(x.nome)}">Restaurar</button>
+            <button class="btn btn-pequeno btn-perigo btn-icone" data-acao="apagar-versao" data-nome="${esc(x.nome)}" title="Apagar esta cópia" aria-label="Apagar a cópia de ${esc(nomeBackup(x.nome))}"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg></button></td></tr>`).join("")}</tbody></table>
+            ${versoes.length > 3 ? `<button class="btn-link" style="margin-top:12px" data-acao="limpar-versoes">Apagar as antigas e manter as 3 mais recentes</button>` : ""}`
+            : `<p class="mudo pequeno">Nenhuma ainda. Cada importação guarda uma cópia antes de mudar a grade.</p>`}
+        </section>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:20px">
         <section class="cartao cartao-pad"><h2 class="secao-titulo">Exportar</h2>
           <div class="lista-acoes">
             <button class="btn" data-acao="exportar-excel">Grade completa · Excel</button>
@@ -647,18 +656,10 @@ async function telaArquivos(main) {
             <button class="btn" data-acao="exportar-historico">Faltas e substituições · CSV</button>
           </div></section>
         <section class="cartao cartao-pad"><h2 class="secao-titulo">Modelo para importar</h2>
-          <p style="margin:0 0 8px">Uma linha por aula, com estas colunas:</p>
-          <p style="margin:0 0 12px"><strong>Professor · Dia · Horário · Turma · Disciplina · Sala</strong></p>
+          <p class="pequeno" style="margin:0 0 8px">Uma linha por aula, com as colunas Professor, Dia, Horário, Turma, Disciplina e Sala.</p>
           <button class="btn" data-acao="baixar-modelo">Baixar modelo</button>
-          <p class="mudo pequeno" style="margin:12px 0 0">Dica: exporte a grade atual em Excel, edite e importe de volta. O nome do professor tem de ser igual ao cadastro (cadastre antes os novos).</p></section>
-        <section class="cartao cartao-pad"><h2 class="secao-titulo">Versões anteriores</h2>
-          ${versoes.length ? `<div class="lista-acoes">${versoes.map((x) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-            <span>${esc(nomeBackup(x.nome))} · ${x.aulas} aulas</span><span style="display:flex;gap:6px">
-            <button class="btn btn-pequeno" data-acao="restaurar" data-nome="${esc(x.nome)}">Restaurar</button>
-            <button class="btn btn-pequeno btn-perigo" data-acao="apagar-versao" data-nome="${esc(x.nome)}" aria-label="Apagar versão de ${esc(nomeBackup(x.nome))}">Apagar</button></span></div>`).join("")}</div>
-            ${versoes.length > 3 ? `<button class="btn btn-pequeno" style="margin-top:12px" data-acao="limpar-versoes">Apagar antigas (manter as 3 mais recentes)</button>` : ""}`
-            : `<p class="mudo" style="margin:0">Nenhuma ainda. Cada importação guarda uma cópia antes de mudar.</p>`}
-        </section>
+          <p class="mudo pequeno" style="margin:12px 0 0">Dica: exporte a grade atual em Excel, edite e importe de volta. Cadastre antes os professores novos.</p></section>
+
       </div>
     </div>`;
   ligarZonaArquivo();
