@@ -333,3 +333,9 @@ td.acoes .btn + .btn { margin-left: 6px; }
 .hist-topo { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; padding-bottom: 14px; }
 .hist-topo .secao-titulo + p { margin-top: 2px; }
 .acoes-hist { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.lista-admins td { padding: 8px 0; font-size: 14px; }
+.lista-admins td + td { padding-left: 8px; }
+.btn-link.perigo { color: var(--falta); font-size: 13px; }
+.convite { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--linha); }
+.convite .campo { flex: 1 1 180px; }

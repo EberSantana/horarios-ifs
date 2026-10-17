@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./admin.css?v=2.3">
+  <link rel="stylesheet" href="./admin.css?v=2.4">
 </head>
 <body>
 
@@ -36,11 +36,7 @@
   <form class="cartao-login oculto" id="formPrimeiro" autocomplete="off">
     <div class="sobretitulo"><img src="./icons/icon-192.png" alt="" width="32" height="32"><span>Painel Docente<br><small>IFS Campus Tobias Barreto</small></span></div>
     <h1>Primeiro acesso</h1>
-    <ol class="mudo" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px">
-      <li>No <strong>Apps Script</strong>, escolha a função <strong>gerarCodigoAdministrador</strong> na lista do topo e clique em <strong>Executar</strong>.</li>
-      <li>Copie o código de 6 números que aparece no <strong>Registro de execução</strong> (vale 30 min).</li>
-      <li>Preencha abaixo e crie sua senha.</li>
-    </ol>
+    <p class="mudo" style="margin:0">Use o código de 6 números que chegou no seu e-mail de convite (ou o gerado no Apps Script pela função <strong>gerarCodigoAdministrador</strong>) e crie sua senha.</p>
     <div id="erroPrimeiro" class="erro oculto" role="alert"></div>
     <div class="campo"><label for="paCodigo">Código de 6 números</label><input id="paCodigo" class="input" inputmode="numeric" maxlength="6" required></div>
     <div class="campo"><label for="paEmail">Seu e-mail</label><input id="paEmail" class="input" type="email" autocomplete="username" required placeholder="nome@ifs.edu.br"></div>
@@ -86,6 +82,6 @@
 <div id="modais"></div>
 <div id="toast" class="oculto" role="status" aria-live="polite"></div>
 
-<script src="./admin.js?v=2.3"></script>
+<script src="./admin.js?v=2.4"></script>
 </body>
 </html>

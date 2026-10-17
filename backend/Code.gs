@@ -643,7 +643,7 @@ function doPost(e) {
   if (dadosAdm && String(dadosAdm.acao || "").indexOf("admin_") === 0) {
     var respAdm = adminRouter_(dadosAdm);
     try { SpreadsheetApp.flush(); } catch (eF2) {}
-    var soLeitura = /^admin_(login|primeiro_acesso|versao_apagar|historico_arquivar|sair|resumo|versoes|historico|config_ler|importar_previa|emails_listar|emails_acao|prof_listar|config_salvar)$/.test(dadosAdm.acao);
+    var soLeitura = /^admin_(login|primeiro_acesso|convidar|remover_admin|versao_apagar|historico_arquivar|sair|resumo|versoes|historico|config_ler|importar_previa|emails_listar|emails_acao|prof_listar|config_salvar)$/.test(dadosAdm.acao);
     if (!soLeitura) invalidarCacheGrade();
     return respAdm;
   }
@@ -1663,20 +1663,82 @@ function gerarCodigoAdministrador() {
   return codigo;
 }
 
+function lerConvites_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty("ADMIN_CONVITES") || "{}"); } catch (e) { return {}; }
+}
+function gravarConvites_(c) {
+  var agora = new Date().getTime();
+  Object.keys(c).forEach(function (k) { if (c[k].expira < agora) delete c[k]; });
+  PropertiesService.getScriptProperties().setProperty("ADMIN_CONVITES", JSON.stringify(c));
+}
+
 function adminPrimeiroAcesso_(d) {
   var props = PropertiesService.getScriptProperties();
+  var email = String(d.email || "").trim().toLowerCase();
+  var codigo = String(d.codigo || "").trim();
+  var agora = new Date().getTime();
+
+  // a) convite feito por outro administrador (vale só para aquele e-mail)
+  var convites = lerConvites_();
+  var cv = convites[email];
+  if (cv && agora <= cv.expira) {
+    if (hashSenha_("convite", codigo) === cv.hash) {
+      var novo = salvarAdmin_(email, d.senha);
+      delete convites[email]; gravarConvites_(convites);
+      return adminLogin_({ email: novo, senha: d.senha });
+    }
+    cv.tentativas = (cv.tentativas || 0) + 1;
+    if (cv.tentativas >= 5) delete convites[email];
+    gravarConvites_(convites);
+    Utilities.sleep(800);
+    return { sucesso: false, erro: cv.tentativas >= 5 ? "Código bloqueado após 5 erros. Peça um convite novo." : "Código incorreto." };
+  }
+
+  // b) código geral gerado no Apps Script (gerarCodigoAdministrador)
   var setup = null;
   try { setup = JSON.parse(props.getProperty("ADMIN_SETUP") || "null"); } catch (e) {}
-  if (!setup || new Date().getTime() > setup.expira) return { sucesso: false, erro: "Código inexistente ou vencido. Gere outro no Apps Script (função gerarCodigoAdministrador)." };
-  if (hashSenha_("setup", String(d.codigo || "").trim()) !== setup.hash) {
+  if (!setup || agora > setup.expira) return { sucesso: false, erro: "Código inexistente ou vencido para este e-mail. Peça um convite novo a um administrador." };
+  if (hashSenha_("setup", codigo) !== setup.hash) {
     setup.tentativas = (setup.tentativas || 0) + 1;
     if (setup.tentativas >= 5) props.deleteProperty("ADMIN_SETUP"); else props.setProperty("ADMIN_SETUP", JSON.stringify(setup));
     Utilities.sleep(800);
     return { sucesso: false, erro: setup.tentativas >= 5 ? "Código bloqueado após 5 erros. Gere outro." : "Código incorreto." };
   }
-  var email = salvarAdmin_(d.email, d.senha);
+  var emailSalvo = salvarAdmin_(email, d.senha);
   props.deleteProperty("ADMIN_SETUP");
-  return adminLogin_({ email: email, senha: d.senha });
+  return adminLogin_({ email: emailSalvo, senha: d.senha });
+}
+
+// Convite: gera código de 6 números para um e-mail (vale 48 h) e envia por e-mail
+function admConvidar_(d, quem) {
+  var email = String(d.email || "").trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("E-mail inválido.");
+  var codigo = String(Math.floor(100000 + Math.random() * 900000));
+  var convites = lerConvites_();
+  convites[email] = { hash: hashSenha_("convite", codigo), expira: new Date().getTime() + 48 * 3600000, tentativas: 0, por: quem };
+  gravarConvites_(convites);
+  var link = CONFIG_PADRAO.LINK_PAINEL + "admin.html";
+  var enviado = true, erroEnvio = "";
+  try {
+    enviarEmailRegistrado_({ to: email, subject: "Convite: acesso ao painel administrativo (Painel Docente IFS)",
+      htmlBody: "<div style='font-family:Arial,sans-serif;font-size:15px;color:#1c2420'>" +
+        "<p>Você recebeu acesso de administrador ao <strong>Painel Docente — IFS Campus Tobias Barreto</strong>.</p>" +
+        "<p>1. Abra <a href='" + link + "'>" + link + "</a><br>2. Clique em <strong>Primeiro acesso ou esqueci a senha</strong><br>" +
+        "3. Informe este e-mail (" + email + "), o código abaixo e crie sua senha.</p>" +
+        "<p style='font-size:26px;font-weight:bold;letter-spacing:4px'>" + codigo + "</p>" +
+        "<p style='color:#5b6660'>O código vale 48 horas e só funciona para este e-mail. Convite enviado por " + quem + ".</p></div>" });
+  } catch (e) { enviado = false; erroEnvio = String(e.message || e); }
+  return { sucesso: true, codigo: codigo, enviado: enviado, erroEnvio: erroEnvio, link: link };
+}
+
+function admRemoverAdmin_(d, quem) {
+  var email = String(d.email || "").trim().toLowerCase();
+  if (email === quem) throw new Error("Você não pode remover o seu próprio acesso.");
+  var admins = lerAdmins_();
+  if (admins[email]) { delete admins[email]; gravarAdmins_(admins); }
+  var convites = lerConvites_();
+  if (convites[email]) { delete convites[email]; gravarConvites_(convites); }
+  return { sucesso: true };
 }
 
 function onOpen() {
@@ -1728,6 +1790,7 @@ function adminRouter_(d) {
       try { return criarRespostaJSON(adminPrimeiroAcesso_(d)); } finally { lockPA.releaseLock(); }
     }
     var email = d.token ? CacheService.getScriptCache().get("ADMTOK_" + d.token) : null;
+    if (email && !lerAdmins_()[email]) { CacheService.getScriptCache().remove("ADMTOK_" + d.token); email = null; }
     if (!email) return criarRespostaJSON({ sucesso: false, sessaoExpirada: true, erro: "Sessão expirada. Entre novamente." });
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var leitura = { admin_resumo: 1, admin_emails_listar: 1, admin_prof_listar: 1, admin_versoes: 1, admin_historico: 1, admin_config_ler: 1, admin_importar_previa: 1 };
@@ -1779,7 +1842,12 @@ function adminExecutar_(d, ss, email) {
     case "admin_versao_apagar": return admVersaoApagar_(ss, d, email);
     case "admin_historico": return admHistorico_(ss, d);
     case "admin_historico_arquivar": return admHistoricoArquivar_(ss, email);
-    case "admin_config_ler": return { sucesso: true, config: lerConfigEmails_(), admins: Object.keys(lerAdmins_()) };
+    case "admin_config_ler":
+      var conv = lerConvites_(), agoraCv = new Date().getTime();
+      return { sucesso: true, config: lerConfigEmails_(), admins: Object.keys(lerAdmins_()), eu: email,
+               convites: Object.keys(conv).filter(function (k) { return conv[k].expira > agoraCv; }).map(function (k) { return { email: k, expira: conv[k].expira }; }) };
+    case "admin_convidar": return admConvidar_(d, email);
+    case "admin_remover_admin": return admRemoverAdmin_(d, email);
     case "admin_config_salvar": return admConfigSalvar_(d);
   }
   return { sucesso: false, erro: "Ação desconhecida." };

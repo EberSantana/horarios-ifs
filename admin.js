@@ -957,8 +957,19 @@ async function telaConfig(main) {
       </section>
       <section class="cartao cartao-pad" style="display:flex;flex-direction:column;gap:10px">
         <h2 class="secao-titulo" style="margin:0">Administradores</h2>
-        <ul style="margin:0;padding-left:18px">${c.admins.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
-        <p class="mudo pequeno" style="margin:0">Para incluir alguém ou trocar senha: no Apps Script, execute <strong>gerarCodigoAdministrador</strong> e use “Primeiro acesso ou esqueci a senha” na tela de entrada. Só quem edita o Apps Script vê o código.</p>
+        <p class="mudo pequeno">Todos têm acesso completo ao painel.</p>
+        <table class="lista-admins"><tbody>
+          ${c.admins.map((a) => `<tr><td>${esc(a)}${a === c.eu ? ` <span class="etiqueta et-verde">você</span>` : ""}</td>
+            <td class="acoes">${a === c.eu ? "" : `<button class="btn-link perigo" data-acao="remover-admin" data-email="${esc(a)}">Remover</button>`}</td></tr>`).join("")}
+          ${(c.convites || []).map((v) => `<tr><td>${esc(v.email)} <span class="etiqueta et-laranja">convite pendente</span></td>
+            <td class="acoes"><button class="btn-link perigo" data-acao="remover-admin" data-email="${esc(v.email)}">Cancelar</button></td></tr>`).join("")}
+        </tbody></table>
+        <form id="formConvite" class="convite">
+          <div class="campo"><label for="cvEmail">Convidar coordenador(a)</label>
+            <input id="cvEmail" class="input" type="email" required placeholder="nome@ifs.edu.br"></div>
+          <button class="btn btn-primario" type="submit">Enviar convite</button>
+        </form>
+        <div id="cvResultado"></div>
       </section>
     </div>
     <section class="cartao" id="secHistorico"></section>`;
@@ -1005,6 +1016,32 @@ async function arquivarHistorico() {
     estado.histArquivo = false;
     const h = await chamar("admin_historico");
     desenharHistorico(h);
+  } catch (e) { toast(e.message, true); }
+}
+
+document.addEventListener("submit", async (ev) => {
+  if (ev.target.id !== "formConvite") return;
+  ev.preventDefault();
+  const email = $("#cvEmail").value.trim();
+  const b = ev.target.querySelector("button"); b.disabled = true;
+  try {
+    const r = await chamar("admin_convidar", { email });
+    if (!r.sucesso) throw new Error(r.erro);
+    $("#cvResultado").innerHTML = `<div class="${r.enviado ? "ok-msg" : "erro"}" style="margin-top:4px">
+      ${r.enviado ? `Convite enviado para <strong>${esc(email)}</strong>.` : `Não foi possível enviar o e-mail (${esc(r.erroEnvio)}). Passe o código diretamente.`}
+      Código: <strong style="letter-spacing:2px">${esc(r.codigo)}</strong> (vale 48 h, só para este e-mail).</div>`;
+    toast(r.enviado ? "Convite enviado." : "Convite criado; envie o código.");
+    const c = await chamar("admin_config_ler");
+    if (c.sucesso) { const res = $("#cvResultado").innerHTML; await telaConfig($("#conteudo")); $("#cvResultado").innerHTML = res; }
+  } catch (e) { toast(e.message, true); } finally { b.disabled = false; }
+});
+
+async function removerAdmin(email) {
+  if (!(await confirmar("Remover acesso?", `<strong>${esc(email)}</strong> deixa de entrar no painel administrativo (se já estiver dentro, a sessão é encerrada).`, "Remover", true))) return;
+  try {
+    const r = await chamar("admin_remover_admin", { email });
+    if (!r.sucesso) throw new Error(r.erro);
+    toast("Acesso removido."); recarregarTela();
   } catch (e) { toast(e.message, true); }
 }
 
@@ -1063,6 +1100,7 @@ document.addEventListener("click", (ev) => {
     case "imprimir-turmas": imprimirGrade(true); break;
     case "imprimir-profs": imprimirGrade(false); break;
     case "salvar-config": salvarConfig(); break;
+    case "remover-admin": removerAdmin(d.email); break;
     case "arquivar-historico": arquivarHistorico(); break;
     case "alternar-historico": alternarHistorico(); break;
     case "sair": sair(false); break;
