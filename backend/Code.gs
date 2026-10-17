@@ -2541,7 +2541,7 @@ function admCadastroExcluir_(ss, d, admin) {
     sh = ss.getSheetByName("Disciplinas");
   } else if (tipo === "tempo") {
     alvo = cad.tempos.filter(function (h) { return h.turno === ch.turno && h.hora === ch.hora; })[0];
-    if (alvo && linhas.some(function (r) { var c = cursoDaTurma_(cad, r[4]); return r[3] === alvo.hora && c && c.turno === alvo.turno; })) throw new Error("Há aulas nesse horário. Mova as aulas antes de excluir.");
+    // horário é só um modelo de linha: aulas que o usam continuam na grade
     sh = ss.getSheetByName("Tempos");
   } else throw new Error("Tipo inválido.");
   if (!alvo) throw new Error("Item não encontrado.");

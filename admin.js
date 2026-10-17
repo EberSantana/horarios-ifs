@@ -683,13 +683,18 @@ function desenharCadastros() {
         ${x.aulas ? "" : `<button class="btn-link perigo" data-acao="cad-excluir" data-tipo="disciplina" data-chave="${chaveCad("disciplina", x)}">Excluir</button>`}</td></tr>`).join("")}</tbody></table>` : `<div class="vazio">Nenhuma disciplina com esses filtros.</div>`;
   } else {
     titulo = "Horários (tempos de aula)"; novo = `<button class="btn btn-primario btn-pequeno" data-acao="cad-novo" data-tipo="tempo">Novo horário</button>`; topo = filtroCurso(true);
-    const turnos = c.turnos.filter((t) => (!f.turno || f.turno === t) && c.tempos.some((h) => h.turno === t));
-    corpo = turnos.length ? `<table><thead><tr><th style="width:70px">Ordem</th><th>Horário</th><th>Aulas na grade</th><th></th></tr></thead><tbody>
-      ${turnos.map((t) => `<tr class="dia-grupo"><th colspan="4">${esc(t)} · ${c.cursos.filter((x) => x.turno === t).map((x) => esc(x.nome)).join(", ") || "nenhum curso"}</th></tr>` +
-        c.tempos.filter((h) => h.turno === t).map((h) => `<tr><td>${h.ordem}º</td><td><strong>${esc(h.hora.replace(" - ", "–"))}</strong></td><td>${h.aulas}</td>
+    const turnos = c.turnos.filter((t) => !f.turno || f.turno === t);
+    corpo = `<table><thead><tr><th style="width:70px">Ordem</th><th>Horário</th><th>Aulas na grade</th><th></th></tr></thead><tbody>
+      ${turnos.map((t) => {
+        const hs = c.tempos.filter((h) => h.turno === t);
+        const cursosT = c.cursos.filter((x) => x.turno === t).map((x) => esc(x.nome)).join(", ");
+        return `<tr class="dia-grupo"><th colspan="3">${esc(t)} · <span class="mudo">${hs.length} horário(s) · ${cursosT || "nenhum curso neste turno"}</span></th>
+          <th class="acoes"><button class="btn-link" data-acao="cad-novo" data-tipo="tempo" data-turno="${esc(t)}">+ Adicionar</button></th></tr>` +
+        (hs.length ? hs.map((h) => `<tr><td>${h.ordem}º</td><td><strong>${esc(h.hora.replace(" - ", "–"))}</strong></td><td>${h.aulas}</td>
           <td class="acoes"><button class="btn-link" data-acao="cad-editar" data-tipo="tempo" data-chave="${chaveCad("tempo", h)}">Editar</button>
-          ${h.aulas ? "" : `<button class="btn-link perigo" data-acao="cad-excluir" data-tipo="tempo" data-chave="${chaveCad("tempo", h)}">Excluir</button>`}</td></tr>`).join("")).join("")}</tbody></table>`
-      : `<div class="vazio">Nenhum horário cadastrado.</div>`;
+          <button class="btn-link perigo" data-acao="cad-excluir" data-tipo="tempo" data-chave="${chaveCad("tempo", h)}">Excluir</button></td></tr>`).join("")
+          : `<tr><td colspan="4" class="mudo pequeno">Nenhum horário neste turno. Use “+ Adicionar”.</td></tr>`);
+      }).join("")}</tbody></table>`;
   }
   $("#secCad").innerHTML = `<div class="cartao-pad hist-topo"><div><h2 class="secao-titulo" style="margin:0">${titulo}</h2>
       <p class="mudo pequeno">${{ cursos: "O e-mail do curso recebe os avisos das turmas dele. O turno define os horários disponíveis.",
@@ -701,7 +706,7 @@ function desenharCadastros() {
   ligar("#fcCurso", "curso"); ligar("#fcBusca", "busca"); ligar("#fcTurno", "turno");
 }
 
-function modalCadastro(tipo, chave) {
+function modalCadastro(tipo, chave, turnoInicial) {
   const c = estado.cad;
   const x = !chave ? null : tipo === "curso" ? c.cursos.find((i) => i.id === chave.id) : tipo === "turma" ? c.turmas.find((i) => i.nome === chave.nome)
     : tipo === "disciplina" ? c.disciplinas.find((i) => i.nome === chave.nome && i.curso === chave.curso) : c.tempos.find((i) => i.turno === chave.turno && i.hora === chave.hora);
@@ -717,11 +722,11 @@ function modalCadastro(tipo, chave) {
     ${x && x.aulas ? `<p class="mudo pequeno">${x.aulas} aula(s) na grade usam esta turma; renomear atualiza todas.</p>` : ""}`;
   else if (tipo === "disciplina") campos = `<div class="campo"><label for="kNome">Nome da disciplina</label><input id="kNome" class="input" value="${esc(x ? x.nome : "")}"></div>${selCurso(x ? x.curso : estado.filtroCad.curso)}
     ${x && x.aulas ? `<p class="mudo pequeno">${x.aulas} aula(s) na grade usam esta disciplina; renomear atualiza todas.</p>` : ""}`;
-  else campos = `<div class="linha">${selTurno(x ? x.turno : estado.filtroCad.turno || "Diurno")}<div class="campo"><label for="kHora">Horário</label><input id="kHora" class="input" placeholder="08:40 - 09:30" value="${esc(x ? x.hora : "")}"></div></div>
+  else campos = `<div class="linha">${selTurno(x ? x.turno : turnoInicial || estado.filtroCad.turno || "Diurno")}<div class="campo"><label for="kHora">Horário</label><input id="kHora" class="input" placeholder="08:40 - 09:30" value="${esc(x ? x.hora : "")}"></div></div>
     <div class="campo" style="max-width:160px"><label for="kOrdem">Ordem no turno</label><input id="kOrdem" class="input" type="number" min="1" value="${x ? x.ordem : ""}" placeholder="automática"></div>
     ${x && x.aulas ? `<p class="mudo pequeno">${x.aulas} aula(s) estão neste horário; mudar o horário atualiza todas.</p>` : ""}`;
   const m = abrirModal(`<h2>${x ? "Editar" : "Novo"} ${titulo}</h2>${campos}${ativo}<div id="kErro"></div>
-    <div class="botoes">${x && tipo === "curso" && !x.turmas ? `<button class="btn btn-perigo esquerda" id="kExcluir">Excluir</button>` : ""}
+    <div class="botoes">${x && ((tipo === "curso" && !x.turmas) || tipo === "tempo") ? `<button class="btn btn-perigo esquerda" id="kExcluir">Excluir</button>` : ""}
       <button class="btn" data-fechar>Cancelar</button><button class="btn btn-primario" id="kOk">Salvar</button></div>`);
   const val = (id) => { const el = $(id, m); return el ? el.value.trim() : ""; };
   $("#kOk", m).addEventListener("click", async () => {
@@ -740,7 +745,13 @@ function modalCadastro(tipo, chave) {
 }
 
 async function excluirCadastro(tipo, chave) {
-  if (!(await confirmar("Excluir?", "Este item sai dos cadastros. Itens com aulas na grade não podem ser excluídos (desative-os).", "Excluir", true))) return;
+  let msg = "Este item sai dos cadastros. Itens com aulas na grade não podem ser excluídos (desative-os).";
+  if (tipo === "tempo") {
+    const h = (estado.cad.tempos || []).find((i) => i.turno === chave.turno && i.hora === chave.hora);
+    msg = `O horário ${chave.hora.replace(" - ", "–")} (${chave.turno}) sai da lista de horários.` +
+      (h && h.aulas ? ` As ${h.aulas} aula(s) que usam esse horário continuam na grade, sem alteração.` : "");
+  }
+  if (!(await confirmar("Excluir?", msg, "Excluir", true))) return;
   try {
     const r = await chamar("admin_cadastro_excluir", { tipo, chave });
     if (!r.sucesso) throw new Error(r.erro);
@@ -1297,7 +1308,7 @@ document.addEventListener("click", (ev) => {
     case "remover-admin": removerAdmin(d.email); break;
     case "ir-cadastros": fecharModal(); irPara("cadastros"); break;
     case "aba-cadastro": estado.abaCad = d.aba; desenharCadastros(); break;
-    case "cad-novo": modalCadastro(d.tipo, null); break;
+    case "cad-novo": modalCadastro(d.tipo, null, d.turno); break;
     case "cad-editar": modalCadastro(d.tipo, JSON.parse(d.chave)); break;
     case "cad-excluir": excluirCadastro(d.tipo, JSON.parse(d.chave)); break;
     case "testar-servidor": testarServidor(); break;
