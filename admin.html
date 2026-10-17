@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./admin.css?v=1.0">
+  <link rel="stylesheet" href="./admin.css?v=1.1">
 </head>
 <body>
 
@@ -30,8 +30,24 @@
       <input id="loginSenha" class="input" type="password" autocomplete="current-password" required>
     </div>
     <button class="btn btn-primario" id="btnEntrar" type="submit" style="min-height:46px">Entrar</button>
-    <p class="mudo pequeno" style="margin:0">Primeiro acesso? Na planilha, abra o menu <strong>Painel Docente → Cadastrar ou alterar administrador</strong>.</p>
+    <button class="btn-link" type="button" id="btnPrimeiro" style="align-self:flex-start">Primeiro acesso ou esqueci a senha</button>
     <a class="pequeno" href="./">← Voltar ao painel dos professores</a>
+  </form>
+  <form class="cartao-login oculto" id="formPrimeiro" autocomplete="off">
+    <div class="sobretitulo">Painel Docente · IFS Tobias Barreto</div>
+    <h1>Primeiro acesso</h1>
+    <ol class="mudo" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px">
+      <li>No <strong>Apps Script</strong>, escolha a função <strong>gerarCodigoAdministrador</strong> na lista do topo e clique em <strong>Executar</strong>.</li>
+      <li>Copie o código de 6 números que aparece no <strong>Registro de execução</strong> (vale 30 min).</li>
+      <li>Preencha abaixo e crie sua senha.</li>
+    </ol>
+    <div id="erroPrimeiro" class="erro oculto" role="alert"></div>
+    <div class="campo"><label for="paCodigo">Código de 6 números</label><input id="paCodigo" class="input" inputmode="numeric" maxlength="6" required></div>
+    <div class="campo"><label for="paEmail">Seu e-mail</label><input id="paEmail" class="input" type="email" autocomplete="username" required placeholder="nome@ifs.edu.br"></div>
+    <div class="campo"><label for="paSenha">Senha nova (mínimo 8 caracteres)</label><input id="paSenha" class="input" type="password" autocomplete="new-password" minlength="8" required></div>
+    <div class="campo"><label for="paSenha2">Repita a senha</label><input id="paSenha2" class="input" type="password" autocomplete="new-password" minlength="8" required></div>
+    <button class="btn btn-primario" id="btnCriar" type="submit" style="min-height:46px">Criar acesso e entrar</button>
+    <button class="btn-link" type="button" id="btnVoltarLogin" style="align-self:flex-start">← Já tenho senha</button>
   </form>
 </section>
 
@@ -65,6 +81,6 @@
 <div id="modais"></div>
 <div id="toast" class="oculto" role="status" aria-live="polite"></div>
 
-<script src="./admin.js?v=1.0"></script>
+<script src="./admin.js?v=1.1"></script>
 </body>
 </html>

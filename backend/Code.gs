@@ -642,7 +642,7 @@ function doPost(e) {
   if (dadosAdm && String(dadosAdm.acao || "").indexOf("admin_") === 0) {
     var respAdm = adminRouter_(dadosAdm);
     try { SpreadsheetApp.flush(); } catch (eF2) {}
-    var soLeitura = /^admin_(login|sair|resumo|versoes|historico|config_ler|importar_previa|emails_listar|emails_acao|prof_listar|config_salvar)$/.test(dadosAdm.acao);
+    var soLeitura = /^admin_(login|primeiro_acesso|sair|resumo|versoes|historico|config_ler|importar_previa|emails_listar|emails_acao|prof_listar|config_salvar)$/.test(dadosAdm.acao);
     if (!soLeitura) invalidarCacheGrade();
     return respAdm;
   }
@@ -1626,6 +1626,37 @@ function salvarAdmin_(email, senha) {
   return email;
 }
 
+/**
+ * PRIMEIRO ACESSO SEM MENU: selecione esta função no editor do Apps Script e clique em Executar.
+ * O código aparece no "Registro de execução" e vale por 30 minutos, para 1 cadastro.
+ * Depois abra admin.html → "Primeiro acesso" e informe e-mail, código e a senha nova.
+ */
+function gerarCodigoAdministrador() {
+  var codigo = String(Math.floor(100000 + Math.random() * 900000));
+  PropertiesService.getScriptProperties().setProperty("ADMIN_SETUP", JSON.stringify({
+    salt: "setup", hash: hashSenha_("setup", codigo), expira: new Date().getTime() + 30 * 60000, tentativas: 0
+  }));
+  Logger.log("CÓDIGO DE PRIMEIRO ACESSO: " + codigo + "  (vale 30 minutos, para cadastrar 1 administrador)");
+  Logger.log("Abra " + CONFIG_PADRAO.LINK_PAINEL + "admin.html → Primeiro acesso");
+  return codigo;
+}
+
+function adminPrimeiroAcesso_(d) {
+  var props = PropertiesService.getScriptProperties();
+  var setup = null;
+  try { setup = JSON.parse(props.getProperty("ADMIN_SETUP") || "null"); } catch (e) {}
+  if (!setup || new Date().getTime() > setup.expira) return { sucesso: false, erro: "Código inexistente ou vencido. Gere outro no Apps Script (função gerarCodigoAdministrador)." };
+  if (hashSenha_("setup", String(d.codigo || "").trim()) !== setup.hash) {
+    setup.tentativas = (setup.tentativas || 0) + 1;
+    if (setup.tentativas >= 5) props.deleteProperty("ADMIN_SETUP"); else props.setProperty("ADMIN_SETUP", JSON.stringify(setup));
+    Utilities.sleep(800);
+    return { sucesso: false, erro: setup.tentativas >= 5 ? "Código bloqueado após 5 erros. Gere outro." : "Código incorreto." };
+  }
+  var email = salvarAdmin_(d.email, d.senha);
+  props.deleteProperty("ADMIN_SETUP");
+  return adminLogin_({ email: email, senha: d.senha });
+}
+
 function onOpen() {
   SpreadsheetApp.getUi().createMenu("Painel Docente")
     .addItem("Cadastrar ou alterar administrador", "menuCadastrarAdmin")
@@ -1670,6 +1701,10 @@ function menuAbrirPainel() {
 function adminRouter_(d) {
   try {
     if (d.acao === "admin_login") return criarRespostaJSON(adminLogin_(d));
+    if (d.acao === "admin_primeiro_acesso") {
+      var lockPA = LockService.getScriptLock(); lockPA.tryLock(10000);
+      try { return criarRespostaJSON(adminPrimeiroAcesso_(d)); } finally { lockPA.releaseLock(); }
+    }
     var email = d.token ? CacheService.getScriptCache().get("ADMTOK_" + d.token) : null;
     if (!email) return criarRespostaJSON({ sucesso: false, sessaoExpirada: true, erro: "Sessão expirada. Entre novamente." });
     var ss = SpreadsheetApp.getActiveSpreadsheet();

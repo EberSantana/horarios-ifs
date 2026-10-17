@@ -105,6 +105,7 @@ function invalidarDados() { estado.gradeEm = 0; estado.profEm = 0; estado.resumo
 function mostrarLogin(msg) {
   $("#app").classList.add("oculto");
   $("#tela-login").classList.remove("oculto");
+  $("#formPrimeiro").classList.add("oculto"); $("#formLogin").classList.remove("oculto");
   const e = $("#erroLogin");
   if (msg) { e.textContent = msg; e.classList.remove("oculto"); } else e.classList.add("oculto");
 }
@@ -865,7 +866,7 @@ async function telaConfig(main) {
       <section class="cartao cartao-pad" style="display:flex;flex-direction:column;gap:10px">
         <h2 class="secao-titulo" style="margin:0">Administradores</h2>
         <ul style="margin:0;padding-left:18px">${c.admins.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
-        <p class="mudo pequeno" style="margin:0">Para incluir, remover ou trocar senha: abra a planilha e use o menu <strong>Painel Docente</strong>. Só quem edita a planilha consegue.</p>
+        <p class="mudo pequeno" style="margin:0">Para incluir alguém ou trocar senha: no Apps Script, execute <strong>gerarCodigoAdministrador</strong> e use “Primeiro acesso ou esqueci a senha” na tela de entrada. Só quem edita o Apps Script vê o código.</p>
       </section>
     </div>
     <section class="cartao"><div class="cartao-pad" style="padding-bottom:0"><h2 class="secao-titulo">Histórico recente</h2></div>
@@ -941,6 +942,23 @@ document.addEventListener("change", (ev) => {
 
 document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && $("#modais").innerHTML) fecharModal(); });
 $("#formLogin").addEventListener("submit", entrar);
+$("#btnPrimeiro").addEventListener("click", () => { $("#formLogin").classList.add("oculto"); $("#formPrimeiro").classList.remove("oculto"); $("#paCodigo").focus(); });
+$("#btnVoltarLogin").addEventListener("click", () => { $("#formPrimeiro").classList.add("oculto"); $("#formLogin").classList.remove("oculto"); });
+$("#formPrimeiro").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const erro = $("#erroPrimeiro"), btn = $("#btnCriar");
+  const mostrar = (m) => { erro.textContent = m; erro.classList.remove("oculto"); };
+  if ($("#paSenha").value !== $("#paSenha2").value) return mostrar("As duas senhas não são iguais.");
+  btn.disabled = true; btn.textContent = "Criando…"; erro.classList.add("oculto");
+  try {
+    const r = await chamar("admin_primeiro_acesso", { codigo: $("#paCodigo").value.trim(), email: $("#paEmail").value.trim(), senha: $("#paSenha").value });
+    if (!r.sucesso) throw new Error(r.erro || "Não foi possível criar o acesso.");
+    estado.token = r.token; estado.email = r.email;
+    try { sessionStorage.setItem("IFS_ADMIN", JSON.stringify({ token: r.token, email: r.email })); } catch (e) {}
+    $("#formPrimeiro").reset(); $("#formPrimeiro").classList.add("oculto"); $("#formLogin").classList.remove("oculto");
+    abrirApp(); toast("Acesso criado. Bem-vindo!");
+  } catch (e) { mostrar(e.message); } finally { btn.disabled = false; btn.textContent = "Criar acesso e entrar"; }
+});
 $("#btnSair").addEventListener("click", () => sair(false));
 
 (function iniciar() {
