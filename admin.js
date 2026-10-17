@@ -652,8 +652,11 @@ async function telaArquivos(main) {
           <button class="btn" data-acao="baixar-modelo">Baixar modelo</button>
           <p class="mudo pequeno" style="margin:12px 0 0">Dica: exporte a grade atual em Excel, edite e importe de volta. O nome do professor tem de ser igual ao cadastro (cadastre antes os novos).</p></section>
         <section class="cartao cartao-pad"><h2 class="secao-titulo">Versões anteriores</h2>
-          ${versoes.length ? `<div class="lista-acoes">${versoes.slice(0, 8).map((x) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-            <span>${esc(nomeBackup(x.nome))} · ${x.aulas} aulas</span><button class="btn btn-pequeno" data-acao="restaurar" data-nome="${esc(x.nome)}">Restaurar</button></div>`).join("")}</div>`
+          ${versoes.length ? `<div class="lista-acoes">${versoes.map((x) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <span>${esc(nomeBackup(x.nome))} · ${x.aulas} aulas</span><span style="display:flex;gap:6px">
+            <button class="btn btn-pequeno" data-acao="restaurar" data-nome="${esc(x.nome)}">Restaurar</button>
+            <button class="btn btn-pequeno btn-perigo" data-acao="apagar-versao" data-nome="${esc(x.nome)}" aria-label="Apagar versão de ${esc(nomeBackup(x.nome))}">Apagar</button></span></div>`).join("")}</div>
+            ${versoes.length > 3 ? `<button class="btn btn-pequeno" style="margin-top:12px" data-acao="limpar-versoes">Apagar antigas (manter as 3 mais recentes)</button>` : ""}`
             : `<p class="mudo" style="margin:0">Nenhuma ainda. Cada importação guarda uma cópia antes de mudar.</p>`}
         </section>
       </div>
@@ -763,6 +766,20 @@ async function aplicarImportacao() {
     toast(`Grade aplicada: ${r.resultado.total} aulas. Cópia guardada.`);
     recarregarTela();
   } catch (e) { const a = $("#aplicando"); if (a) a.remove(); toast(e.message, true); }
+}
+
+async function apagarVersoes(nomes) {
+  const texto = nomes.length === 1
+    ? `A cópia de <strong>${esc(nomeBackup(nomes[0]))}</strong> será apagada da planilha. A grade atual não muda.`
+    : `<strong>${nomes.length} cópias antigas</strong> serão apagadas da planilha. As 3 mais recentes ficam guardadas e a grade atual não muda.`;
+  if (!(await confirmar(nomes.length === 1 ? "Apagar esta versão?" : "Apagar versões antigas?", texto, "Apagar", true))) return;
+  try {
+    for (const nome of nomes) {
+      const r = await chamar("admin_versao_apagar", { nome });
+      if (!r.sucesso) throw new Error(r.erro);
+    }
+    toast(nomes.length === 1 ? "Versão apagada." : nomes.length + " versões apagadas."); recarregarTela();
+  } catch (e) { toast(e.message, true); recarregarTela(); }
 }
 
 async function restaurarVersao(nome) {
@@ -917,6 +934,9 @@ document.addEventListener("click", (ev) => {
     case "trocar-arquivo": estado.previa = null; recarregarTela(); break;
     case "aplicar-import": aplicarImportacao(); break;
     case "restaurar": restaurarVersao(d.nome); break;
+    case "apagar-versao": apagarVersoes([d.nome]); break;
+    case "limpar-versoes":
+      chamar("admin_versoes").then((r) => apagarVersoes((r.versoes || []).slice(3).map((v) => v.nome))); break;
     case "exportar-excel": exportarExcel(); break;
     case "baixar-modelo": baixarModelo(); break;
     case "exportar-historico": exportarHistorico(); break;

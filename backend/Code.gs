@@ -642,7 +642,7 @@ function doPost(e) {
   if (dadosAdm && String(dadosAdm.acao || "").indexOf("admin_") === 0) {
     var respAdm = adminRouter_(dadosAdm);
     try { SpreadsheetApp.flush(); } catch (eF2) {}
-    var soLeitura = /^admin_(login|primeiro_acesso|sair|resumo|versoes|historico|config_ler|importar_previa|emails_listar|emails_acao|prof_listar|config_salvar)$/.test(dadosAdm.acao);
+    var soLeitura = /^admin_(login|primeiro_acesso|versao_apagar|sair|resumo|versoes|historico|config_ler|importar_previa|emails_listar|emails_acao|prof_listar|config_salvar)$/.test(dadosAdm.acao);
     if (!soLeitura) invalidarCacheGrade();
     return respAdm;
   }
@@ -1754,6 +1754,7 @@ function adminExecutar_(d, ss, email) {
     case "admin_importar_aplicar": return admImportarAplicar_(ss, d, email);
     case "admin_versoes": return admVersoes_(ss);
     case "admin_restaurar": return admRestaurar_(ss, d, email);
+    case "admin_versao_apagar": return admVersaoApagar_(ss, d, email);
     case "admin_historico": return admHistorico_(ss);
     case "admin_config_ler": return { sucesso: true, config: lerConfigEmails_(), admins: Object.keys(lerAdmins_()) };
     case "admin_config_salvar": return admConfigSalvar_(d);
@@ -2116,6 +2117,15 @@ function admRestaurar_(ss, d, admin) {
   var r = aplicarLinhasNaGrade_(linhas, "restauração de " + d.nome + " por " + admin);
   registrarHistorico(ss, "ADMIN_RESTAUROU_GRADE", admin, "", d.nome, "", "", r.backup);
   return { sucesso: true, resultado: r };
+}
+
+function admVersaoApagar_(ss, d, admin) {
+  var nome = String(d.nome || "");
+  var sh = ss.getSheetByName(nome);
+  if (!sh || nome.indexOf("Horarios_backup_") !== 0) throw new Error("Versão não encontrada.");
+  ss.deleteSheet(sh);
+  registrarHistorico(ss, "ADMIN_APAGOU_VERSAO", admin, "", nome, "", "", "");
+  return { sucesso: true };
 }
 
 // ---------- histórico e configurações ----------
