@@ -71,6 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
   try { configurarEventosInterface(); } catch (e) { console.error("Falha ao configurar a interface:", e); }
 
   migrarNomesAntigos();
+  popularListaLogin();
   const usuarioSalvo = localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER");
   if (usuarioSalvo) {
     usuarioLogado = usuarioSalvo;
@@ -83,6 +84,27 @@ document.addEventListener("DOMContentLoaded", () => {
   // Sincronização em segundo plano suave após a interface estar 100% pronta
   setTimeout(() => recarregarDados(true), 50);
 });
+
+// Lista do login vem da aba "Professores" (painel administrativo); sem ela, fica a lista fixa do index.html
+function popularListaLogin() {
+  try {
+    const select = document.getElementById("loginProf");
+    const lista = API.getProfessores && API.getProfessores();
+    if (!select || !lista) return;
+    const nomes = lista
+      .filter((p) => p && p.nome && p.ativo !== false && p.nome !== "A definir")
+      .map((p) => p.nome)
+      .sort((a, b) => a.localeCompare(b, "pt-BR"));
+    if (nomes.length === 0) return;
+    const atual = select.value;
+    const chave = nomes.join("|");
+    if (select.dataset.lista === chave) return;
+    select.dataset.lista = chave;
+    select.innerHTML = '<option value="" disabled selected>Escolha seu nome...</option>' +
+      nomes.map((n) => `<option value="${n.replace(/"/g, "&quot;")}">${n.replace(/</g, "&lt;")}</option>`).join("");
+    select.value = nomes.includes(atual) ? atual : "";
+  } catch (e) { console.warn("Lista de professores:", e); }
+}
 
 // Professores que mudaram de nome no sistema: mantém login salvo e PIN no aparelho
 const NOMES_ANTIGOS = { "Rafael": "Luiz Rafael Freitas" };
@@ -2398,6 +2420,7 @@ async function recarregarDados(silencioso = false) {
   try {
     const resultado = await API.carregarGradeCompleta();
     bancoDeDados = resultado.data;
+    if (resultado.online) popularListaLogin();
 
     const assinatura = assinaturaDados();
     if (!silencioso || assinatura !== assinaturaUltimosDados) {

@@ -372,23 +372,36 @@ function obterEmailsPorTurma(turma, config) {
  */
 function obterEmailProfessor(ss, prof) {
   if (!prof || prof === "A definir") return "";
+  var mapa = mapaProfessores_(ss);
+  var p = mapa[String(prof).trim().toLowerCase()];
+  if (p && p.email) return p.email;
   if (EMAILS_DOCENTES[prof]) return EMAILS_DOCENTES[prof];
+  return ""; // sem e-mail cadastrado: não inventa endereço
+}
+
+// Lê a aba Professores uma vez por execução: { "nome em minúsculas": {nome, email, curso, ativo, linha} }
+var __mapaProfs = null;
+function mapaProfessores_(ss) {
+  if (__mapaProfs) return __mapaProfs;
+  var mapa = {};
   try {
-    if (ss) {
-      var sheetProfs = ss.getSheetByName("Professores");
-      if (sheetProfs) {
-        var rows = sheetProfs.getDataRange().getValues();
-        for (var i = 1; i < rows.length; i++) {
-          if (String(rows[i][0]).trim().toLowerCase() === String(prof).trim().toLowerCase()) {
-            var em = String(rows[i][1]).trim();
-            if (em) return em;
-          }
-        }
-      }
+    var sh = (ss || SpreadsheetApp.getActiveSpreadsheet()).getSheetByName("Professores");
+    if (sh && sh.getLastRow() > 1) {
+      var cols = Math.max(5, sh.getLastColumn());
+      var rows = sh.getRange(2, 1, sh.getLastRow() - 1, cols).getValues();
+      rows.forEach(function (r, i) {
+        var nome = String(r[0] || "").trim();
+        if (!nome) return;
+        mapa[nome.toLowerCase()] = { nome: nome, email: String(r[1] || "").trim(), curso: String(r[2] || "").trim(),
+                                     ativo: String(r[4] || "Sim").trim().toLowerCase() !== "não" && String(r[4] || "").trim().toLowerCase() !== "nao",
+                                     linha: i + 2 };
+      });
     }
   } catch (e) {}
-  return String(prof).toLowerCase().replace(/[^a-z0-9.]/g, "") + "@ifs.edu.br";
+  __mapaProfs = mapa;
+  return mapa;
 }
+function limparMapaProfessores_() { __mapaProfs = null; }
 
 /**
  * Localiza a linha exata da aula na planilha Horarios com segurança total:
@@ -572,6 +585,7 @@ function doGet(e) {
         grade: montarGrade_(ss),
         trocas: lerObjetosJSON_(ss, "Trocas_Permutas"),
         reposicoes: lerObjetosJSON_(ss, "Reposicoes"),
+        professores: listaProfessoresPublica_(ss),
         geradoEm: new Date().getTime()
       };
     } else {
@@ -594,6 +608,15 @@ function doGet(e) {
  * 2. REQUISIÇÕES POST (Processa Liberações, Substituições, Trocas, Reposições, PIN e Sincronização)
  */
 function doPost(e) {
+  var dadosAdm = null;
+  try { dadosAdm = JSON.parse(e.postData.contents); } catch (eJ) {}
+  if (dadosAdm && String(dadosAdm.acao || "").indexOf("admin_") === 0) {
+    var respAdm = adminRouter_(dadosAdm);
+    try { SpreadsheetApp.flush(); } catch (eF2) {}
+    var soLeitura = /^admin_(login|sair|resumo|versoes|historico|config_ler|importar_previa|emails_listar|emails_acao|prof_listar|config_salvar)$/.test(dadosAdm.acao);
+    if (!soLeitura) invalidarCacheGrade();
+    return respAdm;
+  }
   var resposta = doPostInterno_(e);
   // Garante que tudo foi gravado ANTES de limpar o cache. Antes o cache era limpo
   // no início do POST: um GET concorrente regravava dados velhos por 10 minutos.
@@ -617,7 +640,7 @@ function doPostInterno_(e) {
     var dados = JSON.parse(e.postData.contents);
     var acao = dados.acao;
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var config = dados.emailsConfig || CONFIG_PADRAO;
+    var config = lerConfigEmails_(); // destinatários da coordenação vêm do servidor, nunca do app
 
     // =========================================================================
     // CASO 1: ASSUMIR SUBSTITUIÇÃO (Com teste estrito de concorrência)
@@ -658,8 +681,8 @@ function doPostInterno_(e) {
         if (em && emailsArray.indexOf(em) === -1) emailsArray.push(em);
       });
 
-      var emailTitular = dados.emailOriginal || obterEmailProfessor(ss, dados.profOriginal);
-      var emailSubs = dados.emailSubstituto || obterEmailProfessor(ss, dados.substituto);
+      var emailTitular = obterEmailProfessor(ss, dados.profOriginal);
+      var emailSubs = obterEmailProfessor(ss, dados.substituto);
       if (emailTitular && emailsArray.indexOf(emailTitular) === -1) emailsArray.push(emailTitular);
       if (emailSubs && emailsArray.indexOf(emailSubs) === -1) emailsArray.push(emailSubs);
 
@@ -725,7 +748,7 @@ function doPostInterno_(e) {
         });
 
         // Adiciona e-mail institucional do professor para cópia de confirmação
-        var emailDocente = dados.emailDocente || obterEmailProfessor(ss, dados.profOriginal);
+        var emailDocente = obterEmailProfessor(ss, dados.profOriginal);
         if (emailDocente && emailsArray.indexOf(emailDocente) === -1) {
           emailsArray.push(emailDocente);
         }
@@ -779,8 +802,8 @@ function doPostInterno_(e) {
         if (em && emailsArray.indexOf(em) === -1) emailsArray.push(em);
       });
 
-      var emailProp = dados.emailProponente || obterEmailProfessor(ss, t.proponente);
-      var emailColega = dados.emailColega || obterEmailProfessor(ss, t.colega);
+      var emailProp = obterEmailProfessor(ss, t.proponente);
+      var emailColega = obterEmailProfessor(ss, t.colega);
       if (emailProp && emailsArray.indexOf(emailProp) === -1) emailsArray.push(emailProp);
       if (emailColega && emailsArray.indexOf(emailColega) === -1) emailsArray.push(emailColega);
 
@@ -808,8 +831,8 @@ function doPostInterno_(e) {
         if (em && emailsArray.indexOf(em) === -1) emailsArray.push(em);
       });
 
-      var emailProp = dados.emailProponente || obterEmailProfessor(ss, t.proponente);
-      var emailColega = dados.emailColega || obterEmailProfessor(ss, t.colega);
+      var emailProp = obterEmailProfessor(ss, t.proponente);
+      var emailColega = obterEmailProfessor(ss, t.colega);
       if (emailProp && emailsArray.indexOf(emailProp) === -1) emailsArray.push(emailProp);
       if (emailColega && emailsArray.indexOf(emailColega) === -1) emailsArray.push(emailColega);
 
@@ -856,7 +879,7 @@ function doPostInterno_(e) {
         if (em && emailsArray.indexOf(em) === -1) emailsArray.push(em);
       });
 
-      var emailProf = dados.emailDocente || obterEmailProfessor(ss, r.professor);
+      var emailProf = obterEmailProfessor(ss, r.professor);
       if (emailProf && emailsArray.indexOf(emailProf) === -1) emailsArray.push(emailProf);
 
       var destFinal = emailsArray.join(", ");
@@ -876,7 +899,7 @@ function doPostInterno_(e) {
     // =========================================================================
     else if (acao === "recuperar_pin") {
       var prof = dados.professor;
-      var emailProf = dados.email || obterEmailProfessor(ss, prof);
+      var emailProf = obterEmailProfessor(ss, prof);
       var sheetProfs = obterOuCriarAba(ss, "Professores", ["Professor", "Email", "Curso / Departamento", "PIN"]);
       var rows = sheetProfs.getDataRange().getValues();
       for (var i = 1; i < rows.length; i++) {
@@ -1130,7 +1153,7 @@ function dispararEmailAulaDisponibilizada(destinatario, prof, disc, turma, dia, 
       "  </div>" +
       "</div>";
 
-    MailApp.sendEmail({ to: destinatario, subject: assunto, htmlBody: corpoHtml });
+    enviarEmailRegistrado_({ to: destinatario, subject: assunto, htmlBody: corpoHtml });
     return { enviado: true, destinatario: destinatario };
   } catch (e) {
     Logger.log("Erro ao enviar e-mail de falta: " + e.toString());
@@ -1154,7 +1177,7 @@ function dispararEmailSubstituicaoAssumida(destinatario, profOrig, profSubs, dis
       "  </div>" +
       "</div>";
 
-    MailApp.sendEmail({ to: destinatario, subject: assunto, htmlBody: corpoHtml });
+    enviarEmailRegistrado_({ to: destinatario, subject: assunto, htmlBody: corpoHtml });
     return { enviado: true, destinatario: destinatario };
   } catch (e) {
     Logger.log("Erro ao enviar e-mail de substituição: " + e.toString());
@@ -1182,7 +1205,7 @@ function dispararEmailPropostaTroca(destinatario, t) {
       "  </div>" +
       "</div>";
 
-    MailApp.sendEmail({ to: destinatario, subject: assunto, htmlBody: corpoHtml });
+    enviarEmailRegistrado_({ to: destinatario, subject: assunto, htmlBody: corpoHtml });
     return { enviado: true, destinatario: destinatario };
   } catch (e) {
     Logger.log("Erro ao enviar e-mail de permuta: " + e.toString());
@@ -1205,7 +1228,7 @@ function dispararEmailTrocaConfirmada(destinatario, t) {
       "  </div>" +
       "</div>";
 
-    MailApp.sendEmail({ to: destinatario, subject: assunto, htmlBody: corpoHtml });
+    enviarEmailRegistrado_({ to: destinatario, subject: assunto, htmlBody: corpoHtml });
     return { enviado: true, destinatario: destinatario };
   } catch (e) {
     Logger.log("Erro ao confirmar permuta: " + e.toString());
@@ -1233,7 +1256,7 @@ function dispararEmailReposicao(destinatario, r) {
       "  </div>" +
       "</div>";
 
-    MailApp.sendEmail({ to: destinatario, subject: assunto, htmlBody: corpoHtml });
+    enviarEmailRegistrado_({ to: destinatario, subject: assunto, htmlBody: corpoHtml });
     return { enviado: true, destinatario: destinatario };
   } catch (e) {
     Logger.log("Erro ao enviar e-mail de reposição: " + e.toString());
@@ -1259,7 +1282,7 @@ function dispararEmailRecuperacaoPin(destinatario, prof, pinPadrao) {
       "  </div>" +
       "</div>";
 
-    MailApp.sendEmail({ to: destinatario, subject: assunto, htmlBody: corpoHtml });
+    enviarEmailRegistrado_({ to: destinatario, subject: assunto, htmlBody: corpoHtml });
     return { enviado: true, destinatario: destinatario };
   } catch (e) {
     Logger.log("Erro ao enviar e-mail de recuperação de PIN: " + e.toString());
@@ -1284,7 +1307,7 @@ function dispararEmailTeste(destinatario) {
       "  </div>" +
       "</div>";
 
-    MailApp.sendEmail({ to: destinatario, subject: assunto, htmlBody: corpoHtml });
+    enviarEmailRegistrado_({ to: destinatario, subject: assunto, htmlBody: corpoHtml });
     return { enviado: true, destinatario: destinatario };
   } catch (e) {
     Logger.log("Erro ao enviar e-mail de teste: " + e.toString());
@@ -1314,6 +1337,7 @@ function manterAquecido() {
       grade: montarGrade_(ss),
       trocas: lerObjetosJSON_(ss, "Trocas_Permutas"),
       reposicoes: lerObjetosJSON_(ss, "Reposicoes"),
+      professores: listaProfessoresPublica_(ss),
       geradoEm: new Date().getTime()
     };
     try { cache.put("BANCO_TUDO_IFS_V2", JSON.stringify(resposta), 21600); } catch (e) {}
@@ -1373,24 +1397,24 @@ function corrigirGradeDivergente() {
 
 /**
  * ==============================================================================
- * APLICAR A GRADE OFICIAL (PDF 2026.2) NA PLANILHA — execute UMA VEZ pelo editor
+ * GRADE: APLICAR UMA LISTA DE AULAS NA ABA HORARIOS (oficial, importação ou restauração)
  * ==============================================================================
- * - Reescreve a aba Horarios exatamente com GRADE_COMPLETA_OFICIAL
+ * - Faz cópia de segurança "Horarios_backup_AAAA-MM-DD_HHmm" antes de mudar
  * - Preserva Status/Substituto/Obs/DataFalta das aulas que continuam existindo
- *   (procura pelo ID com o mesmo horário; depois só pelo horário)
- * - Aulas que saíram da grade e tinham falta/substituição ficam registradas
- *   na aba Correcoes_Grade, para a coordenação conferir
- * - Faz uma cópia de segurança da aba antes: "Horarios_backup_AAAA-MM-DD_HHmm"
+ * - Registra em Correcoes_Grade as aulas removidas que tinham falta/substituição
+ * linhas: [[id, prof, dia, hora, turma, disc, status, substituto, obs, dataFalta], ...]
  */
-function aplicarGradeOficial() {
+function aplicarLinhasNaGrade_(linhas, origem) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName("Horarios");
   var lastRow = sheet.getLastRow();
   var antigas = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, 10).getValues() : [];
 
-  // 1. Cópia de segurança
   var carimbo = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd_HHmm");
-  sheet.copyTo(ss).setName("Horarios_backup_" + carimbo);
+  var nomeBackup = "Horarios_backup_" + carimbo;
+  var extra = 1;
+  while (ss.getSheetByName(nomeBackup)) { nomeBackup = "Horarios_backup_" + carimbo + "_" + (++extra); }
+  sheet.copyTo(ss).setName(nomeBackup);
 
   var norm = function (v) { return String(v || "").trim().toLowerCase(); };
   var chaveSlot = function (prof, dia, hora, turma) { return [norm(prof), norm(dia), norm(hora), norm(turma)].join("|"); };
@@ -1400,64 +1424,648 @@ function aplicarGradeOficial() {
     porSlot[chaveSlot(r[1], r[2], r[3], r[4])] = r;
   });
 
-  // 2. Monta as novas linhas preservando o estado de cada aula
   var usadas = {};
-  var novas = GRADE_COMPLETA_OFICIAL.map(function (a) {
+  var novas = linhas.map(function (a) {
     var slot = chaveSlot(a[1], a[2], a[3], a[4]);
     var velha = porId[String(a[0]).toUpperCase()];
     var mesmoHorario = velha && norm(velha[2]) === norm(a[2]) && norm(velha[3]) === norm(a[3]) && norm(velha[4]) === norm(a[4]);
     if (!mesmoHorario) velha = porSlot[slot];
     if (velha) usadas[String(velha[0]).toUpperCase() + "|" + chaveSlot(velha[1], velha[2], velha[3], velha[4])] = true;
+    var obsPadrao = a[8] || "Aula confirmada";
+    var temStatus = velha && velha[6] && velha[6] !== "normal";
     return [a[0], a[1], a[2], a[3], a[4], a[5],
-            velha ? (velha[6] || "normal") : "normal",
-            velha ? velha[7] : "",
-            velha ? (velha[8] || "Aula confirmada") : "Aula confirmada",
-            velha ? velha[9] : ""];
+            velha ? (velha[6] || "normal") : (a[6] || "normal"),
+            velha ? velha[7] : (a[7] || ""),
+            temStatus ? velha[8] : obsPadrao,
+            velha ? velha[9] : (a[9] || "")];
   });
 
-  // 3. Registra aulas removidas que tinham falta ou substituição
   var log = obterOuCriarAba(ss, "Correcoes_Grade", ["Data", "Linha", "ID", "Antes (prof | dia | hora | turma | disc)", "Depois (prof | dia | hora | turma | disc)", "Status preservado"]);
   var removidasComStatus = 0;
   antigas.forEach(function (r, i) {
     var k = String(r[0]).trim().toUpperCase() + "|" + chaveSlot(r[1], r[2], r[3], r[4]);
     if (!usadas[k] && r[6] && r[6] !== "normal") {
-      log.appendRow([new Date(), i + 2, r[0], [r[1], r[2], r[3], r[4], r[5]].join(" | "), "REMOVIDA da grade oficial", r[6] + (r[9] ? " (" + r[9] + ")" : "")]);
+      log.appendRow([new Date(), i + 2, r[0], [r[1], r[2], r[3], r[4], r[5]].join(" | "), "REMOVIDA (" + (origem || "grade") + ")", r[6] + (r[9] ? " (" + r[9] + ")" : "")]);
       removidasComStatus++;
     }
   });
 
-  // 4. Grava tudo de uma vez
-  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).clearContent();
-  sheet.getRange(2, 1, novas.length, 10).setValues(novas);
+  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, Math.max(10, sheet.getLastColumn())).clearContent();
+  if (novas.length) sheet.getRange(2, 1, novas.length, 10).setValues(novas);
   SpreadsheetApp.flush();
   invalidarCacheGrade();
-  atualizarAbaProfessores();
-  Logger.log("Grade oficial aplicada: " + novas.length + " aulas (antes: " + antigas.length + "). " +
-             "Aulas removidas que tinham falta/substituição: " + removidasComStatus + " (ver Correcoes_Grade).");
-  return novas.length;
+  Logger.log("Grade aplicada (" + (origem || "") + "): " + novas.length + " aulas (antes: " + antigas.length + "). " +
+             "Removidas com falta/substituição: " + removidasComStatus + ". Backup: " + nomeBackup);
+  return { total: novas.length, antes: antigas.length, removidasComStatus: removidasComStatus, backup: nomeBackup };
 }
 
+/** Executar pelo editor: aplica GRADE_COMPLETA_OFICIAL (o código) na planilha. */
+function aplicarGradeOficial() {
+  var r = aplicarLinhasNaGrade_(GRADE_COMPLETA_OFICIAL, "grade oficial do código");
+  atualizarAbaProfessores();
+  Logger.log("Grade oficial aplicada: " + r.total + " aulas (antes: " + r.antes + "). Removidas com falta/substituição: " + r.removidasComStatus + ".");
+  return r.total;
+}
 
 /**
- * Atualiza a aba Professores com os e-mails institucionais do código (EMAILS_DOCENTES)
- * e remove quem não está mais na grade (ex.: professores que mudaram de campus).
- * Os PINs que já estão na planilha são mantidos.
+ * Completa a aba Professores sem apagar o que o administrador editou:
+ * - acrescenta quem tem aula e não está na aba (e-mail do código)
+ * - troca só e-mails vazios ou do padrão antigo inventado (nome@ifs.edu.br)
+ * - marca Ativo = "Não" quem não tem mais aula (não apaga a linha)
  */
 function atualizarAbaProfessores() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = obterOuCriarAba(ss, "Professores", ["Professor", "Email", "Curso / Departamento", "PIN"]);
+  var sheet = obterOuCriarAba(ss, "Professores", CAB_PROFESSORES);
   var last = sheet.getLastRow();
-  var atuais = last > 1 ? sheet.getRange(2, 1, last - 1, 4).getValues() : [];
-  var porNome = {};
-  atuais.forEach(function (r) { porNome[String(r[0]).trim()] = r; });
+  var atuais = last > 1 ? sheet.getRange(2, 1, last - 1, 5).getValues() : [];
   var naGrade = {};
-  GRADE_COMPLETA_OFICIAL.forEach(function (a) { naGrade[a[1]] = true; });
-  var linhas = Object.keys(EMAILS_DOCENTES).filter(function (n) { return naGrade[n]; }).map(function (n) {
-    var r = porNome[n] || [n, "", "", "1234"];
-    return [n, EMAILS_DOCENTES[n], r[2], r[3] || "1234"];
+  var hl = ss.getSheetByName("Horarios");
+  if (hl && hl.getLastRow() > 1) hl.getRange(2, 2, hl.getLastRow() - 1, 1).getValues().forEach(function (r) { if (r[0]) naGrade[String(r[0]).trim()] = true; });
+  var vistos = {};
+  var linhas = atuais.filter(function (r) { return String(r[0]).trim(); }).map(function (r) {
+    var nome = String(r[0]).trim(); vistos[nome] = true;
+    var email = String(r[1] || "").trim();
+    var local = email.split("@")[0] || "";
+    if ((!email || local.indexOf(".") === -1) && EMAILS_DOCENTES[nome]) email = EMAILS_DOCENTES[nome];
+    var ativo = naGrade[nome] ? "Sim" : (String(r[4] || "").trim() || "Não");
+    if (!naGrade[nome]) ativo = "Não";
+    return [nome, email, r[2], r[3] || "1234", ativo];
   });
-  if (last > 1) sheet.getRange(2, 1, last - 1, 4).clearContent();
-  sheet.getRange(2, 1, linhas.length, 4).setValues(linhas);
-  Logger.log("Aba Professores atualizada: " + linhas.length + " professores.");
+  Object.keys(naGrade).forEach(function (nome) {
+    if (vistos[nome] || nome === "A definir") return;
+    linhas.push([nome, EMAILS_DOCENTES[nome] || "", "", "1234", "Sim"]);
+  });
+  if (last > 1) sheet.getRange(2, 1, last - 1, Math.max(5, sheet.getLastColumn())).clearContent();
+  if (linhas.length) sheet.getRange(2, 1, linhas.length, 5).setValues(linhas);
+  limparMapaProfessores_();
+  Logger.log("Aba Professores atualizada: " + linhas.filter(function (l) { return l[4] === "Sim"; }).length + " professores ativos.");
   return linhas.length;
+}
+
+var CAB_PROFESSORES = ["Professor", "Email", "Curso / Departamento", "PIN", "Ativo"];
+
+// Lista sem e-mails, que o app dos professores usa para a tela de login
+function listaProfessoresPublica_(ss) {
+  var mapa = mapaProfessores_(ss);
+  return Object.keys(mapa).map(function (k) { return { nome: mapa[k].nome, curso: mapa[k].curso, ativo: mapa[k].ativo }; });
+}
+
+/**
+ * ==============================================================================
+ * E-MAILS: TODO ENVIO FICA REGISTRADO NA ABA "E-mails_Enviados"
+ * ==============================================================================
+ */
+var ABA_EMAILS = "E-mails_Enviados";
+var CAB_EMAILS = ["ID", "Data", "Tipo", "Destinatários", "Assunto", "Status", "Erro", "Corpo"];
+
+function tipoPorAssunto_(assunto) {
+  var a = String(assunto || "").toUpperCase();
+  if (a.indexOf("SUBSTITUIÇÃO DISPONÍVEL") !== -1) return "Falta";
+  if (a.indexOf("SUBSTITUIÇÃO") !== -1) return "Substituição";
+  if (a.indexOf("PERMUTA") !== -1 || a.indexOf("TROCA") !== -1) return "Troca";
+  if (a.indexOf("REPOSIÇÃO") !== -1) return "Reposição";
+  if (a.indexOf("PIN") !== -1) return "PIN";
+  if (a.indexOf("TESTE") !== -1) return "Teste";
+  return "Aviso";
+}
+
+function registrarEmail_(reg) {
+  try {
+    var sh = obterOuCriarAba(SpreadsheetApp.getActiveSpreadsheet(), ABA_EMAILS, CAB_EMAILS);
+    sh.appendRow([reg.id, new Date(), reg.tipo, reg.para, reg.assunto, reg.status, reg.erro || "", String(reg.corpo || "").slice(0, 45000)]);
+  } catch (e) { Logger.log("Aviso: não registrou e-mail: " + e); }
+}
+
+function enviarEmailRegistrado_(opts) {
+  var reg = { id: "EM-" + new Date().getTime() + "-" + Math.floor(Math.random() * 1000), tipo: tipoPorAssunto_(opts.subject),
+              para: opts.to, assunto: opts.subject, corpo: opts.htmlBody };
+  if (!opts.to) { reg.status = "Erro"; reg.erro = "Sem destinatário cadastrado"; registrarEmail_(reg); throw new Error(reg.erro); }
+  try {
+    MailApp.sendEmail(opts);
+    reg.status = "Enviado";
+    registrarEmail_(reg);
+  } catch (e) {
+    reg.status = "Erro"; reg.erro = e.toString();
+    registrarEmail_(reg);
+    throw e;
+  }
+}
+
+/** Destinatários da coordenação: guardados no servidor (o admin altera no painel) */
+function lerConfigEmails_() {
+  var cfg = {
+    emailCoordDS: CONFIG_PADRAO.EMAIL_COORD_DS, emailCoordADM: CONFIG_PADRAO.EMAIL_COORD_ADM,
+    emailCoordSubsequente: CONFIG_PADRAO.EMAIL_COORD_SUBSEQUENTE, emailCoordGeral: CONFIG_PADRAO.EMAIL_COORD_GERAL
+  };
+  try {
+    var salvo = JSON.parse(PropertiesService.getScriptProperties().getProperty("EMAILS_CONFIG") || "{}");
+    Object.keys(cfg).forEach(function (k) { if (salvo[k]) cfg[k] = salvo[k]; });
+  } catch (e) {}
+  return cfg;
+}
+
+/**
+ * ==============================================================================
+ * ADMINISTRADORES — senha guardada só como hash nas Propriedades do Script
+ * ==============================================================================
+ * Cadastro pelo menu "Painel Docente" da planilha (só quem edita a planilha consegue).
+ */
+function lerAdmins_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty("ADMINS") || "{}"); } catch (e) { return {}; }
+}
+function gravarAdmins_(admins) { PropertiesService.getScriptProperties().setProperty("ADMINS", JSON.stringify(admins)); }
+
+function hashSenha_(salt, senha) {
+  var valor = salt + "|" + senha;
+  for (var i = 0; i < 300; i++) {
+    valor = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, valor + salt, Utilities.Charset.UTF_8));
+  }
+  return valor;
+}
+
+function salvarAdmin_(email, senha) {
+  email = String(email || "").trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("E-mail inválido.");
+  if (String(senha || "").length < 8) throw new Error("A senha precisa ter pelo menos 8 caracteres.");
+  var admins = lerAdmins_();
+  var salt = Utilities.getUuid();
+  admins[email] = { salt: salt, hash: hashSenha_(salt, senha), criadoEm: new Date().toISOString() };
+  gravarAdmins_(admins);
+  return email;
+}
+
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu("Painel Docente")
+    .addItem("Cadastrar ou alterar administrador", "menuCadastrarAdmin")
+    .addItem("Remover administrador", "menuRemoverAdmin")
+    .addItem("Listar administradores", "menuListarAdmins")
+    .addSeparator()
+    .addItem("Abrir painel administrativo", "menuAbrirPainel")
+    .addToUi();
+}
+
+function menuCadastrarAdmin() {
+  var ui = SpreadsheetApp.getUi();
+  var r1 = ui.prompt("Administrador", "E-mail do administrador (ex.: eber.santana@ifs.edu.br):", ui.ButtonSet.OK_CANCEL);
+  if (r1.getSelectedButton() !== ui.Button.OK) return;
+  var r2 = ui.prompt("Senha", "Crie a senha (mínimo 8 caracteres). Ela não é mostrada depois e só fica guardada como código protegido:", ui.ButtonSet.OK_CANCEL);
+  if (r2.getSelectedButton() !== ui.Button.OK) return;
+  try { var em = salvarAdmin_(r1.getResponseText(), r2.getResponseText()); ui.alert("Administrador salvo: " + em); }
+  catch (e) { ui.alert("Não foi possível salvar: " + e.message); }
+}
+function menuRemoverAdmin() {
+  var ui = SpreadsheetApp.getUi();
+  var r = ui.prompt("Remover administrador", "E-mail a remover:", ui.ButtonSet.OK_CANCEL);
+  if (r.getSelectedButton() !== ui.Button.OK) return;
+  var admins = lerAdmins_(); var em = r.getResponseText().trim().toLowerCase();
+  if (!admins[em]) { ui.alert("Não encontrado: " + em); return; }
+  delete admins[em]; gravarAdmins_(admins); ui.alert("Removido: " + em);
+}
+function menuListarAdmins() {
+  var lista = Object.keys(lerAdmins_());
+  SpreadsheetApp.getUi().alert(lista.length ? "Administradores:\n\n" + lista.join("\n") : "Nenhum administrador cadastrado ainda.");
+}
+function menuAbrirPainel() {
+  var url = CONFIG_PADRAO.LINK_PAINEL + "admin.html";
+  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput('<p style="font-family:Arial">Abra o painel em:<br><a href="' + url + '" target="_blank">' + url + '</a></p>').setWidth(420).setHeight(110), "Painel administrativo");
+}
+
+/**
+ * ==============================================================================
+ * ROTEADOR DAS AÇÕES DE ADMINISTRAÇÃO (doPost com acao "admin_*")
+ * ==============================================================================
+ */
+function adminRouter_(d) {
+  try {
+    if (d.acao === "admin_login") return criarRespostaJSON(adminLogin_(d));
+    var email = d.token ? CacheService.getScriptCache().get("ADMTOK_" + d.token) : null;
+    if (!email) return criarRespostaJSON({ sucesso: false, sessaoExpirada: true, erro: "Sessão expirada. Entre novamente." });
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var leitura = { admin_resumo: 1, admin_emails_listar: 1, admin_prof_listar: 1, admin_versoes: 1, admin_historico: 1, admin_config_ler: 1, admin_importar_previa: 1 };
+    if (leitura[d.acao]) return criarRespostaJSON(adminExecutar_(d, ss, email));
+    var lock = LockService.getScriptLock();
+    if (!lock.tryLock(15000)) return criarRespostaJSON({ sucesso: false, erro: "Sistema ocupado. Tente de novo em alguns segundos." });
+    try { return criarRespostaJSON(adminExecutar_(d, ss, email)); }
+    finally { lock.releaseLock(); }
+  } catch (err) {
+    return criarRespostaJSON({ sucesso: false, erro: String(err && err.message || err) });
+  }
+}
+
+function adminLogin_(d) {
+  var cache = CacheService.getScriptCache();
+  var email = String(d.email || "").trim().toLowerCase();
+  var chaveFalhas = "ADMFAIL_" + email;
+  var falhas = parseInt(cache.get(chaveFalhas) || "0", 10);
+  if (falhas >= 5) return { sucesso: false, erro: "Muitas tentativas. Aguarde 15 minutos." };
+  var a = lerAdmins_()[email];
+  if (!a || hashSenha_(a.salt, String(d.senha || "")) !== a.hash) {
+    cache.put(chaveFalhas, String(falhas + 1), 900);
+    Utilities.sleep(800);
+    return { sucesso: false, erro: "E-mail ou senha incorretos." };
+  }
+  cache.remove(chaveFalhas);
+  var token = Utilities.getUuid().replace(/-/g, "") + Utilities.getUuid().replace(/-/g, "");
+  cache.put("ADMTOK_" + token, email, 21600);
+  return { sucesso: true, token: token, email: email };
+}
+
+function adminExecutar_(d, ss, email) {
+  switch (d.acao) {
+    case "admin_sair": CacheService.getScriptCache().remove("ADMTOK_" + d.token); return { sucesso: true };
+    case "admin_resumo": return admResumo_(ss);
+    case "admin_emails_listar": return admEmailsListar_(ss, d);
+    case "admin_emails_acao": return admEmailsAcao_(ss, d);
+    case "admin_aula_salvar": return admAulaSalvar_(ss, d, email);
+    case "admin_aula_excluir": return admAulaExcluir_(ss, d, email);
+    case "admin_aulas_atribuir": return admAulasAtribuir_(ss, d, email);
+    case "admin_aula_status": return admAulaStatus_(ss, d, email);
+    case "admin_prof_listar": return admProfListar_(ss);
+    case "admin_prof_salvar": return admProfSalvar_(ss, d, email);
+    case "admin_prof_desligar": return admProfDesligar_(ss, d, email);
+    case "admin_importar_previa": return admImportarPrevia_(ss, d);
+    case "admin_importar_aplicar": return admImportarAplicar_(ss, d, email);
+    case "admin_versoes": return admVersoes_(ss);
+    case "admin_restaurar": return admRestaurar_(ss, d, email);
+    case "admin_historico": return admHistorico_(ss);
+    case "admin_config_ler": return { sucesso: true, config: lerConfigEmails_(), admins: Object.keys(lerAdmins_()) };
+    case "admin_config_salvar": return admConfigSalvar_(d);
+  }
+  return { sucesso: false, erro: "Ação desconhecida." };
+}
+
+// ---------- utilidades da grade ----------
+function lerLinhasHorarios_(ss) {
+  var sh = ss.getSheetByName("Horarios");
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 10).getValues().map(function (r, i) { r.__linha = i + 2; return r; }).filter(function (r) { return r[0] && r[1]; });
+}
+function normTxt_(v) { return String(v || "").trim().toLowerCase(); }
+function ehDivisaoAB_(disc) { return /\s-\s?[AB]$/i.test(String(disc || "").trim()); }
+
+// Choques: o professor em 2 lugares, ou a turma com 2 aulas (exceto divisão A/B do mesmo horário)
+function conflitosDaAula_(linhas, aula, ignorarIds) {
+  var ign = {}; (ignorarIds || []).forEach(function (i) { ign[String(i).toUpperCase()] = true; });
+  var msgs = [];
+  linhas.forEach(function (r) {
+    if (ign[String(r[0]).toUpperCase()] || normTxt_(r[2]) !== normTxt_(aula.dia) || normTxt_(r[3]) !== normTxt_(aula.hora)) return;
+    if (aula.professor !== "A definir" && normTxt_(r[1]) === normTxt_(aula.professor) && normTxt_(r[4]) !== normTxt_(aula.turma))
+      msgs.push("Prof. " + r[1] + " já tem aula nesse horário: " + r[5] + " (" + r[4] + ")");
+    if (normTxt_(r[4]) === normTxt_(aula.turma) && !(ehDivisaoAB_(r[5]) && ehDivisaoAB_(aula.disc)))
+      msgs.push("A turma " + r[4] + " já tem " + r[5] + " (Prof. " + r[1] + ") nesse horário");
+  });
+  return msgs;
+}
+
+function prefixoDoProfessor_(linhas, prof) {
+  for (var i = 0; i < linhas.length; i++) if (normTxt_(linhas[i][1]) === normTxt_(prof)) return String(linhas[i][0]).split("-")[0];
+  var base = String(prof).normalize ? String(prof).normalize("NFD").replace(/[̀-ͯ]/g, "") : String(prof);
+  var letras = base.replace(/[^A-Za-z ]/g, "").split(" ").filter(String);
+  var cand = (letras.length > 1 ? letras[0][0] + letras[letras.length - 1][0] : (letras[0] || "PX").slice(0, 2)).toUpperCase();
+  var usados = {}; linhas.forEach(function (r) { usados[String(r[0]).split("-")[0]] = String(r[1]); });
+  var tentativa = cand, n = 2;
+  while (usados[tentativa] && normTxt_(usados[tentativa]) !== normTxt_(prof)) tentativa = cand + (n++);
+  return tentativa;
+}
+function proximoId_(linhas, prefixo) {
+  var max = 0;
+  linhas.forEach(function (r) { var p = String(r[0]).split("-"); if (p[0] === prefixo) max = Math.max(max, parseInt(p[1], 10) || 0); });
+  return prefixo + "-" + (max + 1);
+}
+
+// ---------- visão geral ----------
+function admResumo_(ss) {
+  var linhas = lerLinhasHorarios_(ss);
+  var mapa = mapaProfessores_(ss);
+  var ativos = Object.keys(mapa).filter(function (k) { return mapa[k].ativo; });
+  var faltas = [], assumidasInativo = [], aDefinir = 0;
+  linhas.forEach(function (r) {
+    if (r[1] === "A definir") aDefinir++;
+    if (r[6] === "alert" && !r[7]) faltas.push({ id: r[0], prof: r[1], dia: r[2], hora: r[3], turma: r[4], disc: r[5], obs: r[8], data: formatarDataBR(r[9]) });
+    if (r[6] === "assumed" && r[7]) { var p = mapa[normTxt_(r[7])]; if (!p || !p.ativo) assumidasInativo.push({ id: r[0], prof: r[1], dia: r[2], hora: r[3], turma: r[4], disc: r[5], substituto: r[7] }); }
+  });
+  var conflitos = [], vistos = {};
+  linhas.forEach(function (r) {
+    if (r[1] === "A definir") return;
+    var k = normTxt_(r[1]) + "|" + normTxt_(r[2]) + "|" + normTxt_(r[3]);
+    if (vistos[k] && normTxt_(vistos[k][4]) !== normTxt_(r[4])) conflitos.push({ prof: r[1], dia: r[2], hora: r[3], turmas: vistos[k][4] + " e " + r[4] });
+    vistos[k] = r;
+  });
+  var emails = { total: 0, erros: 0 };
+  var sh = ss.getSheetByName(ABA_EMAILS);
+  if (sh && sh.getLastRow() > 1) {
+    var limite = new Date().getTime() - 7 * 86400000;
+    sh.getRange(2, 2, sh.getLastRow() - 1, 5).getValues().forEach(function (r) {
+      if (new Date(r[0]).getTime() >= limite) { emails.total++; if (r[4] === "Erro") emails.erros++; }
+    });
+  }
+  var versoes = admVersoes_(ss).versoes;
+  return { sucesso: true, totalAulas: linhas.length, aDefinir: aDefinir, professoresAtivos: ativos.length,
+           professoresInativos: Object.keys(mapa).length - ativos.length, faltas: faltas, assumidasInativo: assumidasInativo,
+           conflitos: conflitos, emails: emails, ultimaVersao: versoes[0] || null };
+}
+
+// ---------- e-mails ----------
+function admEmailsListar_(ss, d) {
+  var sh = ss.getSheetByName(ABA_EMAILS);
+  if (!sh || sh.getLastRow() < 2) return { sucesso: true, emails: [] };
+  var total = sh.getLastRow() - 1, limite = Math.min(total, d.limite || 500);
+  var rows = sh.getRange(sh.getLastRow() - limite + 1, 1, limite, 7).getValues();
+  var lista = rows.reverse().filter(function (r) { return r[0]; }).map(function (r) {
+    return { id: r[0], data: new Date(r[1]).getTime(), tipo: r[2], para: r[3], assunto: r[4], status: r[5], erro: r[6] };
+  });
+  return { sucesso: true, emails: lista, total: total };
+}
+
+function admEmailsAcao_(ss, d) {
+  var sh = ss.getSheetByName(ABA_EMAILS);
+  if (!sh || sh.getLastRow() < 2) return { sucesso: true, afetados: 0 };
+  var alvo = {}; (d.ids || []).forEach(function (i) { alvo[i] = true; });
+  var ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+  var linhas = [];
+  ids.forEach(function (r, i) { if (alvo[r[0]]) linhas.push(i + 2); });
+  if (d.tipo === "apagar") {
+    linhas.sort(function (a, b) { return b - a; }).forEach(function (l) { sh.deleteRow(l); });
+  } else if (d.tipo === "arquivar" || d.tipo === "desarquivar") {
+    linhas.forEach(function (l) {
+      var st = sh.getRange(l, 6).getValue();
+      if (d.tipo === "arquivar" && st !== "Arquivado") sh.getRange(l, 6, 1, 2).setValues([["Arquivado", (sh.getRange(l, 7).getValue() || "") + (st ? " [antes: " + st + "]" : "")]]);
+      if (d.tipo === "desarquivar" && st === "Arquivado") {
+        var antes = String(sh.getRange(l, 7).getValue()).match(/\[antes: (\w+)\]/);
+        sh.getRange(l, 6).setValue(antes ? antes[1] : "Enviado");
+        sh.getRange(l, 7).setValue(String(sh.getRange(l, 7).getValue()).replace(/\s?\[antes: \w+\]/, ""));
+      }
+    });
+  } else if (d.tipo === "reenviar") {
+    var enviados = 0, falhas = [];
+    linhas.forEach(function (l) {
+      var r = sh.getRange(l, 1, 1, 8).getValues()[0];
+      try { enviarEmailRegistrado_({ to: r[3], subject: r[4], htmlBody: r[7] || r[4] }); enviados++; sh.getRange(l, 6).setValue("Reenviado"); }
+      catch (e) { falhas.push(r[4] + ": " + e.message); }
+    });
+    return { sucesso: falhas.length === 0, afetados: enviados, falhas: falhas };
+  } else {
+    return { sucesso: false, erro: "Ação inválida." };
+  }
+  return { sucesso: true, afetados: linhas.length };
+}
+
+// ---------- aulas ----------
+function admAulaSalvar_(ss, d, admin) {
+  var a = d.aula || {};
+  ["professor", "dia", "hora", "turma", "disc"].forEach(function (c) { if (!String(a[c] || "").trim()) throw new Error("Preencha o campo " + c + "."); });
+  var sh = ss.getSheetByName("Horarios");
+  var linhas = lerLinhasHorarios_(ss);
+  var conf = conflitosDaAula_(linhas, a, a.id ? [a.id] : []);
+  if (conf.length && !d.forcar) return { sucesso: false, conflitos: conf };
+  var obs = a.sala ? "Aula confirmada (" + a.sala + ")" : "Aula confirmada";
+  var linhaA = -1;
+  if (a.id) linhas.forEach(function (r) { if (String(r[0]).toUpperCase() === String(a.id).toUpperCase()) linhaA = r.__linha; });
+  if (a.id && linhaA !== -1) {
+    var atual = sh.getRange(linhaA, 1, 1, 10).getValues()[0];
+    var mudouProf = normTxt_(atual[1]) !== normTxt_(a.professor);
+    sh.getRange(linhaA, 2, 1, 5).setValues([[a.professor, a.dia, a.hora, a.turma, a.disc]]);
+    if (atual[6] === "normal" || !atual[6]) sh.getRange(linhaA, 9).setValue(obs);
+    registrarHistorico(ss, "ADMIN_EDITOU_AULA", atual[1], mudouProf ? a.professor : "", a.disc, a.turma, a.dia + " às " + a.hora, admin);
+    return { sucesso: true, id: a.id };
+  }
+  var id = proximoId_(linhas, prefixoDoProfessor_(linhas, a.professor));
+  sh.appendRow([id, a.professor, a.dia, a.hora, a.turma, a.disc, "normal", "", obs, ""]);
+  registrarHistorico(ss, "ADMIN_CRIOU_AULA", a.professor, "", a.disc, a.turma, a.dia + " às " + a.hora, admin);
+  return { sucesso: true, id: id };
+}
+
+function admAulaExcluir_(ss, d, admin) {
+  var sh = ss.getSheetByName("Horarios");
+  var linhas = lerLinhasHorarios_(ss), alvo = null;
+  linhas.forEach(function (r) { if (String(r[0]).toUpperCase() === String(d.id).toUpperCase()) alvo = r; });
+  if (!alvo) throw new Error("Aula não encontrada.");
+  sh.deleteRow(alvo.__linha);
+  registrarHistorico(ss, "ADMIN_EXCLUIU_AULA", alvo[1], "", alvo[5], alvo[4], alvo[2] + " às " + alvo[3], admin);
+  return { sucesso: true };
+}
+
+function admAulasAtribuir_(ss, d, admin) {
+  var sh = ss.getSheetByName("Horarios");
+  var linhas = lerLinhasHorarios_(ss);
+  var alvo = {}; (d.ids || []).forEach(function (i) { alvo[String(i).toUpperCase()] = true; });
+  var selecionadas = linhas.filter(function (r) { return alvo[String(r[0]).toUpperCase()]; });
+  if (!selecionadas.length) throw new Error("Nenhuma aula selecionada.");
+  var conf = [];
+  selecionadas.forEach(function (r) {
+    conflitosDaAula_(linhas, { professor: d.professor, dia: r[2], hora: r[3], turma: r[4], disc: r[5] }, d.ids)
+      .forEach(function (m) { if (m.indexOf("Prof. ") === 0) conf.push(r[2] + " " + r[3] + ": " + m); });
+  });
+  if (conf.length && !d.forcar) return { sucesso: false, conflitos: conf };
+  selecionadas.forEach(function (r) {
+    sh.getRange(r.__linha, 2).setValue(d.professor);
+    registrarHistorico(ss, "ADMIN_ATRIBUIU_AULA", r[1], d.professor, r[5], r[4], r[2] + " às " + r[3], admin);
+  });
+  return { sucesso: true, afetadas: selecionadas.length };
+}
+
+function admAulaStatus_(ss, d, admin) {
+  var sh = ss.getSheetByName("Horarios");
+  var linhas = lerLinhasHorarios_(ss), r = null;
+  linhas.forEach(function (x) { if (String(x[0]).toUpperCase() === String(d.id).toUpperCase()) r = x; });
+  if (!r) throw new Error("Aula não encontrada.");
+  if (d.tipo === "assumir") {
+    if (!d.substituto) throw new Error("Escolha o substituto.");
+    var conf = conflitosDaAula_(linhas, { professor: d.substituto, dia: r[2], hora: r[3], turma: r[4], disc: r[5] }, [r[0]]).filter(function (m) { return m.indexOf("Prof. ") === 0; });
+    if (conf.length && !d.forcar) return { sucesso: false, conflitos: conf };
+    sh.getRange(r.__linha, 7, 1, 3).setValues([["assumed", d.substituto, "Substituição indicada pela coordenação"]]);
+    registrarHistorico(ss, "SUBSTITUICAO_INDICADA_ADMIN", r[1], d.substituto, r[5], r[4], r[2] + " às " + r[3], formatarDataBR(r[9]));
+    try {
+      var cfg = lerConfigEmails_();
+      var dest = [obterEmailsPorTurma(r[4], cfg), obterEmailProfessor(ss, r[1]), obterEmailProfessor(ss, d.substituto)].filter(String).join(", ");
+      dispararEmailSubstituicaoAssumida(dest, r[1], d.substituto, r[5], r[4], r[2], r[3]);
+    } catch (e) {}
+  } else if (d.tipo === "liberar") {
+    sh.getRange(r.__linha, 7, 1, 3).setValues([["alert", "", "⚠️ Substituto indisponível — aula liberada pela coordenação"]]);
+    registrarHistorico(ss, "AULA_LIBERADA_ADMIN", r[1], r[7], r[5], r[4], r[2] + " às " + r[3], formatarDataBR(r[9]));
+  } else if (d.tipo === "normal") {
+    sh.getRange(r.__linha, 7, 1, 4).setValues([["normal", "", "Aula confirmada", ""]]);
+    registrarHistorico(ss, "AULA_NORMALIZADA_ADMIN", r[1], "", r[5], r[4], r[2] + " às " + r[3], "");
+  } else throw new Error("Ação inválida.");
+  return { sucesso: true };
+}
+
+// ---------- professores ----------
+function admProfListar_(ss) {
+  var mapa = mapaProfessores_(ss);
+  var contagem = {};
+  lerLinhasHorarios_(ss).forEach(function (r) { var k = normTxt_(r[1]); contagem[k] = (contagem[k] || 0) + 1; });
+  var lista = Object.keys(mapa).map(function (k) { var p = mapa[k]; return { nome: p.nome, email: p.email, curso: p.curso, ativo: p.ativo, aulas: contagem[k] || 0 }; });
+  lista.sort(function (a, b) { return a.nome.localeCompare(b.nome, "pt-BR"); });
+  return { sucesso: true, professores: lista, aDefinir: contagem["a definir"] || 0 };
+}
+
+function admProfSalvar_(ss, d, admin) {
+  var nome = String(d.nome || "").trim(), email = String(d.email || "").trim().toLowerCase();
+  if (!nome) throw new Error("Informe o nome.");
+  if (nome.toLowerCase() === "a definir") throw new Error("Nome reservado.");
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("E-mail inválido.");
+  var sh = obterOuCriarAba(ss, "Professores", CAB_PROFESSORES);
+  var mapa = mapaProfessores_(ss);
+  var original = String(d.nomeOriginal || nome).trim();
+  var existente = mapa[original.toLowerCase()];
+  if (original.toLowerCase() !== nome.toLowerCase() && mapa[nome.toLowerCase()]) throw new Error("Já existe um professor com esse nome.");
+  var linha = [nome, email, String(d.curso || "").trim(), existente ? (sh.getRange(existente.linha, 4).getValue() || "1234") : "1234", d.ativo === false ? "Não" : "Sim"];
+  if (existente) sh.getRange(existente.linha, 1, 1, 5).setValues([linha]); else sh.appendRow(linha);
+  // Renomear: atualiza a grade (titular e substituto)
+  var renomeadas = 0;
+  if (existente && original !== nome) {
+    var hs = ss.getSheetByName("Horarios");
+    lerLinhasHorarios_(ss).forEach(function (r) {
+      if (normTxt_(r[1]) === original.toLowerCase()) { hs.getRange(r.__linha, 2).setValue(nome); renomeadas++; }
+      if (normTxt_(r[7]) === original.toLowerCase()) hs.getRange(r.__linha, 8).setValue(nome);
+    });
+  }
+  limparMapaProfessores_();
+  registrarHistorico(ss, existente ? "ADMIN_EDITOU_PROFESSOR" : "ADMIN_CADASTROU_PROFESSOR", nome, "", email, "", "", admin);
+  return { sucesso: true, renomeadas: renomeadas };
+}
+
+function admProfDesligar_(ss, d, admin) {
+  var mapa = mapaProfessores_(ss), p = mapa[normTxt_(d.nome)];
+  if (!p) throw new Error("Professor não encontrado.");
+  var destino = d.transferirPara || "A definir";
+  var linhas = lerLinhasHorarios_(ss).filter(function (r) { return normTxt_(r[1]) === normTxt_(d.nome); });
+  if (destino !== "A definir") {
+    var todas = lerLinhasHorarios_(ss), ids = linhas.map(function (r) { return r[0]; }), conf = [];
+    linhas.forEach(function (r) { conflitosDaAula_(todas, { professor: destino, dia: r[2], hora: r[3], turma: r[4], disc: r[5] }, ids).forEach(function (m) { if (m.indexOf("Prof. ") === 0) conf.push(r[2] + " " + r[3] + ": " + m); }); });
+    if (conf.length && !d.forcar) return { sucesso: false, conflitos: conf };
+  }
+  var hs = ss.getSheetByName("Horarios");
+  linhas.forEach(function (r) { hs.getRange(r.__linha, 2).setValue(destino); });
+  ss.getSheetByName("Professores").getRange(p.linha, 5).setValue("Não");
+  limparMapaProfessores_();
+  registrarHistorico(ss, "ADMIN_DESLIGOU_PROFESSOR", d.nome, destino, linhas.length + " aulas transferidas", "", "", admin);
+  return { sucesso: true, transferidas: linhas.length };
+}
+
+// ---------- importação ----------
+var DIAS_VALIDOS = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+function normDia_(v) {
+  var t = normTxt_(v).normalize ? normTxt_(v).normalize("NFD").replace(/[̀-ͯ]/g, "") : normTxt_(v);
+  var mapa = { seg: 0, ter: 1, qua: 2, qui: 3, sex: 4, sab: 5 };
+  var k = t.slice(0, 3);
+  return mapa.hasOwnProperty(k) ? DIAS_VALIDOS[mapa[k]] : "";
+}
+function normHora_(v) {
+  var m = String(v || "").match(/(\d{1,2})\s*[:hH]\s*(\d{2})\D+(\d{1,2})\s*[:hH]\s*(\d{2})/);
+  if (!m) return "";
+  var p = function (n) { return ("0" + parseInt(n, 10)).slice(-2); };
+  return p(m[1]) + ":" + m[2] + " - " + p(m[3]) + ":" + m[4];
+}
+
+function admImportarPrevia_(ss, d) {
+  var entrada = d.linhas || [];
+  if (!entrada.length) throw new Error("O arquivo não tem aulas.");
+  if (entrada.length > 2000) throw new Error("Arquivo grande demais (máx. 2000 aulas).");
+  var mapa = mapaProfessores_(ss);
+  var erros = [], avisos = [], novas = [];
+  entrada.forEach(function (l, i) {
+    var n = i + 2;
+    var prof = String(l.professor || "").trim(), dia = normDia_(l.dia), hora = normHora_(l.horario || l.hora), turma = String(l.turma || "").trim(), disc = String(l.disciplina || l.disc || "").trim();
+    if (!prof || !dia || !hora || !turma || !disc) { erros.push("Linha " + n + ": falta " + [!prof && "Professor", !dia && "Dia", !hora && "Horário", !turma && "Turma", !disc && "Disciplina"].filter(Boolean).join(", ")); return; }
+    var p = mapa[prof.toLowerCase()];
+    if (prof !== "A definir" && !p) { erros.push("Linha " + n + ": professor “" + prof + "” não está cadastrado. Cadastre antes em Professores."); return; }
+    if (p) prof = p.nome;
+    if (p && !p.ativo) avisos.push("Linha " + n + ": " + prof + " está desligado(a)");
+    novas.push({ professor: prof, dia: dia, hora: hora, turma: turma, disc: disc, sala: String(l.sala || "").trim() });
+  });
+  // choques dentro do próprio arquivo
+  var conflitos = [], porProf = {}, porTurma = {};
+  novas.forEach(function (a) {
+    var kp = normTxt_(a.professor) + "|" + a.dia + "|" + a.hora, kt = normTxt_(a.turma) + "|" + a.dia + "|" + a.hora;
+    if (a.professor !== "A definir" && porProf[kp] && normTxt_(porProf[kp].turma) !== normTxt_(a.turma)) conflitos.push("Prof. " + a.professor + " em " + porProf[kp].turma + " e " + a.turma + " · " + a.dia + " " + a.hora);
+    if (porTurma[kt] && !(ehDivisaoAB_(porTurma[kt].disc) && ehDivisaoAB_(a.disc))) conflitos.push(a.turma + " com " + porTurma[kt].disc + " e " + a.disc + " · " + a.dia + " " + a.hora);
+    porProf[kp] = a; porTurma[kt] = a;
+  });
+  // comparação com a grade atual
+  var atuais = lerLinhasHorarios_(ss);
+  var porSlotProf = {}, porSlotDisc = {};
+  atuais.forEach(function (r) { porSlotProf[[normTxt_(r[1]), normTxt_(r[2]), normTxt_(r[3]), normTxt_(r[4])].join("|")] = r; porSlotDisc[[normTxt_(r[2]), normTxt_(r[3]), normTxt_(r[4]), normTxt_(r[5])].join("|")] = r; });
+  var usados = {}, mudancas = [], cont = { entram: 0, saem: 0, professor: 0, disciplina: 0, iguais: 0 };
+  var trabalho = atuais.slice(); var linhasFinais = [];
+  novas.forEach(function (a) {
+    var r = porSlotProf[[normTxt_(a.professor), normTxt_(a.dia), normTxt_(a.hora), normTxt_(a.turma)].join("|")];
+    if (r && usados[r[0]]) r = null;
+    var tipo;
+    if (r) { tipo = normTxt_(r[5]) === normTxt_(a.disc) ? "igual" : "disciplina"; }
+    else {
+      r = porSlotDisc[[normTxt_(a.dia), normTxt_(a.hora), normTxt_(a.turma), normTxt_(a.disc)].join("|")];
+      if (r && usados[r[0]]) r = null;
+      tipo = r ? "professor" : "entra";
+    }
+    var id = r ? r[0] : proximoId_(trabalho, prefixoDoProfessor_(trabalho, a.professor));
+    if (!r) trabalho.push([id, a.professor]);
+    if (r) usados[r[0]] = true;
+    if (tipo === "igual") cont.iguais++; else if (tipo === "entra") cont.entram++; else cont[tipo]++;
+    if (tipo !== "igual") mudancas.push({ tipo: tipo, aula: a.disc + " · " + a.turma, antes: r ? (tipo === "professor" ? r[1] : r[5]) : "", depois: tipo === "disciplina" ? a.disc : a.professor + " · " + a.dia + " " + a.hora });
+    linhasFinais.push([id, a.professor, a.dia, a.hora, a.turma, a.disc, "normal", "", a.sala ? "Aula confirmada (" + a.sala + ")" : "Aula confirmada", ""]);
+  });
+  var preservados = [], perdidos = [];
+  atuais.forEach(function (r) {
+    var temStatus = r[6] && r[6] !== "normal";
+    if (!usados[r[0]]) { cont.saem++; mudancas.push({ tipo: "sai", aula: r[5] + " · " + r[4], antes: r[1] + " · " + r[2] + " " + r[3], depois: "" }); if (temStatus) perdidos.push(r[1] + " · " + r[5] + " (" + r[4] + ") " + r[2] + " " + r[3]); }
+    else if (temStatus) preservados.push((r[6] === "alert" ? "Falta" : "Substituição") + " · " + r[1] + " · " + r[5] + " (" + r[4] + ")");
+  });
+  if (erros.length) return { sucesso: false, erros: erros.slice(0, 50), totalErros: erros.length };
+  var previaId = Utilities.getUuid();
+  var json = JSON.stringify(linhasFinais);
+  // O cache aceita até 100 KB por chave: guarda em partes de 30 mil caracteres (acentos ocupam mais bytes)
+  var cache = CacheService.getScriptCache(), partes = Math.ceil(json.length / 30000);
+  for (var i = 0; i < partes; i++) cache.put("IMPORT_" + previaId + "_" + i, json.slice(i * 30000, (i + 1) * 30000), 1800);
+  cache.put("IMPORT_" + previaId, String(partes), 1800);
+  return { sucesso: true, previaId: previaId, total: linhasFinais.length, contagem: cont, mudancas: mudancas.slice(0, 400),
+           conflitos: conflitos, avisos: avisos, preservados: preservados, perdidos: perdidos };
+}
+
+function admImportarAplicar_(ss, d, admin) {
+  var cache = CacheService.getScriptCache(), partes = parseInt(cache.get("IMPORT_" + d.previaId) || "0", 10);
+  if (!partes) throw new Error("A prévia expirou (30 min). Envie o arquivo de novo.");
+  var json = ""; for (var i = 0; i < partes; i++) json += cache.get("IMPORT_" + d.previaId + "_" + i) || "";
+  var linhas = JSON.parse(json);
+  var r = aplicarLinhasNaGrade_(linhas, "importação por " + admin);
+  cache.remove("IMPORT_" + d.previaId);
+  registrarHistorico(ss, "ADMIN_IMPORTOU_GRADE", admin, "", r.total + " aulas", "", "", r.backup);
+  return { sucesso: true, resultado: r };
+}
+
+// ---------- versões ----------
+function admVersoes_(ss) {
+  var lista = ss.getSheets().map(function (sh) { return sh.getName(); }).filter(function (n) { return n.indexOf("Horarios_backup_") === 0; })
+    .map(function (n) { var sh = ss.getSheetByName(n); return { nome: n, aulas: Math.max(0, sh.getLastRow() - 1) }; });
+  lista.sort(function (a, b) { return a.nome < b.nome ? 1 : -1; });
+  return { sucesso: true, versoes: lista };
+}
+
+function admRestaurar_(ss, d, admin) {
+  var sh = ss.getSheetByName(d.nome);
+  if (!sh || String(d.nome).indexOf("Horarios_backup_") !== 0) throw new Error("Versão não encontrada.");
+  var linhas = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 10).getValues().filter(function (r) { return r[0] && r[1]; }) : [];
+  var r = aplicarLinhasNaGrade_(linhas, "restauração de " + d.nome + " por " + admin);
+  registrarHistorico(ss, "ADMIN_RESTAUROU_GRADE", admin, "", d.nome, "", "", r.backup);
+  return { sucesso: true, resultado: r };
+}
+
+// ---------- histórico e configurações ----------
+function admHistorico_(ss) {
+  var sh = ss.getSheetByName("Historico");
+  if (!sh || sh.getLastRow() < 2) return { sucesso: true, linhas: [] };
+  var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 8).getValues().map(function (r) { r[0] = Utilities.formatDate(new Date(r[0]), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm"); return r; });
+  return { sucesso: true, cabecalho: ["Data/Hora", "Tipo", "Titular", "Substituto", "Disciplina", "Turma", "Horário", "Data da aula"], linhas: rows.reverse() };
+}
+
+function admConfigSalvar_(d) {
+  var c = d.config || {}, limpo = {};
+  ["emailCoordDS", "emailCoordADM", "emailCoordSubsequente", "emailCoordGeral"].forEach(function (k) {
+    var v = String(c[k] || "").trim().toLowerCase();
+    if (v && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) throw new Error("E-mail inválido: " + v);
+    if (v) limpo[k] = v;
+  });
+  PropertiesService.getScriptProperties().setProperty("EMAILS_CONFIG", JSON.stringify(limpo));
+  return { sucesso: true, config: lerConfigEmails_() };
 }

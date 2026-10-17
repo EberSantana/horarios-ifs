@@ -1,6 +1,6 @@
 // Service Worker - Painel Docente IFS Tobias Barreto
 // Ao publicar nova versão: mude VERSAO aqui E o ?v= no index.html (devem ser iguais)
-const VERSAO = '4.20';
+const VERSAO = '4.30';
 const CACHE_NAME = 'ifs-painel-v' + VERSAO;
 const ASSETS_TO_CACHE = [
   './',
@@ -48,6 +48,10 @@ self.addEventListener('fetch', (event) => {
 
   // Página (HTML): rede primeiro, para cada professor sempre receber a versão publicada.
   // Sem internet, abre a última cópia salva.
+  // Painel administrativo: sempre direto na rede (precisa de internet e não pode
+  // ocupar o lugar do index.html no cache dos professores)
+  if (/\/admin(\.html|\.js|\.css)?$/.test(new URL(req.url).pathname)) return;
+
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req, { cache: 'no-cache' })

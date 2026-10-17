@@ -12,6 +12,7 @@ const STORAGE_KEY_DB_VERSION = 'IFS_DB_VERSION';
 const STORAGE_KEY_PINS = 'IFS_TEACHER_PINS';
 const STORAGE_KEY_EMAILS_CONFIG = 'IFS_EMAILS_CONFIG';
 const STORAGE_KEY_EMAILS_LOG = 'IFS_EMAILS_LOG';
+const STORAGE_KEY_PROFESSORES = 'IFS_PROFESSORES';
 const STORAGE_KEY_TROCAS = 'IFS_TROCAS_PERMUTAS';
 const STORAGE_KEY_REPOSICOES = 'IFS_REPOSICOES_AULAS';
 
@@ -333,25 +334,8 @@ const DADOS_INICIAIS_IFS = {
   ]
 };
 
-// Exemplos iniciais para a Central de Notificações / Histórico de E-mails
-const EMAILS_LOG_INICIAL = [
-  {
-    id: "EM-1",
-    data: new Date(Date.now() - 3600000 * 4).toLocaleString('pt-BR'),
-    tipo: "AUSENCIA",
-    destinatario: "coordenacao.tobiasbarreto@ifs.edu.br",
-    assunto: "🔴 [SUBSTITUIÇÃO DISPONÍVEL] Matemática (1º ADM) - Prof. Alyrio",
-    status: "Enviado com Sucesso"
-  },
-  {
-    id: "EM-2",
-    data: new Date(Date.now() - 3600000 * 2).toLocaleString('pt-BR'),
-    tipo: "SUBSTITUICAO",
-    destinatario: "coordenacao.tobiasbarreto@ifs.edu.br, fernanda@ifs.edu.br",
-    assunto: "✅ [SUBSTITUIÇÃO HOMOLOGADA] Português (2º DS) assumida por Prof. Luiz Felipe",
-    status: "Enviado com Sucesso"
-  }
-];
+// A Central de Notificações começa vazia (antes trazia 2 exemplos inventados)
+const EMAILS_LOG_INICIAL = [];
 
 const DEFAULT_PIN = "1234";
 
@@ -482,12 +466,12 @@ const API = {
 
   // Central de Logs de E-mails Enviados
   getEmailsLog() {
-    const log = localStorage.getItem(STORAGE_KEY_EMAILS_LOG);
-    if (!log) {
-      localStorage.setItem(STORAGE_KEY_EMAILS_LOG, JSON.stringify(EMAILS_LOG_INICIAL));
-      return EMAILS_LOG_INICIAL;
-    }
-    return JSON.parse(log);
+    let logs = [];
+    try { logs = JSON.parse(localStorage.getItem(STORAGE_KEY_EMAILS_LOG) || "[]") || []; } catch (e) {}
+    // Remove os 2 exemplos inventados que versões antigas gravavam (EM-1 e EM-2)
+    const limpos = logs.filter((l) => l && l.id !== "EM-1" && l.id !== "EM-2");
+    if (limpos.length !== logs.length) localStorage.setItem(STORAGE_KEY_EMAILS_LOG, JSON.stringify(limpos));
+    return limpos;
   },
 
   registrarEmailLog(tipo, assunto, destinatarios) {
@@ -549,6 +533,31 @@ const API = {
   },
 
   // Mesclador inteligente de status do Google Sheets com a base local completa
+  gradeDoServidor(sheetData) {
+    const banco = {};
+    for (const prof in sheetData) {
+      if (!Array.isArray(sheetData[prof]) || sheetData[prof].length === 0) continue;
+      banco[prof] = sheetData[prof].map((a) => ({
+        id: a.id, dia: a.dia, hora: a.hora, turma: a.turma, disc: a.disc,
+        status: a.status || "normal", substituto: a.substituto || "", obs: a.obs || "",
+        dataFalta: this.formatarDataBR(a.dataFalta) || "", linhaExcel: a.linhaExcel
+      }));
+    }
+    return banco;
+  },
+
+  // Lista de professores vinda da aba "Professores" (cadastrada pelo painel administrativo)
+  salvarProfessores(lista) {
+    try { localStorage.setItem(STORAGE_KEY_PROFESSORES, JSON.stringify(lista)); } catch (e) {}
+  },
+  getProfessores() {
+    try {
+      const lista = JSON.parse(localStorage.getItem(STORAGE_KEY_PROFESSORES) || "null");
+      if (Array.isArray(lista) && lista.length) return lista;
+    } catch (e) {}
+    return null;
+  },
+
   mesclarAulasComGoogleSheet(baseLocal, sheetData) {
     const merged = { ...baseLocal };
     for (const prof in sheetData) {
@@ -599,11 +608,8 @@ const API = {
     }
 
     // Validação estrita: se faltar turmas do subsequente para Eber ou versão mudou
-    const precisaMigracao = !db || 
-      versao !== CURRENT_DB_VERSION || 
-      !db["Eber"] || 
-      db["Eber"].length < 11 || 
-      !db["Eber"].some(a => (a.turma || "").includes("Subsequente"));
+    // (antes também exigia "Eber com 11 aulas": com o painel admin a grade pode mudar, então só a versão conta)
+    const precisaMigracao = !db || versao !== CURRENT_DB_VERSION || Object.keys(db).length === 0;
 
     if (precisaMigracao) {
       localStorage.setItem(STORAGE_KEY_DB_VERSION, CURRENT_DB_VERSION);
@@ -733,7 +739,12 @@ const API = {
       // Compatível com o backend antigo (só grade) e com o novo ({ grade, trocas, reposicoes })
       const grade = data && data.grade ? data.grade : data;
       if (grade && typeof grade === 'object' && !grade.erro && Object.keys(grade).length > 0) {
-        const gradeMesclada = this.mesclarAulasComGoogleSheet(this.getLocalDatabase(), grade);
+        // Backend novo (obterTudo) manda a grade completa: ela é a verdade (aulas criadas, apagadas
+        // ou trocadas pelo painel administrativo aparecem/somem). Backend antigo: só mescla status.
+        const gradeMesclada = data.grade
+          ? this.gradeDoServidor(grade)
+          : this.mesclarAulasComGoogleSheet(this.getLocalDatabase(), grade);
+        if (Array.isArray(data.professores)) this.salvarProfessores(data.professores);
         this.saveLocalDatabase(gradeMesclada);
 
         if (data.grade && Array.isArray(data.trocas)) {
