@@ -85,6 +85,13 @@ document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => recarregarDados(true), 50);
 });
 
+// "Prof." ou "Profa." antes do nome na lista do login
+const PROFESSORAS = ["Fernanda", "Grayce", "Raisa", "Érica Delfino"];
+function tratamentoProf(nome) {
+  const primeiro = String(nome).split(" ")[0];
+  return PROFESSORAS.includes(nome) || PROFESSORAS.includes(primeiro) || /^(Ana|Maria|Érica|Erica)\b/.test(nome) ? "Profa." : "Prof.";
+}
+
 // Lista do login vem da aba "Professores" (painel administrativo); sem ela, fica a lista fixa do index.html
 function popularListaLogin() {
   try {
@@ -101,7 +108,7 @@ function popularListaLogin() {
     if (select.dataset.lista === chave) return;
     select.dataset.lista = chave;
     select.innerHTML = '<option value="" disabled selected>Escolha seu nome...</option>' +
-      nomes.map((n) => `<option value="${n.replace(/"/g, "&quot;")}">${n.replace(/</g, "&lt;")}</option>`).join("");
+      nomes.map((n) => `<option value="${n.replace(/"/g, "&quot;")}">${tratamentoProf(n)} ${n.replace(/</g, "&lt;")}</option>`).join("");
     select.value = nomes.includes(atual) ? atual : "";
   } catch (e) { console.warn("Lista de professores:", e); }
 }
