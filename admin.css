@@ -348,3 +348,4 @@ td.acoes .btn + .btn { margin-left: 6px; }
 .tabela-cad table { min-width: 560px; }
 .tabela-cad tr.dia-grupo th { background: var(--papel); color: var(--tinta); font-size: 13px; font-weight: 700; padding: 8px 14px; border-top: 1px solid var(--linha); }
 .tabela-cad td.acoes .btn-link + .btn-link { margin-left: 14px; }
+.et-amarelo { background: #fff4d6; color: #8a5a00; }

@@ -1905,6 +1905,7 @@ function adminExecutar_(d, ss, email) {
     case "admin_cadastros_ler": return admCadastrosLer_(ss);
     case "admin_cadastro_salvar": return admCadastroSalvar_(ss, d, email);
     case "admin_cadastro_excluir": return admCadastroExcluir_(ss, d, email);
+    case "admin_turnos_organizar": return admTurnosOrganizar_(ss, d, email);
   }
   return { sucesso: false, erro: "Ação desconhecida." };
 }
@@ -2199,7 +2200,7 @@ function admImportarPrevia_(ss, d) {
       turma = tc.nome;
       var cc = cursoDaTurma_(cadI, turma);
       if (cc && !cadI.disciplinas.some(function (x) { return x.curso === cc.id && normTxt_(x.nome) === normTxt_(disc); })) discNovas[cc.id + "|" + disc] = disc + " (" + cc.nome + ")";
-      if (cc && cadI.tempos.some(function (h) { return h.turno === cc.turno; }) && !cadI.tempos.some(function (h) { return h.turno === cc.turno && h.hora === hora; })) horasFora[cc.turno + " " + hora] = 1;
+      if (cc && cadI.tempos.some(function (h) { return cc.turnos.indexOf(h.turno) !== -1; }) && !turnoDaHora_(cadI, cc, hora)) horasFora[cc.turno + " " + hora] = 1;
     }
     novas.push({ professor: prof, dia: dia, hora: hora, turma: turma, disc: disc, sala: String(l.sala || "").trim() });
   });
@@ -2346,6 +2347,20 @@ var CAB_DISCIPLINAS = ["Disciplina", "Curso (ID)", "Ativo"];
 var CAB_TEMPOS = ["Turno", "Horário", "Ordem"];
 var TURNOS = ["Matutino", "Vespertino", "Diurno", "Noturno"];
 
+// Um curso pode ter mais de um turno (ex.: integral = "Matutino, Vespertino")
+function turnosDe_(v) {
+  var l = String(v || "").split(/[,;\/]+/).map(function (t) { return t.trim(); }).filter(function (t) { return TURNOS.indexOf(t) !== -1; });
+  return l.length ? l : ["Diurno"];
+}
+// turno (do curso) em que a hora está cadastrada; "" se não houver
+function turnoDaHora_(cad, curso, hora) {
+  var ts = curso ? curso.turnos : [];
+  for (var i = 0; i < ts.length; i++) if (cad.tempos.some(function (h) { return h.turno === ts[i] && h.hora === hora; })) return ts[i];
+  return "";
+}
+function horaEmMin_(hora) { var m = String(hora || "").match(/^(\d{1,2}):(\d{2})/); return m ? (+m[1]) * 60 + (+m[2]) : 0; }
+function horaFimMin_(hora) { var m = String(hora || "").match(/-\s*(\d{1,2}):(\d{2})/); return m ? (+m[1]) * 60 + (+m[2]) : 0; }
+
 var __cadastros = null;
 function limparCadastros_() { __cadastros = null; }
 
@@ -2406,7 +2421,7 @@ function lerCadastros_(ss) {
   ss = ss || SpreadsheetApp.getActiveSpreadsheet();
   if (!ss.getSheetByName("Cursos")) { try { semearCadastros_(ss); } catch (e) { Logger.log("Cadastros: " + e); } }
   var cursos = lerTabela_(ss, "Cursos", CAB_CURSOS).map(function (r) {
-    return { id: String(r[0]).trim(), nome: String(r[1]).trim(), turno: String(r[2]).trim() || "Diurno", email: String(r[3]).trim(), ativo: ativoTxt_(r[4]), linha: r.__linha };
+    return { id: String(r[0]).trim(), nome: String(r[1]).trim(), turnos: turnosDe_(r[2]), turno: turnosDe_(r[2]).join(", "), email: String(r[3]).trim(), ativo: ativoTxt_(r[4]), linha: r.__linha };
   });
   var turmas = lerTabela_(ss, "Turmas", CAB_TURMAS).map(function (r) {
     return { nome: String(r[0]).trim(), curso: String(r[1]).trim(), ativo: ativoTxt_(r[2]), linha: r.__linha };
@@ -2432,7 +2447,7 @@ function cadastrosPublicos_(ss) {
   try {
     var cad = lerCadastros_(ss);
     return {
-      cursos: cad.cursos.filter(function (c) { return c.ativo; }).map(function (c) { return { id: c.id, nome: c.nome, turno: c.turno, email: c.email }; }),
+      cursos: cad.cursos.filter(function (c) { return c.ativo; }).map(function (c) { return { id: c.id, nome: c.nome, turno: c.turno, turnos: c.turnos, email: c.email }; }),
       turmas: cad.turmas.filter(function (t) { return t.ativo; }).map(function (t) { return { nome: t.nome, curso: t.curso }; })
     };
   } catch (e) { return null; }
@@ -2446,12 +2461,12 @@ function admCadastrosLer_(ss) {
     uso.turma[normTxt_(r[4])] = (uso.turma[normTxt_(r[4])] || 0) + 1;
     var kd = (c ? c.id : "") + "|" + normTxt_(r[5]);
     uso.disc[kd] = (uso.disc[kd] || 0) + 1;
-    var kh = (c ? c.turno : "") + "|" + r[3];
+    var kh = (c ? turnoDaHora_(cad, c, r[3]) : "") + "|" + r[3];
     uso.hora[kh] = (uso.hora[kh] || 0) + 1;
   });
   return {
     sucesso: true, turnos: TURNOS,
-    cursos: cad.cursos.map(function (c) { return { id: c.id, nome: c.nome, turno: c.turno, email: c.email, ativo: c.ativo,
+    cursos: cad.cursos.map(function (c) { return { id: c.id, nome: c.nome, turno: c.turno, turnos: c.turnos, email: c.email, ativo: c.ativo,
       turmas: cad.turmas.filter(function (t) { return t.curso === c.id; }).length }; }),
     turmas: cad.turmas.map(function (t) { return { nome: t.nome, curso: t.curso, ativo: t.ativo, aulas: uso.turma[normTxt_(t.nome)] || 0 }; }),
     disciplinas: cad.disciplinas.map(function (d) { return { nome: d.nome, curso: d.curso, ativo: d.ativo, aulas: uso.disc[d.curso + "|" + normTxt_(d.nome)] || 0 }; }),
@@ -2466,7 +2481,9 @@ function admCadastroSalvar_(ss, d, admin) {
   var resp = { sucesso: true, atualizadas: 0 };
   if (tipo === "curso") {
     if (!nome) throw new Error("Informe o nome do curso.");
-    if (TURNOS.indexOf(it.turno) === -1) throw new Error("Escolha o turno.");
+    var listaT = (it.turnos && it.turnos.length ? it.turnos : [it.turno]).filter(function (t) { return TURNOS.indexOf(t) !== -1; });
+    if (!listaT.length) throw new Error("Escolha pelo menos um turno.");
+    it.turno = listaT.join(", ");
     var email = String(it.email || "").trim().toLowerCase();
     if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("E-mail inválido.");
     var sh = obterOuCriarAba(ss, "Cursos", CAB_CURSOS);
@@ -2515,13 +2532,74 @@ function admCadastroSalvar_(ss, d, admin) {
       shH.getRange(hAtual.linha, 1, 1, 3).setValues([[it.turno, hora, ordem]]);
       if (hora !== hAtual.hora) lerLinhasHorarios_(ss).forEach(function (r) {
         var c = cursoDaTurma_(cad, r[4]);
-        if (r[3] === hAtual.hora && c && c.turno === hAtual.turno) { hs.getRange(r.__linha, 4).setValue(hora); resp.atualizadas++; }
+        if (r[3] === hAtual.hora && c && turnoDaHora_(cad, c, r[3]) === hAtual.turno) { hs.getRange(r.__linha, 4).setValue(hora); resp.atualizadas++; }
       });
     } else shH.appendRow([it.turno, hora, ordem]);
   } else throw new Error("Tipo inválido.");
   limparCadastros_();
   registrarHistorico(ss, "ADMIN_CADASTRO_" + tipo.toUpperCase(), admin, "", nome || it.hora, "", "", orig ? "editado" : "novo");
   return resp;
+}
+
+/**
+ * Organiza os horários em Matutino / Vespertino / Noturno.
+ * - horário do Diurno que começa antes das 12:00 vai para o Matutino; a partir das 12:00, Vespertino
+ * - cursos de turno Diurno passam a usar Matutino + Vespertino
+ * - a ordem de cada turno é renumerada pelo horário de início
+ * Sem d.aplicar só devolve a prévia. Nunca altera nem apaga aulas da grade.
+ */
+function admTurnosOrganizar_(ss, d, admin) {
+  var cad = lerCadastros_(ss);
+  var linhas = lerLinhasHorarios_(ss);
+  var plano = [];
+  cad.tempos.forEach(function (h) {
+    var novo = h.turno;
+    if (h.turno === "Diurno") novo = horaEmMin_(h.hora) < 720 ? "Matutino" : "Vespertino";
+    plano.push({ de: h.turno, para: novo, hora: h.hora, linha: h.linha });
+  });
+  // sem duplicar hora dentro do mesmo turno
+  var vistos = {};
+  plano.forEach(function (p) { var k = p.para + "|" + p.hora; p.duplicado = !!vistos[k]; vistos[k] = true; });
+  var cursos = cad.cursos.filter(function (c) { return c.turnos.indexOf("Diurno") !== -1; }).map(function (c) {
+    var novos = [];
+    c.turnos.forEach(function (t) { (t === "Diurno" ? ["Matutino", "Vespertino"] : [t]).forEach(function (x) { if (novos.indexOf(x) === -1) novos.push(x); }); });
+    return { id: c.id, nome: c.nome, de: c.turno, para: novos.join(", "), linha: c.linha };
+  });
+  // sobreposições dentro do mesmo turno (só para o administrador decidir)
+  var porTurno = {};
+  plano.filter(function (p) { return !p.duplicado; }).forEach(function (p) { (porTurno[p.para] = porTurno[p.para] || []).push(p); });
+  var uso = {};
+  linhas.forEach(function (r) { uso[r[3]] = (uso[r[3]] || 0) + 1; });
+  var sobrepostos = [];
+  Object.keys(porTurno).forEach(function (t) {
+    var l = porTurno[t];
+    for (var i = 0; i < l.length; i++) for (var j = i + 1; j < l.length; j++) {
+      if (horaEmMin_(l[i].hora) < horaFimMin_(l[j].hora) && horaEmMin_(l[j].hora) < horaFimMin_(l[i].hora))
+        sobrepostos.push({ turno: t, a: l[i].hora, b: l[j].hora, aulasA: uso[l[i].hora] || 0, aulasB: uso[l[j].hora] || 0 });
+    }
+  });
+  var resumo = { sucesso: true, aplicado: false,
+    mover: plano.filter(function (p) { return p.de !== p.para; }).length,
+    cursos: cursos, sobrepostos: sobrepostos, porTurno: {} };
+  Object.keys(porTurno).forEach(function (t) { resumo.porTurno[t] = porTurno[t].length; });
+  if (!d.aplicar) return resumo;
+
+  var shH = obterOuCriarAba(ss, "Tempos", CAB_TEMPOS);
+  var shC = obterOuCriarAba(ss, "Cursos", CAB_CURSOS);
+  // reescreve a aba Tempos inteira, já ordenada e renumerada
+  var final = [];
+  Object.keys(porTurno).sort(function (a, b) { return TURNOS.indexOf(a) - TURNOS.indexOf(b); }).forEach(function (t) {
+    porTurno[t].sort(function (x, y) { return horaEmMin_(x.hora) - horaEmMin_(y.hora) || horaFimMin_(x.hora) - horaFimMin_(y.hora); })
+      .forEach(function (p, i) { final.push([t, p.hora, i + 1]); });
+  });
+  var ult = shH.getLastRow();
+  if (ult > 1) shH.getRange(2, 1, ult - 1, 3).clearContent();
+  if (final.length) shH.getRange(2, 1, final.length, 3).setValues(final);
+  cursos.forEach(function (c) { shC.getRange(c.linha, 3).setValue(c.para); });
+  limparCadastros_();
+  registrarHistorico(ss, "ADMIN_ORGANIZOU_TURNOS", admin, "", final.length + " horários", "", "", "");
+  resumo.aplicado = true;
+  return resumo;
 }
 
 function admCadastroExcluir_(ss, d, admin) {

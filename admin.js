@@ -124,6 +124,7 @@ function cursoDe(turma) {
   const t = c.turmas.find((x) => x.nome === turma);
   return t ? c.cursos.find((x) => x.id === t.curso) || null : null;
 }
+function temposDoCurso(curso) { return curso ? [...new Set((curso.turnos && curso.turnos.length ? curso.turnos : [curso.turno]).flatMap(temposDoTurno))].sort() : []; }
 function temposDoTurno(turno) { return (estado.cad ? estado.cad.tempos : []).filter((h) => h.turno === turno).map((h) => h.hora); }
 
 function profsAtivos() { return estado.professores.filter((p) => p.ativo).map((p) => p.nome); }
@@ -505,7 +506,7 @@ function desenharQuadro() {
   const base = porTurma ? estado.grade.filter((a) => a.turma === f.turma) : lista;
   const semAulas = porTurma && !base.length;
   const cursoQ = porTurma ? cursoDe(f.turma) : null;
-  const horas = [...new Set([...(cursoQ ? temposDoTurno(cursoQ.turno) : []), ...base.map((a) => a.hora)])].sort();
+  const horas = [...new Set([...(cursoQ ? temposDoCurso(cursoQ) : []), ...base.map((a) => a.hora)])].sort();
   const dias = DIAS.filter((d, i) => i < 5 || base.some((a) => a.dia === d));
   if (!horas.length) { $("#tabAulas").innerHTML = `<div class="vazio">Nenhuma aula para ${esc(f.turma || f.prof)}. Cadastre os horários do turno em Cadastros → Horários.</div>`; return; }
   const total = lista.length;
@@ -571,7 +572,7 @@ async function modalAula(id, pre) {
     const discs = curso ? cad.disciplinas.filter((x) => x.curso === curso.id && (x.ativo || x.nome === discAtual)).map((x) => x.nome).sort((x, y) => x.localeCompare(y, "pt-BR")) : [];
     if (discAtual && !discs.includes(discAtual)) discs.unshift(discAtual);
     $("#aDisc", m).innerHTML = `<option value="">${turma ? "Escolha…" : "Escolha a turma primeiro"}</option>` + discs.map((d) => `<option ${d === discAtual ? "selected" : ""}>${esc(d)}</option>`).join("");
-    const horas = curso ? temposDoTurno(curso.turno) : [];
+    const horas = curso ? temposDoCurso(curso) : [];
     if (horaAtual && !horas.includes(horaAtual)) horas.unshift(horaAtual);
     $("#aHora", m).innerHTML = `<option value="">${turma ? "Escolha…" : "Escolha a turma primeiro"}</option>` + horas.map((h) => `<option value="${esc(h)}" ${h === horaAtual ? "selected" : ""}>${esc(h.replace(" - ", "–"))}</option>`).join("");
   };
@@ -682,15 +683,17 @@ function desenharCadastros() {
         <td class="acoes"><button class="btn-link" data-acao="cad-editar" data-tipo="disciplina" data-chave="${chaveCad("disciplina", x)}">Editar</button>
         ${x.aulas ? "" : `<button class="btn-link perigo" data-acao="cad-excluir" data-tipo="disciplina" data-chave="${chaveCad("disciplina", x)}">Excluir</button>`}</td></tr>`).join("")}</tbody></table>` : `<div class="vazio">Nenhuma disciplina com esses filtros.</div>`;
   } else {
-    titulo = "Horários (tempos de aula)"; novo = `<button class="btn btn-primario btn-pequeno" data-acao="cad-novo" data-tipo="tempo">Novo horário</button>`; topo = filtroCurso(true);
-    const turnos = c.turnos.filter((t) => !f.turno || f.turno === t);
+    titulo = "Horários (tempos de aula)"; novo = `${c.tempos.some((h) => h.turno === "Diurno") || c.cursos.some((x) => (x.turnos || [x.turno]).includes("Diurno")) ? `<button class="btn btn-pequeno" data-acao="organizar-turnos">Organizar em Matutino / Vespertino / Noturno</button>` : ""}<button class="btn btn-primario btn-pequeno" data-acao="cad-novo" data-tipo="tempo">Novo horário</button>`; topo = filtroCurso(true);
+    const turnos = c.turnos.filter((t) => (!f.turno || f.turno === t) && (t !== "Diurno" || c.tempos.some((h) => h.turno === t) || c.cursos.some((x) => (x.turnos || [x.turno]).includes(t))));
     corpo = `<table><thead><tr><th style="width:70px">Ordem</th><th>Horário</th><th>Aulas na grade</th><th></th></tr></thead><tbody>
       ${turnos.map((t) => {
         const hs = c.tempos.filter((h) => h.turno === t);
-        const cursosT = c.cursos.filter((x) => x.turno === t).map((x) => esc(x.nome)).join(", ");
+        const cursosT = c.cursos.filter((x) => (x.turnos || [x.turno]).includes(t)).map((x) => esc(x.nome)).join(", ");
+        const ini = (h) => { const m = h.hora.match(/(\d+):(\d+)\s*-\s*(\d+):(\d+)/); return m ? [+m[1] * 60 + +m[2], +m[3] * 60 + +m[4]] : [0, 0]; };
+        const sobre = (h) => hs.filter((o) => o !== h && ini(h)[0] < ini(o)[1] && ini(o)[0] < ini(h)[1]).map((o) => o.hora.replace(" - ", "–"));
         return `<tr class="dia-grupo"><th colspan="3">${esc(t)} · <span class="mudo">${hs.length} horário(s) · ${cursosT || "nenhum curso neste turno"}</span></th>
           <th class="acoes"><button class="btn-link" data-acao="cad-novo" data-tipo="tempo" data-turno="${esc(t)}">+ Adicionar</button></th></tr>` +
-        (hs.length ? hs.map((h) => `<tr><td>${h.ordem}º</td><td><strong>${esc(h.hora.replace(" - ", "–"))}</strong></td><td>${h.aulas}</td>
+        (hs.length ? hs.map((h) => `<tr><td>${h.ordem}º</td><td><strong>${esc(h.hora.replace(" - ", "–"))}</strong>${sobre(h).length ? ` <span class="etiqueta et-amarelo" title="Mesmo turno, horários que se cruzam">sobrepõe ${sobre(h).join(", ")}</span>` : ""}</td><td>${h.aulas}</td>
           <td class="acoes"><button class="btn-link" data-acao="cad-editar" data-tipo="tempo" data-chave="${chaveCad("tempo", h)}">Editar</button>
           <button class="btn-link perigo" data-acao="cad-excluir" data-tipo="tempo" data-chave="${chaveCad("tempo", h)}">Excluir</button></td></tr>`).join("")
           : `<tr><td colspan="4" class="mudo pequeno">Nenhum horário neste turno. Use “+ Adicionar”.</td></tr>`);
@@ -717,7 +720,8 @@ function modalCadastro(tipo, chave, turnoInicial) {
   const ativo = x && tipo !== "tempo" ? `<label class="pequeno" style="display:flex;gap:8px;align-items:center"><input type="checkbox" class="chk" id="kAtivo" ${x.ativo ? "checked" : ""}> Ativo (aparece nas listas)</label>` : "";
   let campos = "";
   if (tipo === "curso") campos = `<div class="campo"><label for="kNome">Nome do curso</label><input id="kNome" class="input" value="${esc(x ? x.nome : "")}"></div>
-    <div class="linha">${selTurno(x ? x.turno : "Noturno")}<div class="campo"><label for="kEmail">E-mail da coordenação</label><input id="kEmail" class="input" type="email" value="${esc(x ? x.email : "")}"></div></div>`;
+    <div class="campo"><label>Turnos do curso</label><div id="kTurnos" style="display:flex;gap:14px;flex-wrap:wrap;padding:6px 0">${c.turnos.map((t) => `<label class="pequeno" style="display:flex;gap:6px;align-items:center"><input type="checkbox" class="chk" value="${t}" ${(x ? (x.turnos || [x.turno]) : ["Noturno"]).includes(t) ? "checked" : ""}> ${t}</label>`).join("")}</div></div>
+    <div class="linha"><div class="campo"><label for="kEmail">E-mail da coordenação</label><input id="kEmail" class="input" type="email" value="${esc(x ? x.email : "")}"></div></div>`;
   else if (tipo === "turma") campos = `<div class="linha"><div class="campo"><label for="kNome">Nome da turma</label><input id="kNome" class="input" placeholder="1º DS" value="${esc(x ? x.nome : "")}"></div>${selCurso(x ? x.curso : estado.filtroCad.curso)}</div>
     ${x && x.aulas ? `<p class="mudo pequeno">${x.aulas} aula(s) na grade usam esta turma; renomear atualiza todas.</p>` : ""}`;
   else if (tipo === "disciplina") campos = `<div class="campo"><label for="kNome">Nome da disciplina</label><input id="kNome" class="input" value="${esc(x ? x.nome : "")}"></div>${selCurso(x ? x.curso : estado.filtroCad.curso)}
@@ -730,7 +734,7 @@ function modalCadastro(tipo, chave, turnoInicial) {
       <button class="btn" data-fechar>Cancelar</button><button class="btn btn-primario" id="kOk">Salvar</button></div>`);
   const val = (id) => { const el = $(id, m); return el ? el.value.trim() : ""; };
   $("#kOk", m).addEventListener("click", async () => {
-    const item = { nome: val("#kNome"), turno: val("#kTurno"), email: val("#kEmail"), curso: val("#kCurso"), hora: normalizarHora(val("#kHora")) || val("#kHora"), ordem: val("#kOrdem") };
+    const item = { nome: val("#kNome"), turno: val("#kTurno"), turnos: $$("#kTurnos input:checked", m).map((i) => i.value), email: val("#kEmail"), curso: val("#kCurso"), hora: normalizarHora(val("#kHora")) || val("#kHora"), ordem: val("#kOrdem") };
     if ($("#kAtivo", m)) item.ativo = $("#kAtivo", m).checked;
     const b = $("#kOk", m); b.disabled = true;
     try {
@@ -742,6 +746,23 @@ function modalCadastro(tipo, chave, turnoInicial) {
   });
   const ex = $("#kExcluir", m);
   if (ex) ex.addEventListener("click", () => { fecharModal(); excluirCadastro(tipo, chave); });
+}
+
+async function organizarTurnos() {
+  let r;
+  try { r = await chamar("admin_turnos_organizar", { aplicar: false }); if (!r.sucesso) throw new Error(r.erro); } catch (e) { toast(e.message, true); return; }
+  const pt = Object.keys(r.porTurno).map((t) => `${esc(t)}: ${r.porTurno[t]}`).join(" · ");
+  const sob = r.sobrepostos.length ? `<p style="margin:10px 0 4px"><strong>Horários que se cruzam (nada será apagado, você decide depois):</strong></p><ul style="margin:0 0 0 18px">${r.sobrepostos.map((o) =>
+    `<li>${esc(o.turno)}: ${esc(o.a.replace(" - ", "–"))} (${o.aulasA} aulas) e ${esc(o.b.replace(" - ", "–"))} (${o.aulasB} aulas)</li>`).join("")}</ul>` : "";
+  const cur = r.cursos.length ? `<p style="margin:10px 0 0">Cursos que passam a usar os dois turnos: ${r.cursos.map((x) => esc(x.nome)).join("; ")}.</p>` : "";
+  const ok = await confirmar("Organizar turnos?", `<p style="margin:0">${r.mover} horário(s) do Diurno serão distribuídos: começa antes das 12:00 → Matutino; a partir das 12:00 → Vespertino. A ordem de cada turno é renumerada. As aulas da grade não mudam.</p>
+    <p style="margin:8px 0 0">Resultado: ${pt}</p>${cur}${sob}`, "Organizar");
+  if (!ok) return;
+  try {
+    const f = await chamar("admin_turnos_organizar", { aplicar: true });
+    if (!f.sucesso) throw new Error(f.erro);
+    toast("Horários organizados em turnos."); invalidarDados(); await carregarCadastros(true); desenharCadastros();
+  } catch (e) { toast(e.message, true); }
 }
 
 async function excluirCadastro(tipo, chave) {
@@ -1308,6 +1329,7 @@ document.addEventListener("click", (ev) => {
     case "remover-admin": removerAdmin(d.email); break;
     case "ir-cadastros": fecharModal(); irPara("cadastros"); break;
     case "aba-cadastro": estado.abaCad = d.aba; desenharCadastros(); break;
+    case "organizar-turnos": organizarTurnos(); break;
     case "cad-novo": modalCadastro(d.tipo, null, d.turno); break;
     case "cad-editar": modalCadastro(d.tipo, JSON.parse(d.chave)); break;
     case "cad-excluir": excluirCadastro(d.tipo, JSON.parse(d.chave)); break;
