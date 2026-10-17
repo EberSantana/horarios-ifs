@@ -851,7 +851,8 @@ async function telaConfig(main) {
   if (!c.sucesso) throw new Error(c.erro);
   const cfg = c.config;
   const campos = [["emailCoordDS", "Coordenação de Desenvolvimento de Sistemas (DS)"], ["emailCoordADM", "Coordenação de Administração (ADM)"],
-    ["emailCoordSubsequente", "Coordenação do Subsequente em Informática"], ["emailCoordGeral", "Coordenação geral (recebe todos os avisos)"]];
+    ["emailCoordSubsequente", "Coordenação do Subsequente em Informática"], ["emailCoordGeral", "Coordenação geral (recebe todos os avisos)"],
+    ["emailCoordGraduacao", "Coordenação do Bacharelado em Administração (COBAD)"]];
   const hist = h.sucesso ? h.linhas.slice(0, 80) : [];
   main.innerHTML = cabecalho("Configurações", "Destinatários dos avisos, administradores e histórico de ações") + `
     <div class="duas-colunas">

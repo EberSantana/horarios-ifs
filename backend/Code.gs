@@ -23,6 +23,7 @@ var CONFIG_PADRAO = {
   EMAIL_COORD_ADM: "coordenacao.adm.tb@ifs.edu.br",
   EMAIL_COORD_SUBSEQUENTE: "coinf.tbarreto@ifs.edu.br",
   EMAIL_COORD_GERAL: "coordenacao.tobiasbarreto@ifs.edu.br",
+  EMAIL_COORD_GRADUACAO: "", // COBAD (Bacharelado em Administração): defina no painel admin → Configurações
   EMAIL_DIRECAO: "direcao.tobiasbarreto@ifs.edu.br",
   DOMINIO_INSTITUCIONAL: "@ifs.edu.br",
   NOME_INSTITUICAO: "IFS Campus Tobias Barreto",
@@ -326,7 +327,28 @@ var GRADE_COMPLETA_OFICIAL = [
   ["VA-2","A definir","Sexta-feira","10:20 - 11:10","2º ADM","Física","normal","","Aula confirmada",""],
   ["VA-10","A definir","Sexta-feira","11:10 - 12:00","2º ADM","Física","normal","","Aula confirmada",""],
   ["VA-11","A definir","Sexta-feira","12:40 - 13:30","3º ADM","Física","normal","","Aula confirmada",""],
-  ["VA-12","A definir","Sexta-feira","13:30 - 14:20","3º ADM","Física","normal","","Aula confirmada",""]
+  ["VA-12","A definir","Sexta-feira","13:30 - 14:20","3º ADM","Física","normal","","Aula confirmada",""],
+  // Bacharelado em Administração (graduação) — horário 2026.2 da COBAD
+  ["GR-7","Grayce","Segunda-feira","18:40 - 19:30","Graduação ADM","Metodologia da Pesquisa I","normal","","Aula confirmada",""],
+  ["GR-8","Grayce","Segunda-feira","19:30 - 20:20","Graduação ADM","Metodologia da Pesquisa I","normal","","Aula confirmada",""],
+  ["FE-35","Fernanda","Segunda-feira","20:30 - 21:20","Graduação ADM","Português Instrumental","normal","","Aula confirmada",""],
+  ["FE-36","Fernanda","Segunda-feira","21:20 - 22:00","Graduação ADM","Português Instrumental","normal","","Aula confirmada",""],
+  ["PG-5","Pedro Goes","Terça-feira","18:40 - 19:30","Graduação ADM","Teoria Geral da Administração e das Organizações I","normal","","Aula confirmada",""],
+  ["PG-6","Pedro Goes","Terça-feira","19:30 - 20:20","Graduação ADM","Teoria Geral da Administração e das Organizações I","normal","","Aula confirmada",""],
+  ["PG-7","Pedro Goes","Terça-feira","20:30 - 21:20","Graduação ADM","Teoria Geral da Administração e das Organizações I","normal","","Aula confirmada",""],
+  ["PG-8","Pedro Goes","Terça-feira","21:20 - 22:00","Graduação ADM","Teoria Geral da Administração e das Organizações I","normal","","Aula confirmada",""],
+  ["WE-9","Weder","Quarta-feira","18:40 - 19:30","Graduação ADM","Sociologia das Organizações","normal","","Aula confirmada",""],
+  ["WE-10","Weder","Quarta-feira","19:30 - 20:20","Graduação ADM","Sociologia das Organizações","normal","","Aula confirmada",""],
+  ["WE-11","Weder","Quarta-feira","20:30 - 21:20","Graduação ADM","Sociologia das Organizações","normal","","Aula confirmada",""],
+  ["WE-12","Weder","Quarta-feira","21:20 - 22:00","Graduação ADM","Sociologia das Organizações","normal","","Aula confirmada",""],
+  ["CB-1","Claifton","Quinta-feira","18:40 - 19:30","Graduação ADM","Fundamentos de Matemática","normal","","Aula confirmada",""],
+  ["CB-2","Claifton","Quinta-feira","19:30 - 20:20","Graduação ADM","Fundamentos de Matemática","normal","","Aula confirmada",""],
+  ["CB-3","Claifton","Quinta-feira","20:30 - 21:20","Graduação ADM","Fundamentos de Matemática","normal","","Aula confirmada",""],
+  ["CB-4","Claifton","Quinta-feira","21:20 - 22:00","Graduação ADM","Fundamentos de Matemática","normal","","Aula confirmada",""],
+  ["CB-5","Claifton","Sexta-feira","18:40 - 19:30","Graduação ADM","Comunicação Empresarial","normal","","Aula confirmada",""],
+  ["CB-6","Claifton","Sexta-feira","19:30 - 20:20","Graduação ADM","Comunicação Empresarial","normal","","Aula confirmada",""],
+  ["ED-1","Érica Delfino","Sexta-feira","20:30 - 21:20","Graduação ADM","Introdução ao Direito","normal","","Aula confirmada",""],
+  ["ED-2","Érica Delfino","Sexta-feira","21:20 - 22:00","Graduação ADM","Introdução ao Direito","normal","","Aula confirmada",""]
 ];
 
 
@@ -338,8 +360,13 @@ function obterEmailsPorTurma(turma, config) {
   var dests = [];
   var t = (turma || "").toUpperCase();
 
+  // 0. Bacharelado em Administração (graduação) — coordenação própria (COBAD)
+  if (t.indexOf("GRADUA") !== -1) {
+    var emailGrad = cfg.emailCoordGraduacao || CONFIG_PADRAO.EMAIL_COORD_GRADUACAO || cfg.emailCoordADM || CONFIG_PADRAO.EMAIL_COORD_ADM;
+    if (emailGrad && dests.indexOf(emailGrad) === -1) dests.push(emailGrad);
+  }
   // 1. Subsequente em Informática
-  if (t.indexOf("SUBSEQUENTE") !== -1 || t.indexOf("INFO") !== -1) {
+  else if (t.indexOf("SUBSEQUENTE") !== -1 || t.indexOf("INFO") !== -1) {
     var emailSub = cfg.emailCoordSubsequente || CONFIG_PADRAO.EMAIL_COORD_SUBSEQUENTE;
     if (emailSub && dests.indexOf(emailSub) === -1) dests.push(emailSub);
   }
@@ -1066,6 +1093,8 @@ function sincronizarProfessores(ss) {
 
   var listaProfs = [
     ["Eber", "eber.santana@ifs.edu.br", "Desenvolvimento de Sistemas / Subsequente", "1234"],
+    ["Claifton", "", "Bacharelado em Administração", "1234"],
+    ["Érica Delfino", "", "Bacharelado em Administração", "1234"],
     ["Adriano", "adriano.vilela@ifs.edu.br", "Administração", "1234"],
     ["Alex", "alexmar.santos@ifs.edu.br", "Administração", "1234"],
     ["Alyrio", "alyrio.neto@ifs.edu.br", "Administração", "1234"],
@@ -1555,7 +1584,8 @@ function enviarEmailRegistrado_(opts) {
 function lerConfigEmails_() {
   var cfg = {
     emailCoordDS: CONFIG_PADRAO.EMAIL_COORD_DS, emailCoordADM: CONFIG_PADRAO.EMAIL_COORD_ADM,
-    emailCoordSubsequente: CONFIG_PADRAO.EMAIL_COORD_SUBSEQUENTE, emailCoordGeral: CONFIG_PADRAO.EMAIL_COORD_GERAL
+    emailCoordSubsequente: CONFIG_PADRAO.EMAIL_COORD_SUBSEQUENTE, emailCoordGeral: CONFIG_PADRAO.EMAIL_COORD_GERAL,
+    emailCoordGraduacao: CONFIG_PADRAO.EMAIL_COORD_GRADUACAO
   };
   try {
     var salvo = JSON.parse(PropertiesService.getScriptProperties().getProperty("EMAILS_CONFIG") || "{}");
@@ -2061,7 +2091,7 @@ function admHistorico_(ss) {
 
 function admConfigSalvar_(d) {
   var c = d.config || {}, limpo = {};
-  ["emailCoordDS", "emailCoordADM", "emailCoordSubsequente", "emailCoordGeral"].forEach(function (k) {
+  ["emailCoordDS", "emailCoordADM", "emailCoordSubsequente", "emailCoordGeral", "emailCoordGraduacao"].forEach(function (k) {
     var v = String(c[k] || "").trim().toLowerCase();
     if (v && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) throw new Error("E-mail inválido: " + v);
     if (v) limpo[k] = v;

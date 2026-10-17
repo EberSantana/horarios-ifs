@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconLink" type="image/png" href="./icons/icon-192.png">
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=4.30">
+  <link rel="stylesheet" href="./styles.css?v=4.31">
 </head>
 <body>
 
@@ -46,8 +46,10 @@
             <option value="Alyrio">Prof. Alyrio</option>
             <option value="Ângelo">Prof. Ângelo</option>
             <option value="Christiano">Prof. Christiano</option>
+            <option value="Claifton">Prof. Claifton</option>
             <option value="Elliot">Prof. Elliot</option>
             <option value="Emerson">Prof. Emerson</option>
+            <option value="Érica Delfino">Profa. Érica Delfino</option>
             <option value="Eric">Prof. Eric</option>
             <option value="Felippe">Prof. Felippe</option>
             <option value="Fernanda">Profa. Fernanda</option>
@@ -231,7 +233,7 @@
       <!-- ABA 4: GRADE POR TURMA -->
       <div id="tab-turmas" class="tab-pane">
         <div class="form-group" style="margin-bottom: 12px;">
-          <label class="form-label" for="filtroTurmaSelect">Filtrar por Turma (Integrado & Subsequente):</label>
+          <label class="form-label" for="filtroTurmaSelect">Filtrar por Turma (Integrado, Subsequente & Graduação):</label>
           <div class="select-wrapper">
             <select id="filtroTurmaSelect" class="custom-select">
               <optgroup label="Cursos Técnicos Integrados (Diurno)">
@@ -246,6 +248,9 @@
                 <option value="1º Info">1º Semestre Informática (1º Info - Subsequente)</option>
                 <option value="3º Info">3º Semestre Informática (3º Info - Subsequente)</option>
                 <option value="2º Comércio">2º Semestre Comércio (2º Comércio - Subsequente)</option>
+              </optgroup>
+              <optgroup label="Curso Superior (Noturno)">
+                <option value="Graduação ADM">Bacharelado em Administração (Graduação ADM)</option>
               </optgroup>
             </select>
           </div>
@@ -331,6 +336,9 @@
                   <option value="1º Info">1º Info (Subsequente)</option>
                   <option value="3º Info">3º Info (Subsequente)</option>
                   <option value="2º Comércio">2º Comércio (Subsequente)</option>
+                </optgroup>
+                <optgroup label="Superior (Noturno)">
+                  <option value="Graduação ADM">Graduação ADM</option>
                 </optgroup>
               </select>
             </div>
@@ -762,8 +770,8 @@
 <!-- Toast de Notificações -->
 <div id="toast">Notificação</div>
 
-<script src="./api.js?v=4.30"></script>
-<script src="./app.js?v=4.30"></script>
+<script src="./api.js?v=4.31"></script>
+<script src="./app.js?v=4.31"></script>
 
 </body>
 </html>

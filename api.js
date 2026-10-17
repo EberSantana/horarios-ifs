@@ -17,7 +17,7 @@ const STORAGE_KEY_TROCAS = 'IFS_TROCAS_PERMUTAS';
 const STORAGE_KEY_REPOSICOES = 'IFS_REPOSICOES_AULAS';
 
 // Versão do banco para auto-atualizar clientes com as turmas do Subsequente e novos docentes
-const CURRENT_DB_VERSION = 'v7_nome_luiz_rafael_freitas';
+const CURRENT_DB_VERSION = 'v8_graduacao_adm';
 
 // URL Oficial de Produção do Google Apps Script (Conectado ao Google Sheets do IFS)
 const DEFAULT_BACKEND_URL = "https://script.google.com/macros/s/AKfycbwlITC2JrJ3lFYl__oER1B86JFlHpsrjq75BRGD_q-iIhlKIphfdIcQkbIwRMtTjy2kjg/exec";
@@ -190,7 +190,9 @@ const DADOS_INICIAIS_IFS = {
     { id: "FE-31", dia: "Quinta-feira", hora: "10:20 - 11:10", turma: "2º ADM", disc: "Português", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "FE-32", dia: "Quinta-feira", hora: "11:10 - 12:00", turma: "3º ADM", disc: "Espanhol", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "FE-33", dia: "Quinta-feira", hora: "12:40 - 13:30", turma: "3º DS", disc: "Português", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "FE-34", dia: "Quinta-feira", hora: "13:30 - 14:20", turma: "3º DS", disc: "Português", status: "normal", obs: "Aula confirmada", substituto: "" }
+    { id: "FE-34", dia: "Quinta-feira", hora: "13:30 - 14:20", turma: "3º DS", disc: "Português", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "FE-35", dia: "Segunda-feira", hora: "20:30 - 21:20", turma: "Graduação ADM", disc: "Português Instrumental", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "FE-36", dia: "Segunda-feira", hora: "21:20 - 22:00", turma: "Graduação ADM", disc: "Português Instrumental", status: "normal", obs: "Aula confirmada", substituto: "" }
   ],
   "Grayce": [
     { id: "GR-1", dia: "Segunda-feira", hora: "12:00 - 12:50", turma: "2º ADM", disc: "Gestão de Projetos", status: "normal", obs: "Aula confirmada", substituto: "" },
@@ -198,7 +200,9 @@ const DADOS_INICIAIS_IFS = {
     { id: "GR-2", dia: "Terça-feira", hora: "10:20 - 11:10", turma: "3º ADM", disc: "Gestão Ambiental", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "GR-4", dia: "Terça-feira", hora: "11:10 - 12:00", turma: "3º ADM", disc: "Gestão Ambiental", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "GR-5", dia: "Terça-feira", hora: "12:40 - 13:30", turma: "3º ADM", disc: "Empreendedorismo", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "GR-6", dia: "Terça-feira", hora: "13:30 - 14:20", turma: "3º ADM", disc: "Empreendedorismo", status: "normal", obs: "Aula confirmada", substituto: "" }
+    { id: "GR-6", dia: "Terça-feira", hora: "13:30 - 14:20", turma: "3º ADM", disc: "Empreendedorismo", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "GR-7", dia: "Segunda-feira", hora: "18:40 - 19:30", turma: "Graduação ADM", disc: "Metodologia da Pesquisa I", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "GR-8", dia: "Segunda-feira", hora: "19:30 - 20:20", turma: "Graduação ADM", disc: "Metodologia da Pesquisa I", status: "normal", obs: "Aula confirmada", substituto: "" }
   ],
   "Pedro Ernesto": [
     { id: "PE-3", dia: "Quarta-feira", hora: "10:20 - 11:10", turma: "3º DS", disc: "Química", status: "normal", obs: "Aula confirmada", substituto: "" },
@@ -218,7 +222,11 @@ const DADOS_INICIAIS_IFS = {
     { id: "PG-2", dia: "Segunda-feira", hora: "10:20 - 11:10", turma: "2º ADM", disc: "Gestão de Pessoas", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "PG-3", dia: "Segunda-feira", hora: "11:10 - 12:00", turma: "2º ADM", disc: "Gestão de Pessoas", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "PG-1", dia: "Quarta-feira", hora: "09:30 - 10:20", turma: "1º ADM", disc: "Administração Geral", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "PG-4", dia: "Quarta-feira", hora: "10:20 - 11:10", turma: "1º ADM", disc: "Administração Geral", status: "normal", obs: "Aula confirmada", substituto: "" }
+    { id: "PG-4", dia: "Quarta-feira", hora: "10:20 - 11:10", turma: "1º ADM", disc: "Administração Geral", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "PG-5", dia: "Terça-feira", hora: "18:40 - 19:30", turma: "Graduação ADM", disc: "Teoria Geral da Administração e das Organizações I", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "PG-6", dia: "Terça-feira", hora: "19:30 - 20:20", turma: "Graduação ADM", disc: "Teoria Geral da Administração e das Organizações I", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "PG-7", dia: "Terça-feira", hora: "20:30 - 21:20", turma: "Graduação ADM", disc: "Teoria Geral da Administração e das Organizações I", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "PG-8", dia: "Terça-feira", hora: "21:20 - 22:00", turma: "Graduação ADM", disc: "Teoria Geral da Administração e das Organizações I", status: "normal", obs: "Aula confirmada", substituto: "" }
   ],
   "Luiz Rafael Freitas": [
     { id: "RF-10", dia: "Quarta-feira", hora: "10:20 - 11:10", turma: "2º DS", disc: "CS2 - B", status: "normal", obs: "Aula confirmada", substituto: "" },
@@ -294,7 +302,11 @@ const DADOS_INICIAIS_IFS = {
     { id: "WE-1", dia: "Terça-feira", hora: "08:40 - 09:30", turma: "2º ADM", disc: "Sociologia", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "WE-7", dia: "Terça-feira", hora: "09:30 - 10:20", turma: "2º ADM", disc: "Sociologia", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "WE-2", dia: "Terça-feira", hora: "10:20 - 11:10", turma: "1º ADM", disc: "Noções de Metodologia da Pesquisa", status: "normal", obs: "Aula confirmada", substituto: "" },
-    { id: "WE-8", dia: "Terça-feira", hora: "11:50 - 12:40", turma: "1º ADM", disc: "Noções de Metodologia da Pesquisa", status: "normal", obs: "Aula confirmada", substituto: "" }
+    { id: "WE-8", dia: "Terça-feira", hora: "11:50 - 12:40", turma: "1º ADM", disc: "Noções de Metodologia da Pesquisa", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "WE-9", dia: "Quarta-feira", hora: "18:40 - 19:30", turma: "Graduação ADM", disc: "Sociologia das Organizações", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "WE-10", dia: "Quarta-feira", hora: "19:30 - 20:20", turma: "Graduação ADM", disc: "Sociologia das Organizações", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "WE-11", dia: "Quarta-feira", hora: "20:30 - 21:20", turma: "Graduação ADM", disc: "Sociologia das Organizações", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "WE-12", dia: "Quarta-feira", hora: "21:20 - 22:00", turma: "Graduação ADM", disc: "Sociologia das Organizações", status: "normal", obs: "Aula confirmada", substituto: "" }
   ],
   "Welkson": [
     { id: "WK-1", dia: "Quinta-feira", hora: "08:40 - 09:30", turma: "3º ADM", disc: "Gestão da Operação", status: "normal", obs: "Aula confirmada", substituto: "" },
@@ -317,6 +329,18 @@ const DADOS_INICIAIS_IFS = {
     { id: "AG-6", dia: "Quarta-feira", hora: "11:50 - 12:40", turma: "1º DS", disc: "Programação 1 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "AG-7", dia: "Quarta-feira", hora: "12:40 - 13:30", turma: "1º DS", disc: "Programação 1 - A", status: "normal", obs: "Aula confirmada", substituto: "" },
     { id: "AG-8", dia: "Quarta-feira", hora: "13:30 - 14:20", turma: "1º DS", disc: "Programação 1 - A", status: "normal", obs: "Aula confirmada", substituto: "" }
+  ],
+  "Claifton": [
+    { id: "CB-1", dia: "Quinta-feira", hora: "18:40 - 19:30", turma: "Graduação ADM", disc: "Fundamentos de Matemática", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "CB-2", dia: "Quinta-feira", hora: "19:30 - 20:20", turma: "Graduação ADM", disc: "Fundamentos de Matemática", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "CB-3", dia: "Quinta-feira", hora: "20:30 - 21:20", turma: "Graduação ADM", disc: "Fundamentos de Matemática", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "CB-4", dia: "Quinta-feira", hora: "21:20 - 22:00", turma: "Graduação ADM", disc: "Fundamentos de Matemática", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "CB-5", dia: "Sexta-feira", hora: "18:40 - 19:30", turma: "Graduação ADM", disc: "Comunicação Empresarial", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "CB-6", dia: "Sexta-feira", hora: "19:30 - 20:20", turma: "Graduação ADM", disc: "Comunicação Empresarial", status: "normal", obs: "Aula confirmada", substituto: "" }
+  ],
+  "Érica Delfino": [
+    { id: "ED-1", dia: "Sexta-feira", hora: "20:30 - 21:20", turma: "Graduação ADM", disc: "Introdução ao Direito", status: "normal", obs: "Aula confirmada", substituto: "" },
+    { id: "ED-2", dia: "Sexta-feira", hora: "21:20 - 22:00", turma: "Graduação ADM", disc: "Introdução ao Direito", status: "normal", obs: "Aula confirmada", substituto: "" }
   ],
   "A definir": [
     { id: "VA-3", dia: "Quarta-feira", hora: "12:00 - 12:50", turma: "2º DS", disc: "Física", status: "normal", obs: "Aula confirmada", substituto: "" },
@@ -447,7 +471,9 @@ const API = {
     const dests = [];
     const t = (turma || "").toUpperCase();
 
-    if (t.includes("SUBSEQUENTE") || t.includes("INFO")) {
+    if (t.includes("GRADUA")) {
+      dests.push(config.emailCoordGraduacao || config.emailCoordADM || "coordenacao.adm.tb@ifs.edu.br");
+    } else if (t.includes("SUBSEQUENTE") || t.includes("INFO")) {
       if (config.emailCoordSubsequente) dests.push(config.emailCoordSubsequente);
     } else if (t.includes("DS")) {
       if (config.emailCoordDS) dests.push(config.emailCoordDS);
