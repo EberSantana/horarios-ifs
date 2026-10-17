@@ -1954,3 +1954,14 @@ body {
 .destinos-avisos > div + div { border-top: 1px solid var(--border-color); }
 .destinos-avisos dt { font-size: 11.5px; color: var(--text-secondary); }
 .destinos-avisos dd { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-main); word-break: break-all; }
+
+/* Balizador da aula (agora / próxima) */
+.balizador { margin: 0 0 14px; padding: 14px 16px; border-radius: 14px; background: #eef4ff; border: 1px solid #c9dafc; color: #12315f; }
+.balizador-agora { background: #e8f6ec; border-color: #b6e2c3; color: #14532d; }
+.balizador-topo { font-size: .78rem; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; opacity: .85; }
+.balizador-hora { font-size: 2rem; font-weight: 800; line-height: 1.15; margin: 2px 0; font-variant-numeric: tabular-nums; }
+.balizador-desc { font-size: .95rem; font-weight: 600; }
+.balizador-desc span { font-weight: 500; opacity: .75; }
+.balizador-barra { height: 8px; border-radius: 99px; background: rgba(20,83,45,.15); margin-top: 10px; overflow: hidden; }
+.balizador-barra span { display: block; height: 100%; background: #16a34a; border-radius: 99px; }
+.balizador-resto { font-size: .8rem; margin-top: 4px; font-weight: 600; }

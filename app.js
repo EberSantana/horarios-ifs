@@ -798,10 +798,10 @@ function abrirModalMudancasAlertas() {
       html += `
         <div class="notif-item-mini">
           <div class="notif-item-info">
-            <span class="notif-item-title">${aula.disc} (${aula.turma})</span>
-            <span class="notif-item-subtitle">Prof. ${aula.profOriginal} • 📅 ${aula.dia} (${aula.hora})</span>
+            <span class="notif-item-title">${escAviso(aula.disc)} (${escAviso(aula.turma)})</span>
+            <span class="notif-item-subtitle">Prof. ${escAviso(aula.profOriginal)} • 📅 ${escAviso(aula.dia)} (${escAviso(aula.hora)})</span>
           </div>
-          <button type="button" class="btn-notif-action" style="background:#b91c1c;" onclick="fecharTodosModais(); prepararAssumirAula('${aula.profOriginal}', ${aula.indexOriginal});">
+          <button type="button" class="btn-notif-action" style="background:#b91c1c;" onclick="fecharTodosModais(); prepararAssumirAula('${escAviso(aula.profOriginal)}', ${aula.indexOriginal});">
             Assumir
           </button>
         </div>`;
@@ -830,7 +830,7 @@ function abrirModalMudancasAlertas() {
       html += `
         <div class="notif-item-mini">
           <div class="notif-item-info">
-            <span class="notif-item-title">Proposta de Prof. ${troca.proponente}</span>
+            <span class="notif-item-title">Proposta de Prof. ${escAviso(troca.proponente)}</span>
             <span class="notif-item-subtitle">${qtdCedidas} tempo(s) ofertado(s) ↔️ ${qtdDesejadas} tempo(s) seu(s)</span>
           </div>
           <button type="button" class="btn-notif-action" style="background:#7b1fa2;" onclick="fecharTodosModais(); aceitarTroca('${troca.id}');">
@@ -922,6 +922,8 @@ function renderizarMinhaGrade() {
     }
   }
 
+  atualizarBalizador(minhasAulas);
+
   if (minhasAulas.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
@@ -951,6 +953,67 @@ function renderizarMinhaGrade() {
   });
   container.innerHTML = htmlChunks.join("");
 }
+
+// ----------------------------------------------------------------------------
+// BALIZADOR: mostra a aula de agora (ou a próxima) como um bloco único,
+// juntando tempos seguidos da mesma turma/disciplina.
+// ----------------------------------------------------------------------------
+let balizadorAulas = [];
+function atualizarBalizador(aulas) {
+  if (aulas) balizadorAulas = aulas;
+  const el = document.getElementById("balizadorAula");
+  if (!el) return;
+  const dias = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+  const faixa = (h) => { const m = String(h || "").match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/); return m ? [(+m[1]) * 60 + (+m[2]), (+m[3]) * 60 + (+m[4])] : null; };
+  const hh = (min) => String(Math.floor(min / 60)).padStart(2, "0") + ":" + String(min % 60).padStart(2, "0");
+
+  // só o que realmente é dado por mim
+  const validas = balizadorAulas.filter(a => faixa(a.hora) && (a.ehMinha ? (a.status !== "alert" && a.status !== "assumed") : true));
+  // blocos contínuos por dia
+  const blocos = [];
+  dias.forEach((dia, di) => {
+    const doDia = validas.filter(a => a.dia === dia).map(a => ({ a, f: faixa(a.hora) })).sort((x, y) => x.f[0] - y.f[0]);
+    doDia.forEach(({ a, f }) => {
+      const ult = blocos[blocos.length - 1];
+      if (ult && ult.di === di && ult.turma === a.turma && ult.disc === a.disc && f[0] - ult.fim <= 20) { ult.fim = f[1]; ult.tempos++; }
+      else blocos.push({ di, dia, turma: a.turma, disc: a.disc, ini: f[0], fim: f[1], tempos: 1 });
+    });
+  });
+  if (!blocos.length) { el.style.display = "none"; el.innerHTML = ""; return; }
+
+  const agora = new Date();
+  const hoje = agora.getDay();
+  const min = agora.getHours() * 60 + agora.getMinutes();
+  let atual = blocos.find(b => b.di === hoje && min >= b.ini && min < b.fim);
+  let prox = null;
+  if (!atual) {
+    for (let d = 0; d < 7 && !prox; d++) {
+      const di = (hoje + d) % 7;
+      prox = blocos.filter(b => b.di === di && (d > 0 || b.ini > min)).sort((x, y) => x.ini - y.ini)[0] || null;
+      if (prox) prox = { ...prox, daqui: d };
+    }
+  }
+  const b = atual || prox;
+  if (!b) { el.style.display = "none"; return; }
+  const tempos = b.tempos > 1 ? b.tempos + " tempos" : "1 tempo";
+  let topo, rodape = "", classe = "balizador";
+  if (atual) {
+    const pct = Math.round(((min - b.ini) / (b.fim - b.ini)) * 100);
+    topo = "🟢 Em andamento";
+    rodape = `<div class="balizador-barra"><span style="width:${pct}%"></span></div><div class="balizador-resto">Faltam ${b.fim - min} min</div>`;
+    classe += " balizador-agora";
+  } else {
+    const quando = b.daqui === 0 ? "hoje" : b.daqui === 1 ? "amanhã" : b.dia.toLowerCase();
+    const ate = b.daqui === 0 ? ` · começa em ${b.ini - min >= 60 ? Math.floor((b.ini - min) / 60) + " h " + ((b.ini - min) % 60) + " min" : (b.ini - min) + " min"}` : "";
+    topo = "⏭️ Próxima aula · " + quando + ate;
+  }
+  el.className = classe;
+  el.style.display = "block";
+  el.innerHTML = `<div class="balizador-topo">${topo}</div>
+    <div class="balizador-hora">${hh(b.ini)} – ${hh(b.fim)}</div>
+    <div class="balizador-desc">${escAviso(b.disc)} · ${escAviso(b.turma)} <span>(${tempos})</span></div>${rodape}`;
+}
+setInterval(() => { if (usuarioLogado) atualizarBalizador(); }, 30000);
 
 // ============================================================================
 // 2. ABA: AULAS DISPONÍVEIS
@@ -1028,7 +1091,7 @@ function renderizarTrocasEReposicoes() {
               <button class="btn-card btn-card-cancel" onclick="recusarTroca('${t.id}')">❌ Recusar</button>
             </div>`;
         } else if (souProponente) {
-          acaoTroca = `<div style="font-size:13px; color:#7b1fa2; margin-top:10px; font-weight:600;">⏳ Proposta enviada para Prof. ${t.colega}. Aguardando confirmação.</div>`;
+          acaoTroca = `<div style="font-size:13px; color:#7b1fa2; margin-top:10px; font-weight:600;">⏳ Proposta enviada para Prof. ${escAviso(t.colega)}. Aguardando confirmação.</div>`;
         }
       } else if (t.status === "aceita") {
         statusBadge = `<span style="background:#e8f5e9; color:#1b5e20; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:700;">✅ Permuta Confirmada</span>`;
@@ -1037,11 +1100,11 @@ function renderizarTrocasEReposicoes() {
       }
 
       const descCedidas = (t.aulasCedidas && t.aulasCedidas.length > 0)
-        ? t.aulasCedidas.map(a => `• <strong>${a.dia} às ${a.hora}</strong>: ${a.disc} (${a.turma})`).join("<br>")
+        ? t.aulasCedidas.map(a => `• <strong>${escAviso(a.dia)} às ${escAviso(a.hora)}</strong>: ${escAviso(a.disc)} (${escAviso(a.turma)})`).join("<br>")
         : `• <strong>${t.aulaCedida.dia} às ${t.aulaCedida.hora}</strong>: ${t.aulaCedida.disc} (${t.aulaCedida.turma})`;
 
       const descDesejadas = (t.aulasDesejadas && t.aulasDesejadas.length > 0)
-        ? t.aulasDesejadas.map(a => `• <strong>${a.dia} às ${a.hora}</strong>: ${a.disc} (${a.turma})`).join("<br>")
+        ? t.aulasDesejadas.map(a => `• <strong>${escAviso(a.dia)} às ${escAviso(a.hora)}</strong>: ${escAviso(a.disc)} (${escAviso(a.turma)})`).join("<br>")
         : `• <strong>${t.aulaDesejada.dia} às ${t.aulaDesejada.hora}</strong>: ${t.aulaDesejada.disc} (${t.aulaDesejada.turma})`;
 
       const qtdCedidas = t.aulasCedidas ? t.aulasCedidas.length : 1;
@@ -1055,16 +1118,16 @@ function renderizarTrocasEReposicoes() {
           </div>
           <div class="swap-comparison-card">
             <div class="swap-side">
-              <div class="swap-side-title">📤 Cedida(s) por Prof. ${t.proponente} (${qtdCedidas} tempos):</div>
+              <div class="swap-side-title">📤 Cedida(s) por Prof. ${escAviso(t.proponente)} (${qtdCedidas} tempos):</div>
               <div class="swap-side-desc" style="line-height:1.5;">${descCedidas}</div>
             </div>
             <div class="swap-side" style="margin-top:10px;">
-              <div class="swap-side-title">📥 Em contrapartida com Prof. ${t.colega} (${qtdDesejadas} tempos):</div>
+              <div class="swap-side-title">📥 Em contrapartida com Prof. ${escAviso(t.colega)} (${qtdDesejadas} tempos):</div>
               <div class="swap-side-desc" style="line-height:1.5;">${descDesejadas}</div>
             </div>
           </div>
           <div style="font-size:13px; color:var(--text-secondary); line-height: 1.4;">
-            📅 Data Prevista: <strong>${formatarDataBR(t.dataPrevista)}</strong> ${t.motivo ? `• Justificativa: <em>${t.motivo}</em>` : ""}
+            📅 Data Prevista: <strong>${formatarDataBR(t.dataPrevista)}</strong> ${t.motivo ? `• Justificativa: <em>${escAviso(t.motivo)}</em>` : ""}
           </div>
           ${acaoTroca}
         </div>`;
@@ -1089,12 +1152,12 @@ function renderizarTrocasEReposicoes() {
       reposHTML += `
         <div class="class-card reposicao">
           <div class="card-top">
-            <div class="card-time">📅 ${formatarDataBR(r.data)} • 🕒 ${r.horario}</div>
-            <span class="card-badge-room" style="background:#e1f5fe; color:#0288d1; font-weight:800;">${r.turma}</span>
+            <div class="card-time">📅 ${formatarDataBR(r.data)} • 🕒 ${escAviso(r.horario)}</div>
+            <span class="card-badge-room" style="background:#e1f5fe; color:#0288d1; font-weight:800;">${escAviso(r.turma)}</span>
           </div>
-          <div class="card-title">${r.disciplina}</div>
-          <div class="card-subtitle">Docente: Prof. <strong>${r.professor}</strong> • Local: <strong>${r.sala}</strong></div>
-          <div class="card-note" style="color:#0288d1; font-size: 13px;">📌 ${r.motivo || "Reposição de aula curricular"}</div>
+          <div class="card-title">${escAviso(r.disciplina)}</div>
+          <div class="card-subtitle">Docente: Prof. <strong>${escAviso(r.professor)}</strong> • Local: <strong>${escAviso(r.sala)}</strong></div>
+          <div class="card-note" style="color:#0288d1; font-size: 13px;">📌 ${escAviso(r.motivo || "Reposição de aula curricular")}</div>
           ${souDono ? `<button class="btn-card btn-card-cancel" style="margin-top:10px;" onclick="cancelarReposicao('${r.id}')">Cancelar Reposição</button>` : ""}
         </div>`;
     });
@@ -1453,49 +1516,49 @@ function criarCardHTML(aula, contexto) {
 
   if (contexto === "minha_grade") {
     if (aula.status === "normal") {
-      subtitle = `Turma: ${aula.turma} • Sala de Aula`;
+      subtitle = `Turma: ${escAviso(aula.turma)} • Sala de Aula`;
       botaoHTML = `
         <div class="card-actions-row">
-          <button class="btn-card btn-card-release" onclick="abrirModalLiberar('${aula.profOriginal}', ${aula.indexOriginal})">
+          <button class="btn-card btn-card-release" onclick="abrirModalLiberar('${escAviso(aula.profOriginal)}', ${aula.indexOriginal})">
             ⚠️ Informar Falta
           </button>
-          <button class="btn-card btn-card-swap" onclick="abrirModalTroca('${aula.profOriginal}', ${aula.indexOriginal})">
+          <button class="btn-card btn-card-swap" onclick="abrirModalTroca('${escAviso(aula.profOriginal)}', ${aula.indexOriginal})">
             🔄 Propor Troca
           </button>
         </div>`;
     } else if (aula.status === "alert") {
-      subtitle = `Turma: ${aula.turma} • <strong>Você disponibilizou este horário</strong>`;
-      botaoHTML = `<button class="btn-card btn-card-cancel" onclick="cancelarAusencia('${aula.profOriginal}', ${aula.indexOriginal})">
+      subtitle = `Turma: ${escAviso(aula.turma)} • <strong>Você disponibilizou este horário</strong>`;
+      botaoHTML = `<button class="btn-card btn-card-cancel" onclick="cancelarAusencia('${escAviso(aula.profOriginal)}', ${aula.indexOriginal})">
         ↩️ Desfazer falta (Vou lecionar normalmente)
       </button>`;
     } else if (aula.status === "assumed") {
       if (ehSubstituto) {
-        subtitle = `Turma: ${aula.turma} • Substituição da aula de Prof. ${aula.profOriginal}`;
-        botaoHTML = `<button class="btn-card btn-card-cancel" onclick="desistirSubstituicao('${aula.profOriginal}', ${aula.indexOriginal})">
+        subtitle = `Turma: ${escAviso(aula.turma)} • Substituição da aula de Prof. ${escAviso(aula.profOriginal)}`;
+        botaoHTML = `<button class="btn-card btn-card-cancel" onclick="desistirSubstituicao('${escAviso(aula.profOriginal)}', ${aula.indexOriginal})">
           Desistir desta substituição
         </button>`;
       } else {
-        subtitle = `Turma: ${aula.turma} • Assumida por Prof. ${aula.substituto}`;
-        botaoHTML = `<button class="btn-card btn-card-static">✅ Substituída por Prof. ${aula.substituto}</button>`;
+        subtitle = `Turma: ${escAviso(aula.turma)} • Assumida por Prof. ${escAviso(aula.substituto)}`;
+        botaoHTML = `<button class="btn-card btn-card-static">✅ Substituída por Prof. ${escAviso(aula.substituto)}</button>`;
       }
     }
   } else if (contexto === "aulas_livres") {
-    subtitle = `Cedida por: Prof. ${aula.profOriginal} (${aula.turma})`;
+    subtitle = `Cedida por: Prof. ${escAviso(aula.profOriginal)} (${escAviso(aula.turma)})`;
     if (ehDono) {
-      botaoHTML = `<button class="btn-card btn-card-cancel" onclick="cancelarAusencia('${aula.profOriginal}', ${aula.indexOriginal})">
+      botaoHTML = `<button class="btn-card btn-card-cancel" onclick="cancelarAusencia('${escAviso(aula.profOriginal)}', ${aula.indexOriginal})">
         ↩️ Desfazer falta (Recuperar minha aula)
       </button>`;
     } else {
-      botaoHTML = `<button class="btn-card btn-card-take" onclick="prepararAssumirAula('${aula.profOriginal}', ${aula.indexOriginal})">
+      botaoHTML = `<button class="btn-card btn-card-take" onclick="prepararAssumirAula('${escAviso(aula.profOriginal)}', ${aula.indexOriginal})">
         🙋‍♂️ Assumir esta Aula
       </button>`;
     }
   } else if (contexto === "grade_turma") {
-    subtitle = `Prof. Titular: ${aula.profOriginal} • ${aula.turma}`;
+    subtitle = `Prof. Titular: ${escAviso(aula.profOriginal)} • ${escAviso(aula.turma)}`;
     if (aula.status === "assumed") {
-      botaoHTML = `<button class="btn-card btn-card-static">👤 Assumida por: Prof. ${aula.substituto}</button>`;
+      botaoHTML = `<button class="btn-card btn-card-static">👤 Assumida por: Prof. ${escAviso(aula.substituto)}</button>`;
     } else if (aula.status === "alert") {
-      botaoHTML = `<button class="btn-card btn-card-take" onclick="prepararAssumirAula('${aula.profOriginal}', ${aula.indexOriginal})">
+      botaoHTML = `<button class="btn-card btn-card-take" onclick="prepararAssumirAula('${escAviso(aula.profOriginal)}', ${aula.indexOriginal})">
         🔴 Disponível para Substituição
       </button>`;
     } else {
@@ -1506,10 +1569,10 @@ function criarCardHTML(aula, contexto) {
   return `
     <div class="class-card ${statusClass}">
       <div class="card-top">
-        <div class="card-time">🕒 ${aula.hora} (${aula.dia})</div>
-        <span class="card-badge-room">${aula.turma}</span>
+        <div class="card-time">🕒 ${escAviso(aula.hora)} (${escAviso(aula.dia)})</div>
+        <span class="card-badge-room">${escAviso(aula.turma)}</span>
       </div>
-      <div class="card-title">${aula.disc}</div>
+      <div class="card-title">${escAviso(aula.disc)}</div>
       <div class="card-subtitle">${subtitle}</div>
       ${dataInfo}
       ${botaoHTML}
@@ -1686,10 +1749,10 @@ function atualizarChecklistTemposFalta(prof, diaSelecionado, indexPreselecionado
       <input type="checkbox" class="tempo-chk" value="${aula.indexOriginal}" ${isChecked ? "checked" : ""}>
       <div class="tempo-info">
         <div class="tempo-row-top">
-          <span class="tempo-horario">⏰ ${aula.hora}</span>
-          <span class="tempo-turma-badge">${aula.turma}</span>
+          <span class="tempo-horario">⏰ ${escAviso(aula.hora)}</span>
+          <span class="tempo-turma-badge">${escAviso(aula.turma)}</span>
         </div>
-        <span class="tempo-disc">${aula.disc}</span>
+        <span class="tempo-disc">${escAviso(aula.disc)}</span>
       </div>
     `;
 
@@ -1793,7 +1856,7 @@ function prepararAssumirAula(profOriginal, index) {
 
   aulaSelecionadaParaAcao = { profOriginal, index, aula };
   document.getElementById("modalAssumirTexto").innerText = 
-    `Confirmar que você (Prof. ${usuarioLogado}) vai assumir a aula de ${aula.disc} (${aula.turma}) no lugar do Prof. ${profOriginal} no dia ${aula.dia} às ${aula.hora}?`;
+    `Confirmar que você (Prof. ${usuarioLogado}) vai assumir a aula de ${escAviso(aula.disc)} (${escAviso(aula.turma)}) no lugar do Prof. ${profOriginal} no dia ${escAviso(aula.dia)} às ${escAviso(aula.hora)}?`;
   abrirModal("modalAssumir");
 }
 
@@ -1985,10 +2048,10 @@ function atualizarChecklistMinhasAulasTroca(prof, diaSelecionado, indexPreseleci
       <input type="checkbox" class="minha-troca-chk" value="${aula.indexOriginal}" ${isChecked ? "checked" : ""}>
       <div class="tempo-info">
         <div class="tempo-row-top">
-          <span class="tempo-horario">⏰ ${aula.hora}</span>
-          <span class="tempo-turma-badge">${aula.turma}</span>
+          <span class="tempo-horario">⏰ ${escAviso(aula.hora)}</span>
+          <span class="tempo-turma-badge">${escAviso(aula.turma)}</span>
         </div>
-        <span class="tempo-disc">${aula.disc}</span>
+        <span class="tempo-disc">${escAviso(aula.disc)}</span>
       </div>
     `;
 
@@ -2074,10 +2137,10 @@ function atualizarChecklistAulasColegaTroca(colegaNome, diaSelecionado) {
       <input type="checkbox" class="colega-troca-chk" value="${aula.indexOriginal}" ${isChecked ? "checked" : ""}>
       <div class="tempo-info">
         <div class="tempo-row-top">
-          <span class="tempo-horario">⏰ ${aula.hora}</span>
-          <span class="tempo-turma-badge">${aula.turma}</span>
+          <span class="tempo-horario">⏰ ${escAviso(aula.hora)}</span>
+          <span class="tempo-turma-badge">${escAviso(aula.turma)}</span>
         </div>
-        <span class="tempo-disc">${aula.disc}</span>
+        <span class="tempo-disc">${escAviso(aula.disc)}</span>
       </div>
     `;
 
@@ -2248,7 +2311,7 @@ function abrirModalReposicao() {
     selectDisc.innerHTML = '<option value="Outra Disciplina">Outra Disciplina / Turma</option>';
   } else {
     minhasAulas.forEach((aula) => {
-      selectDisc.innerHTML += `<option value="${aula.disc}|${aula.turma}">${aula.disc} (${aula.turma})</option>`;
+      selectDisc.innerHTML += `<option value="${escAviso(aula.disc)}|${escAviso(aula.turma)}">${escAviso(aula.disc)} (${escAviso(aula.turma)})</option>`;
     });
   }
 
@@ -2507,22 +2570,22 @@ function verificarNovidadesENotificar() {
     (bancoDeDados[prof] || []).forEach((a) => {
       if (a.status === "alert" && prof !== usuarioLogado) {
         atuais[`falta:${prof}:${a.id}:${a.dataFalta || ""}`] =
-          { titulo: "🔴 Aula precisando de substituto", corpo: `${a.disc} (${a.turma}) – ${a.dia} ${a.hora} • Prof. ${prof}`, aba: "tab-livres" };
+          { titulo: "🔴 Aula precisando de substituto", corpo: `${escAviso(a.disc)} (${escAviso(a.turma)}) – ${escAviso(a.dia)} ${escAviso(a.hora)} • Prof. ${prof}`, aba: "tab-livres" };
       }
       // Alguém assumiu uma aula minha
       if (a.status === "assumed" && prof === usuarioLogado && a.substituto) {
         atuais[`assumida:${a.id}:${a.substituto}:${a.dataFalta || ""}`] =
-          { titulo: "✅ Sua aula foi assumida", corpo: `${a.disc} (${a.turma}) por Prof. ${a.substituto}`, aba: "tab-minha" };
+          { titulo: "✅ Sua aula foi assumida", corpo: `${escAviso(a.disc)} (${escAviso(a.turma)}) por Prof. ${a.substituto}`, aba: "tab-minha" };
       }
     });
   }
   // Trocas propostas para mim / respostas às minhas propostas
   API.getTrocas().forEach((t) => {
     if (t.colega === usuarioLogado && t.status === "pendente") {
-      atuais[`troca:${t.id}`] = { titulo: "🔄 Nova proposta de troca", corpo: `Prof. ${t.proponente} quer trocar horários com você`, aba: "tab-trocas" };
+      atuais[`troca:${t.id}`] = { titulo: "🔄 Nova proposta de troca", corpo: `Prof. ${escAviso(t.proponente)} quer trocar horários com você`, aba: "tab-trocas" };
     }
     if (t.proponente === usuarioLogado && (t.status === "aceita" || t.status === "recusada")) {
-      atuais[`resp:${t.id}:${t.status}`] = { titulo: t.status === "aceita" ? "✅ Troca aceita" : "❌ Troca recusada", corpo: `Prof. ${t.colega} ${t.status} sua proposta`, aba: "tab-trocas" };
+      atuais[`resp:${t.id}:${t.status}`] = { titulo: t.status === "aceita" ? "✅ Troca aceita" : "❌ Troca recusada", corpo: `Prof. ${escAviso(t.colega)} ${t.status} sua proposta`, aba: "tab-trocas" };
     }
   });
 

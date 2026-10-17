@@ -547,12 +547,20 @@ function montarGrade_(ss) {
       disc: r[5],
       status: r[6] || "normal",
       substituto: r[7] || "",
-      obs: r[8] || "",
+      obs: obsPublica_(r[6], r[8]),
       dataFalta: formatarDataBR(r[9] || ""),
       linhaExcel: i + 2
     });
   }
   return banco;
+}
+
+// O motivo da ausência (ex.: consulta médica) é dado pessoal: fica na planilha e no e-mail
+// para a coordenação, mas não vai para a lista pública que todos os aparelhos baixam.
+function obsPublica_(status, obs) {
+  obs = String(obs || "");
+  if (status === "alert") return "⚠️ Ausência registrada";
+  return obs;
 }
 
 // Lê objetos JSON completos guardados na coluna 10 de Trocas_Permutas / Reposicoes
@@ -681,8 +689,10 @@ function doPostInterno_(e) {
   }
 
   try {
-    var dados = JSON.parse(e.postData.contents);
+    var dados = limparEntrada_(JSON.parse(e.postData.contents));
     var acao = dados.acao;
+    var limite = limiteDeUso_(acao, dados);
+    if (limite) { lock.releaseLock(); return criarRespostaJSON({ sucesso: false, erro: limite }); }
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var config = lerConfigEmails_(); // destinatários da coordenação vêm do servidor, nunca do app
 
@@ -1012,30 +1022,9 @@ function doPostInterno_(e) {
     // =========================================================================
     // CASO 7: SINCRONIZAR BANCO COMPLETO COM TODAS AS 121 AULAS E 24 PROFESSORES
     // =========================================================================
-    else if (acao === "sincronizar_banco_completo") {
-      var totalAdicionadas = sincronizarGradeCompleta(ss);
-      corrigirGradeDivergente();
-      sincronizarProfessores(ss);
-      lock.releaseLock();
-      return criarRespostaJSON({
-        sucesso: true,
-        mensagem: "Grade sincronizada com sucesso! Aulas adicionadas: " + totalAdicionadas
-      });
-    }
-
-    // =========================================================================
-    // CASO 8: TESTE DIAGNÓSTICO DIRETO DE ENVIO DE E-MAIL
-    // =========================================================================
-    else if (acao === "testar_envio_email") {
-      var dest = dados.destinatario || "eber.santana@ifs.edu.br";
-      var resEnvio = dispararEmailTeste(dest);
-      lock.releaseLock();
-      return criarRespostaJSON({
-        sucesso: resEnvio.enviado,
-        mensagem: resEnvio.enviado ? "E-mail de teste enviado com sucesso para " + dest : "Falha no envio de e-mail.",
-        detalhes: resEnvio
-      });
-    }
+    // "sincronizar_banco_completo" e "testar_envio_email" foram retiradas do acesso público:
+    // reescreviam a grade e enviavam e-mail para qualquer endereço sem login.
+    // Para testar e-mail: execute dispararEmailTeste("seu@email") no editor do Apps Script.
 
     lock.releaseLock();
     return criarRespostaJSON({ sucesso: false, erro: "Ação não suportada." });
@@ -1442,6 +1431,38 @@ function corrigirGradeDivergente() {
   invalidarCacheGrade();
   Logger.log("Linhas corrigidas: " + corrigidas + ". Detalhes na aba Correcoes_Grade.");
   return corrigidas;
+}
+
+// Remove caracteres de marcação e limita o tamanho de todo texto que chega do app
+function limparEntrada_(v, prof) {
+  prof = prof || 0;
+  if (prof > 6) return null;
+  if (typeof v === "string") return v.replace(/[<>]/g, "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").slice(0, 600);
+  if (Array.isArray(v)) return v.slice(0, 200).map(function (x) { return limparEntrada_(x, prof + 1); });
+  if (v && typeof v === "object") {
+    var o = {};
+    Object.keys(v).slice(0, 80).forEach(function (k) { o[k] = limparEntrada_(v[k], prof + 1); });
+    return o;
+  }
+  return v;
+}
+
+// Limite de uso para as ações que enviam e-mail (evita disparo em massa)
+function limiteDeUso_(acao, dados) {
+  var regras = { recuperar_pin: [3, 3600], libertar: [30, 3600], libertar_multiplos: [30, 3600], assumir: [30, 3600],
+                 propor_troca: [15, 3600], aceitar_troca: [15, 3600], agendar_reposicao: [15, 3600] };
+  var r = regras[acao];
+  if (!r) return "";
+  var quem = String(dados.professor || dados.profOriginal || dados.substituto || (dados.troca && dados.troca.proponente) || (dados.reposicao && dados.reposicao.professor) || "?");
+  var cache = CacheService.getScriptCache();
+  var chaves = ["RL_" + acao + "_" + quem.toLowerCase(), "RL_GLOBAL"];
+  var limites = [r[0], 200];
+  for (var i = 0; i < chaves.length; i++) {
+    var n = parseInt(cache.get(chaves[i]) || "0", 10);
+    if (n >= limites[i]) return "Muitas solicitações em pouco tempo. Tente de novo mais tarde.";
+    cache.put(chaves[i], String(n + 1), r[1]);
+  }
+  return "";
 }
 
 /**
