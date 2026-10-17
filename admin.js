@@ -291,7 +291,7 @@ async function telaEmails(main) {
   estado.emails = r.emails;
   estado.selEmails.clear();
   const f = estado.filtrosEmail;
-  main.innerHTML = cabecalho("E-mails & Avisos", "Registro de todos os envios do servidor, igual em qualquer aparelho · aba <em>E-mails_Enviados</em> da planilha",
+  main.innerHTML = cabecalho("E-mails & Avisos", "Todos os e-mails enviados pelo sistema (aba E-mails_Enviados da planilha)",
       `<button class="btn" data-acao="exportar-emails">Exportar lista</button>`) + `
     <section class="cartao">
       <div class="filtros">

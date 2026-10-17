@@ -130,7 +130,7 @@ textarea.input { min-height: 80px; resize: vertical; }
 main { grid-area: main; min-width: 0; width: 100%; max-width: 1280px; padding: 28px 32px 48px; display: flex; flex-direction: column; gap: 20px; }
 .cabecalho { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-bottom: 4px; }
 .cabecalho h1 { font-size: 24px; font-weight: 700; }
-.cabecalho p { margin-top: 4px; color: var(--grafite); font-size: 14px; max-width: 72ch; }
+.cabecalho p { margin-top: 4px; color: var(--grafite); font-size: 14px; }
 .cabecalho .acoes { display: flex; gap: 8px; flex-wrap: wrap; }
 .nav-baixo { display: none; }
 .so-celular { display: none !important; }

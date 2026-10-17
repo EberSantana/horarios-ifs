@@ -991,6 +991,13 @@ body {
   color: var(--text-secondary);
 }
 
+.avisos-barra { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); margin: 0 2px 10px; }
+.avisos-acoes { display: flex; gap: 14px; }
+.avisos-link { border: 0; background: none; padding: 4px 0; color: var(--primary-color); font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.avisos-link:hover { text-decoration: underline; }
+.email-log-rodape { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 6px; }
+.email-log-status.erro { color: #c62828; }
+.email-tag:not(.AUSENCIA):not(.SUBSTITUICAO):not(.PERMUTA_PROPOSTA):not(.REPOSICAO) { background: #eef0f2; color: #5f6368; }
 .email-log-status {
   display: inline-flex;
   align-items: center;

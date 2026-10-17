@@ -516,8 +516,7 @@ function alternarAba(tabId) {
 }
 
 function marcarEmailsComoLidos() {
-  const emailsLogs = API.getEmailsLog();
-  localStorage.setItem("IFS_LAST_READ_EMAILS_COUNT", String(emailsLogs.length));
+  if (usuarioLogado) API.marcarAvisosLidos(usuarioLogado);
   const badgeEmails = document.getElementById("badgeQtdEmails");
   if (badgeEmails) {
     badgeEmails.style.display = "none";
@@ -567,28 +566,19 @@ function atualizarContadoresEAlerta() {
     badgeTrocas.style.display = trocasParaMim > 0 ? "inline-block" : "none";
   }
 
-  // Contador inteligente de E-mails / Avisos Não Lidos (Aba E-mails & Avisos)
-  const emailsLogs = API.getEmailsLog();
+  // Avisos não lidos: só os e-mails que chegaram para este professor, fora os arquivados
   const badgeEmails = document.getElementById("badgeQtdEmails");
   const tabEmailsPane = document.getElementById("tab-emails");
-  const tabEmailsAtiva = tabEmailsPane && tabEmailsPane.classList.contains("active");
-
-  if (tabEmailsAtiva) {
-    localStorage.setItem("IFS_LAST_READ_EMAILS_COUNT", String(emailsLogs.length));
+  if (tabEmailsPane && tabEmailsPane.classList.contains("active")) {
+    if (usuarioLogado) API.marcarAvisosLidos(usuarioLogado);
     if (badgeEmails) badgeEmails.style.display = "none";
-  } else {
-    const salvo = localStorage.getItem("IFS_LAST_READ_EMAILS_COUNT");
-    if (salvo === null) {
-      // Primeira execução: considera o histórico atual como já visto para não exibir o número 8 fixo
-      localStorage.setItem("IFS_LAST_READ_EMAILS_COUNT", String(emailsLogs.length));
-    }
-    const lastRead = parseInt(localStorage.getItem("IFS_LAST_READ_EMAILS_COUNT") || "0", 10);
-    const naoLidos = Math.max(0, emailsLogs.length - lastRead);
-
-    if (badgeEmails) {
-      badgeEmails.innerText = naoLidos;
-      badgeEmails.style.display = naoLidos > 0 ? "inline-block" : "none";
-    }
+  } else if (badgeEmails && usuarioLogado) {
+    const lidosEm = API.getAvisosLidosEm(usuarioLogado);
+    const arq = new Set(API.getAvisosArquivados(usuarioLogado));
+    const naoLidos = lidosEm ? API.getMeusAvisos(usuarioLogado).filter((a) => a.data > lidosEm && !arq.has(a.id)).length : 0;
+    if (!lidosEm) API.marcarAvisosLidos(usuarioLogado);
+    badgeEmails.innerText = naoLidos;
+    badgeEmails.style.display = naoLidos > 0 ? "inline-block" : "none";
   }
 
   // QUANTITATIVO TOTAL DE MUDANÇAS / ALERTAS ATIVOS
@@ -739,7 +729,8 @@ function abrirModalMudancasAlertas() {
   const trocasParaMim = trocas.filter(t => t.colega === usuarioLogado && t.status === "pendente");
 
   // 3. E-mails e Avisos Recentes
-  const logs = API.getEmailsLog();
+  const arqAv = new Set(API.getAvisosArquivados(usuarioLogado));
+  const logs = API.getMeusAvisos(usuarioLogado).filter((a) => !arqAv.has(a.id));
   const totalMudancas = aulasLivres.length + trocasParaMim.length;
 
   if (totalMudancas === 0 && logs.length === 0) {
@@ -835,7 +826,7 @@ function abrirModalMudancasAlertas() {
     html += `
       <div class="notif-section-card info-card">
         <div class="notif-section-header" style="color: #0369a1;">
-          <span>📨 Últimos Comunicados Oficiais</span>
+          <span>📨 Meus avisos recentes</span>
           <button type="button" class="btn-notif-action" style="background:#0288d1;" onclick="fecharTodosModais(); alternarAba('tab-emails');">
             Ver Todos
           </button>
@@ -845,8 +836,8 @@ function abrirModalMudancasAlertas() {
       html += `
         <div class="notif-item-mini">
           <div class="notif-item-info">
-            <span class="notif-item-title" style="font-size:11px;">${log.assunto}</span>
-            <span class="notif-item-subtitle">🕒 ${log.data}</span>
+            <span class="notif-item-title" style="font-size:11px;">${escAviso(log.assunto)}</span>
+            <span class="notif-item-subtitle">🕒 ${escAviso(new Date(log.data).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }))}</span>
           </div>
         </div>`;
     });
@@ -1369,38 +1360,64 @@ function copiarRelatorioTabela() {
 // ============================================================================
 // 6. ABA: CENTRAL DE E-MAILS & NOTIFICAÇÕES
 // ============================================================================
-function renderizarEmailsLog() {
+let mostrarAvisosArquivados = false;
+function escAviso(v) {
+  return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+const ROTULO_AVISO = { Falta: "Falta", "Substituição": "Substituição", Troca: "Troca", "Reposição": "Reposição", PIN: "PIN", Teste: "Teste", Aviso: "Aviso" };
+const CLASSE_AVISO = { Falta: "AUSENCIA", "Substituição": "SUBSTITUICAO", Troca: "PERMUTA_PROPOSTA", "Reposição": "REPOSICAO" };
+
+function renderizarEmailsLog(jaCarregou) {
   marcarEmailsComoLidos();
   const container = document.getElementById("emailsLogContainer");
-  container.innerHTML = "";
+  if (!container || !usuarioLogado) return;
+  const todos = API.getMeusAvisos(usuarioLogado);
+  const arquivados = new Set(API.getAvisosArquivados(usuarioLogado));
+  const visiveis = todos.filter((a) => mostrarAvisosArquivados ? arquivados.has(a.id) : !arquivados.has(a.id));
+  const qtdArq = todos.filter((a) => arquivados.has(a.id)).length;
 
-  const logs = API.getEmailsLog();
-  if (logs.length === 0) {
-    container.innerHTML = `
+  const barra = `<div class="avisos-barra">
+      <span>${mostrarAvisosArquivados ? `${qtdArq} arquivado${qtdArq === 1 ? "" : "s"}` : `${visiveis.length} aviso${visiveis.length === 1 ? "" : "s"}`}</span>
+      <span class="avisos-acoes">
+        ${!mostrarAvisosArquivados && visiveis.length > 1 ? `<button type="button" class="avisos-link" data-aviso-acao="arquivar-todos">Arquivar todos</button>` : ""}
+        ${qtdArq || mostrarAvisosArquivados ? `<button type="button" class="avisos-link" data-aviso-acao="alternar">${mostrarAvisosArquivados ? "Voltar à caixa de entrada" : `Ver arquivados (${qtdArq})`}</button>` : ""}
+      </span></div>`;
+
+  if (!visiveis.length) {
+    container.innerHTML = barra + `
       <div class="empty-state">
         <div class="empty-state-icon">✉️</div>
-        <div class="empty-state-text">Nenhum e-mail disparado até o momento.</div>
+        <div class="empty-state-text">${mostrarAvisosArquivados ? "Nenhum aviso arquivado." : "Nenhum aviso para você. Quando o sistema mandar um e-mail para você, ele aparece aqui."}</div>
       </div>`;
-    return;
-  }
-
-  const htmlChunks = [];
-  logs.forEach((log) => {
-    htmlChunks.push(`
+  } else {
+    container.innerHTML = barra + visiveis.map((a) => `
       <div class="email-log-item">
         <div class="email-log-top">
-          <span class="email-tag ${log.tipo}">${log.tipo}</span>
-          <span class="email-log-date">🕒 ${log.data}</span>
+          <span class="email-tag ${CLASSE_AVISO[a.tipo] || ""}">${escAviso(ROTULO_AVISO[a.tipo] || a.tipo)}</span>
+          <span class="email-log-date">${escAviso(new Date(a.data).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }))}</span>
         </div>
-        <div class="email-log-subject">${log.assunto}</div>
-        <div class="email-log-dest">Destinatários: <strong>${log.destinatario}</strong></div>
-        <div class="email-log-status">
-          <span>✓</span> <span>${log.status}</span>
+        <div class="email-log-subject">${escAviso(a.assunto)}</div>
+        <div class="email-log-rodape">
+          <span class="email-log-status ${a.status === "Erro" ? "erro" : ""}">${a.status === "Erro" ? "Não foi entregue" : "✓ Enviado para o seu e-mail"}</span>
+          <button type="button" class="avisos-link" data-aviso-acao="${mostrarAvisosArquivados ? "desarquivar" : "arquivar"}" data-id="${escAviso(a.id)}">${mostrarAvisosArquivados ? "Desarquivar" : "Arquivar"}</button>
         </div>
-      </div>`);
-  });
-  container.innerHTML = htmlChunks.join("");
+      </div>`).join("");
+  }
+  if (!jaCarregou) API.carregarMeusAvisos(usuarioLogado).then(() => { renderizarEmailsLog(true); atualizarContadoresEAlerta(); });
 }
+
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-aviso-acao]");
+  if (!b || !usuarioLogado) return;
+  const arq = API.getAvisosArquivados(usuarioLogado);
+  const acao = b.dataset.avisoAcao;
+  if (acao === "arquivar") API.setAvisosArquivados(usuarioLogado, [...arq, b.dataset.id]);
+  else if (acao === "desarquivar") API.setAvisosArquivados(usuarioLogado, arq.filter((id) => id !== b.dataset.id));
+  else if (acao === "arquivar-todos") API.setAvisosArquivados(usuarioLogado, [...arq, ...API.getMeusAvisos(usuarioLogado).map((a) => a.id)]);
+  else if (acao === "alternar") mostrarAvisosArquivados = !mostrarAvisosArquivados;
+  renderizarEmailsLog(true);
+  atualizarContadoresEAlerta();
+});
 
 // ============================================================================
 // CONSTRUÇÃO DOS CARDS COM BOTÕES DE AÇÃO
@@ -2427,7 +2444,10 @@ async function recarregarDados(silencioso = false) {
   try {
     const resultado = await API.carregarGradeCompleta();
     bancoDeDados = resultado.data;
-    if (resultado.online) popularListaLogin();
+    if (resultado.online) {
+      popularListaLogin();
+      if (usuarioLogado) API.carregarMeusAvisos(usuarioLogado).then(() => atualizarContadoresEAlerta()).catch(() => {});
+    }
 
     const assinatura = assinaturaDados();
     if (!silencioso || assinatura !== assinaturaUltimosDados) {

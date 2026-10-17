@@ -600,6 +600,7 @@ var CAB_REPOSICOES = ["Data Registro", "ID", "Professor", "Disciplina", "Turma",
 function doGet(e) {
   try {
     var acao = (e && e.parameter && e.parameter.action) || "obterGrade";
+    if (acao === "meusAvisos") return criarRespostaJSON(meusAvisos_(e.parameter.professor));
     var chave = acao === "obterTudo" ? "BANCO_TUDO_IFS_V2" : "BANCO_GRADE_IFS";
     var cache = CacheService.getScriptCache();
     var cached = cache.get(chave);
@@ -1580,6 +1581,27 @@ function enviarEmailRegistrado_(opts) {
     registrarEmail_(reg);
     throw e;
   }
+}
+
+/**
+ * Avisos de UM professor: só os e-mails em que o e-mail dele está entre os destinatários.
+ * Não devolve corpo nem a lista de destinatários (só o que ele precisa ver).
+ */
+function meusAvisos_(professor) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var email = obterEmailProfessor(ss, String(professor || "").trim()).toLowerCase();
+  if (!email) return { sucesso: true, avisos: [] };
+  var sh = ss.getSheetByName(ABA_EMAILS);
+  if (!sh || sh.getLastRow() < 2) return { sucesso: true, avisos: [] };
+  var n = Math.min(sh.getLastRow() - 1, 1500);
+  var rows = sh.getRange(sh.getLastRow() - n + 1, 1, n, 6).getValues();
+  var lista = [];
+  for (var i = rows.length - 1; i >= 0 && lista.length < 80; i--) {
+    var r = rows[i];
+    if (!r[0] || String(r[3]).toLowerCase().indexOf(email) === -1) continue;
+    lista.push({ id: r[0], data: new Date(r[1]).getTime(), tipo: r[2], assunto: r[4], status: r[5] === "Erro" ? "Erro" : "Enviado" });
+  }
+  return { sucesso: true, avisos: lista };
 }
 
 /** Destinatários da coordenação: guardados no servidor (o admin altera no painel) */

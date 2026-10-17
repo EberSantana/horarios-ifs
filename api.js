@@ -492,6 +492,34 @@ const API = {
     return dests.join(", ");
   },
 
+  // Avisos do professor (do servidor): só os e-mails que chegaram para ele
+  _chaveAvisos(prof) { return "IFS_AVISOS_" + prof; },
+  getMeusAvisos(prof) {
+    try { return JSON.parse(localStorage.getItem(this._chaveAvisos(prof)) || "[]") || []; } catch (e) { return []; }
+  },
+  async carregarMeusAvisos(prof) {
+    const url = this.getBackendUrl();
+    if (!url || !prof) return this.getMeusAvisos(prof);
+    try {
+      const r = await fetch(`${url}?action=meusAvisos&professor=${encodeURIComponent(prof)}`, { cache: "no-store" });
+      const d = await r.json();
+      if (d && Array.isArray(d.avisos)) {
+        localStorage.setItem(this._chaveAvisos(prof), JSON.stringify(d.avisos));
+        return d.avisos;
+      }
+    } catch (e) { console.warn("Avisos indisponíveis agora:", e); }
+    return this.getMeusAvisos(prof);
+  },
+  // Arquivar é só para o próprio professor (fica neste aparelho)
+  getAvisosArquivados(prof) {
+    try { return JSON.parse(localStorage.getItem("IFS_AVISOS_ARQ_" + prof) || "[]") || []; } catch (e) { return []; }
+  },
+  setAvisosArquivados(prof, ids) {
+    localStorage.setItem("IFS_AVISOS_ARQ_" + prof, JSON.stringify([...new Set(ids)].slice(-500)));
+  },
+  getAvisosLidosEm(prof) { return parseInt(localStorage.getItem("IFS_AVISOS_LIDOS_" + prof) || "0", 10); },
+  marcarAvisosLidos(prof) { localStorage.setItem("IFS_AVISOS_LIDOS_" + prof, String(Date.now())); },
+
   // Central de Logs de E-mails Enviados
   getEmailsLog() {
     let logs = [];
