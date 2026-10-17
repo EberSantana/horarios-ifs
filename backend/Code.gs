@@ -362,6 +362,17 @@ function obterEmailsPorTurma(turma, config) {
   var dests = [];
   var t = (turma || "").toUpperCase();
 
+  // Curso cadastrado (Cadastros → Turmas/Cursos) tem prioridade sobre as regras pelo nome
+  try {
+    var curso = cursoDaTurma_(lerCadastros_(), turma);
+    if (curso && curso.email) {
+      dests.push(curso.email);
+      var geral = cfg.emailCoordGeral || CONFIG_PADRAO.EMAIL_COORD_GERAL;
+      if (geral && dests.indexOf(geral) === -1) dests.push(geral);
+      return dests.join(", ");
+    }
+  } catch (eCad) {}
+
   // 0. Bacharelado em Administração (graduação) — coordenação própria (COBAD)
   if (t.indexOf("GRADUA") !== -1) {
     var emailGrad = cfg.emailCoordGraduacao || CONFIG_PADRAO.EMAIL_COORD_GRADUACAO || cfg.emailCoordADM || CONFIG_PADRAO.EMAIL_COORD_ADM;
@@ -617,6 +628,7 @@ function doGet(e) {
         reposicoes: lerObjetosJSON_(ss, "Reposicoes"),
         professores: listaProfessoresPublica_(ss),
         coordenacoes: lerConfigEmails_(),
+        cadastros: cadastrosPublicos_(ss),
         servidor: lerUrlServidor_(),
         geradoEm: new Date().getTime()
       };
@@ -645,7 +657,7 @@ function doPost(e) {
   if (dadosAdm && String(dadosAdm.acao || "").indexOf("admin_") === 0) {
     var respAdm = adminRouter_(dadosAdm);
     try { SpreadsheetApp.flush(); } catch (eF2) {}
-    var soLeitura = /^admin_(login|primeiro_acesso|convidar|remover_admin|versao_apagar|historico_arquivar|sair|resumo|versoes|historico|config_ler|importar_previa|emails_listar|emails_acao|prof_listar|config_salvar)$/.test(dadosAdm.acao);
+    var soLeitura = /^admin_(cadastros_ler|login|primeiro_acesso|convidar|remover_admin|versao_apagar|historico_arquivar|sair|resumo|versoes|historico|config_ler|importar_previa|emails_listar|emails_acao|prof_listar|config_salvar)$/.test(dadosAdm.acao);
     if (!soLeitura) invalidarCacheGrade();
     return respAdm;
   }
@@ -1373,6 +1385,7 @@ function manterAquecido() {
       reposicoes: lerObjetosJSON_(ss, "Reposicoes"),
       professores: listaProfessoresPublica_(ss),
         coordenacoes: lerConfigEmails_(),
+        cadastros: cadastrosPublicos_(ss),
         servidor: lerUrlServidor_(),
       geradoEm: new Date().getTime()
     };
@@ -1488,6 +1501,10 @@ function aplicarLinhasNaGrade_(linhas, origem) {
 
   if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, Math.max(10, sheet.getLastColumn())).clearContent();
   if (novas.length) sheet.getRange(2, 1, novas.length, 10).setValues(novas);
+  try {
+    completarTurmas_(ss, novas.map(function (r) { return r[4]; }));
+    completarDisciplinas_(ss, novas.map(function (r) { return { turma: r[4], disc: r[5] }; }));
+  } catch (eCad) { Logger.log("Cadastros: " + eCad); }
   SpreadsheetApp.flush();
   invalidarCacheGrade();
   Logger.log("Grade aplicada (" + (origem || "") + "): " + novas.length + " aulas (antes: " + antigas.length + "). " +
@@ -1803,7 +1820,7 @@ function adminRouter_(d) {
     if (email && !lerAdmins_()[email]) { CacheService.getScriptCache().remove("ADMTOK_" + d.token); email = null; }
     if (!email) return criarRespostaJSON({ sucesso: false, sessaoExpirada: true, erro: "Sessão expirada. Entre novamente." });
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var leitura = { admin_resumo: 1, admin_emails_listar: 1, admin_prof_listar: 1, admin_versoes: 1, admin_historico: 1, admin_config_ler: 1, admin_importar_previa: 1 };
+    var leitura = { admin_cadastros_ler: 1, admin_resumo: 1, admin_emails_listar: 1, admin_prof_listar: 1, admin_versoes: 1, admin_historico: 1, admin_config_ler: 1, admin_importar_previa: 1 };
     if (leitura[d.acao]) return criarRespostaJSON(adminExecutar_(d, ss, email));
     var lock = LockService.getScriptLock();
     if (!lock.tryLock(15000)) return criarRespostaJSON({ sucesso: false, erro: "Sistema ocupado. Tente de novo em alguns segundos." });
@@ -1864,6 +1881,9 @@ function adminExecutar_(d, ss, email) {
       return { sucesso: true, servidorUrl: u };
     case "admin_remover_admin": return admRemoverAdmin_(d, email);
     case "admin_config_salvar": return admConfigSalvar_(d);
+    case "admin_cadastros_ler": return admCadastrosLer_(ss);
+    case "admin_cadastro_salvar": return admCadastroSalvar_(ss, d, email);
+    case "admin_cadastro_excluir": return admCadastroExcluir_(ss, d, email);
   }
   return { sucesso: false, erro: "Ação desconhecida." };
 }
@@ -1990,8 +2010,12 @@ function admAulaSalvar_(ss, d, admin) {
   ["professor", "dia", "hora", "turma", "disc"].forEach(function (c) { if (!String(a[c] || "").trim()) throw new Error("Preencha o campo " + c + "."); });
   var sh = ss.getSheetByName("Horarios");
   var linhas = lerLinhasHorarios_(ss);
+  var cadA = lerCadastros_(ss);
+  if (cadA.turmas.length && !cadA.turmas.some(function (t) { return normTxt_(t.nome) === normTxt_(a.turma); }))
+    throw new Error("A turma “" + a.turma + "” não está cadastrada. Cadastre em Grade → Cadastros → Turmas.");
   var conf = conflitosDaAula_(linhas, a, a.id ? [a.id] : []);
   if (conf.length && !d.forcar) return { sucesso: false, conflitos: conf };
+  completarDisciplinas_(ss, [{ turma: a.turma, disc: a.disc }]);
   var obs = a.sala ? "Aula confirmada (" + a.sala + ")" : "Aula confirmada";
   var linhaA = -1;
   if (a.id) linhas.forEach(function (r) { if (String(r[0]).toUpperCase() === String(a.id).toUpperCase()) linhaA = r.__linha; });
@@ -2138,6 +2162,7 @@ function admImportarPrevia_(ss, d) {
   if (!entrada.length) throw new Error("O arquivo não tem aulas.");
   if (entrada.length > 2000) throw new Error("Arquivo grande demais (máx. 2000 aulas).");
   var mapa = mapaProfessores_(ss);
+  var cadI = lerCadastros_(ss), discNovas = {}, horasFora = {};
   var erros = [], avisos = [], novas = [];
   entrada.forEach(function (l, i) {
     var n = i + 2;
@@ -2147,8 +2172,18 @@ function admImportarPrevia_(ss, d) {
     if (prof !== "A definir" && !p) { erros.push("Linha " + n + ": professor “" + prof + "” não está cadastrado. Cadastre antes em Professores."); return; }
     if (p) prof = p.nome;
     if (p && !p.ativo) avisos.push("Linha " + n + ": " + prof + " está desligado(a)");
+    if (cadI.turmas.length) {
+      var tc = cadI.turmas.filter(function (t) { return normTxt_(t.nome) === normTxt_(turma); })[0];
+      if (!tc) { erros.push("Linha " + n + ": turma “" + turma + "” não está cadastrada. Cadastre em Grade → Cadastros → Turmas."); return; }
+      turma = tc.nome;
+      var cc = cursoDaTurma_(cadI, turma);
+      if (cc && !cadI.disciplinas.some(function (x) { return x.curso === cc.id && normTxt_(x.nome) === normTxt_(disc); })) discNovas[cc.id + "|" + disc] = disc + " (" + cc.nome + ")";
+      if (cc && cadI.tempos.some(function (h) { return h.turno === cc.turno; }) && !cadI.tempos.some(function (h) { return h.turno === cc.turno && h.hora === hora; })) horasFora[cc.turno + " " + hora] = 1;
+    }
     novas.push({ professor: prof, dia: dia, hora: hora, turma: turma, disc: disc, sala: String(l.sala || "").trim() });
   });
+  Object.keys(discNovas).forEach(function (k) { avisos.push("Disciplina nova, será cadastrada: " + discNovas[k]); });
+  Object.keys(horasFora).forEach(function (k) { avisos.push("Horário fora dos tempos cadastrados do turno: " + k); });
   // choques dentro do próprio arquivo
   var conflitos = [], porProf = {}, porTurma = {};
   novas.forEach(function (a) {
@@ -2203,6 +2238,7 @@ function admImportarAplicar_(ss, d, admin) {
   var json = ""; for (var i = 0; i < partes; i++) json += cache.get("IMPORT_" + d.previaId + "_" + i) || "";
   var linhas = JSON.parse(json);
   var r = aplicarLinhasNaGrade_(linhas, "importação por " + admin);
+  r.disciplinasNovas = completarDisciplinas_(ss, linhas.map(function (l) { return { turma: l[4], disc: l[5] }; }));
   cache.remove("IMPORT_" + d.previaId);
   registrarHistorico(ss, "ADMIN_IMPORTOU_GRADE", admin, "", r.total + " aulas", "", "", r.backup);
   return { sucesso: true, resultado: r };
@@ -2274,4 +2310,251 @@ function admConfigSalvar_(d) {
   });
   PropertiesService.getScriptProperties().setProperty("EMAILS_CONFIG", JSON.stringify(limpo));
   return { sucesso: true, config: lerConfigEmails_() };
+}
+
+/**
+ * ==============================================================================
+ * CADASTROS: CURSOS, TURMAS, DISCIPLINAS E HORÁRIOS (TEMPOS DE AULA)
+ * ==============================================================================
+ * Abas: Cursos, Turmas, Disciplinas, Tempos. Na primeira leitura são preenchidas
+ * a partir da grade atual. O curso da turma define o e-mail da coordenação.
+ */
+var CAB_CURSOS = ["ID", "Curso", "Turno", "E-mail coordenação", "Ativo"];
+var CAB_TURMAS = ["Turma", "Curso (ID)", "Ativo"];
+var CAB_DISCIPLINAS = ["Disciplina", "Curso (ID)", "Ativo"];
+var CAB_TEMPOS = ["Turno", "Horário", "Ordem"];
+var TURNOS = ["Matutino", "Vespertino", "Diurno", "Noturno"];
+
+var __cadastros = null;
+function limparCadastros_() { __cadastros = null; }
+
+function lerTabela_(ss, nome, cab) {
+  var sh = ss.getSheetByName(nome);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, cab.length).getValues()
+    .map(function (r, i) { r.__linha = i + 2; return r; })
+    .filter(function (r) { return String(r[0]).trim() !== ""; });
+}
+function ativoTxt_(v) { var t = String(v || "Sim").trim().toLowerCase(); return t !== "não" && t !== "nao"; }
+
+function cursoPorRegra_(turma) {
+  var t = String(turma || "").toUpperCase();
+  if (t.indexOf("GRADUA") !== -1) return "GRAD";
+  if (t.indexOf("SUBSEQUENTE") !== -1 || t.indexOf("INFO") !== -1) return "INFO";
+  if (t.indexOf("COMÉRCIO") !== -1 || t.indexOf("COMERCIO") !== -1) return "COM";
+  if (t.indexOf("DS") !== -1) return "DS";
+  if (t.indexOf("ADM") !== -1) return "ADM";
+  return "";
+}
+
+function semearCadastros_(ss) {
+  var cfg = lerConfigEmails_();
+  var linhas = lerLinhasHorarios_(ss);
+  var cursosBase = [
+    ["DS", "Técnico Integrado em Desenvolvimento de Sistemas", "Diurno", cfg.emailCoordDS, "Sim"],
+    ["ADM", "Técnico Integrado em Administração", "Diurno", cfg.emailCoordADM, "Sim"],
+    ["INFO", "Técnico Subsequente em Informática", "Noturno", cfg.emailCoordSubsequente, "Sim"],
+    ["GRAD", "Bacharelado em Administração", "Noturno", cfg.emailCoordGraduacao || "", "Sim"]
+  ];
+  var turmas = {}, discs = {}, tempos = {};
+  linhas.forEach(function (r) {
+    var c = cursoPorRegra_(r[4]) || "DS";
+    turmas[r[4]] = c;
+    discs[c + "|" + r[5]] = [r[5], c];
+    var turno = cursosBase.filter(function (x) { return x[0] === c; })[0];
+    tempos[(turno ? turno[2] : "Diurno") + "|" + r[3]] = [turno ? turno[2] : "Diurno", r[3]];
+  });
+  var shC = obterOuCriarAba(ss, "Cursos", CAB_CURSOS);
+  if (shC.getLastRow() < 2) shC.getRange(2, 1, cursosBase.length, 5).setValues(cursosBase);
+  var shT = obterOuCriarAba(ss, "Turmas", CAB_TURMAS);
+  var lt = Object.keys(turmas).sort().map(function (t) { return [t, turmas[t], "Sim"]; });
+  if (shT.getLastRow() < 2 && lt.length) shT.getRange(2, 1, lt.length, 3).setValues(lt);
+  var shD = obterOuCriarAba(ss, "Disciplinas", CAB_DISCIPLINAS);
+  var ld = Object.keys(discs).sort().map(function (k) { return [discs[k][0], discs[k][1], "Sim"]; });
+  if (shD.getLastRow() < 2 && ld.length) shD.getRange(2, 1, ld.length, 3).setValues(ld);
+  var shH = obterOuCriarAba(ss, "Tempos", CAB_TEMPOS);
+  var lh = Object.keys(tempos).map(function (k) { return tempos[k]; })
+    .sort(function (a, b) { return a[0] === b[0] ? (a[1] < b[1] ? -1 : 1) : (a[0] < b[0] ? -1 : 1); });
+  var ordem = {};
+  lh = lh.map(function (x) { ordem[x[0]] = (ordem[x[0]] || 0) + 1; return [x[0], x[1], ordem[x[0]]]; });
+  if (shH.getLastRow() < 2 && lh.length) shH.getRange(2, 1, lh.length, 3).setValues(lh);
+}
+
+function lerCadastros_(ss) {
+  if (__cadastros) return __cadastros;
+  ss = ss || SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss.getSheetByName("Cursos")) { try { semearCadastros_(ss); } catch (e) { Logger.log("Cadastros: " + e); } }
+  var cursos = lerTabela_(ss, "Cursos", CAB_CURSOS).map(function (r) {
+    return { id: String(r[0]).trim(), nome: String(r[1]).trim(), turno: String(r[2]).trim() || "Diurno", email: String(r[3]).trim(), ativo: ativoTxt_(r[4]), linha: r.__linha };
+  });
+  var turmas = lerTabela_(ss, "Turmas", CAB_TURMAS).map(function (r) {
+    return { nome: String(r[0]).trim(), curso: String(r[1]).trim(), ativo: ativoTxt_(r[2]), linha: r.__linha };
+  });
+  var disciplinas = lerTabela_(ss, "Disciplinas", CAB_DISCIPLINAS).map(function (r) {
+    return { nome: String(r[0]).trim(), curso: String(r[1]).trim(), ativo: ativoTxt_(r[2]), linha: r.__linha };
+  });
+  var tempos = lerTabela_(ss, "Tempos", CAB_TEMPOS).map(function (r) {
+    return { turno: String(r[0]).trim(), hora: String(r[1]).trim(), ordem: Number(r[2]) || 0, linha: r.__linha };
+  }).sort(function (a, b) { return a.turno === b.turno ? (a.ordem - b.ordem || (a.hora < b.hora ? -1 : 1)) : (a.turno < b.turno ? -1 : 1); });
+  __cadastros = { cursos: cursos, turmas: turmas, disciplinas: disciplinas, tempos: tempos };
+  return __cadastros;
+}
+
+function cursoDaTurma_(cad, turma) {
+  var t = cad.turmas.filter(function (x) { return normTxt_(x.nome) === normTxt_(turma); })[0];
+  var id = t ? t.curso : cursoPorRegra_(turma);
+  return cad.cursos.filter(function (c) { return c.id === id; })[0] || null;
+}
+
+// Lista pública para o app dos professores (sem nada sensível)
+function cadastrosPublicos_(ss) {
+  try {
+    var cad = lerCadastros_(ss);
+    return {
+      cursos: cad.cursos.filter(function (c) { return c.ativo; }).map(function (c) { return { id: c.id, nome: c.nome, turno: c.turno, email: c.email }; }),
+      turmas: cad.turmas.filter(function (t) { return t.ativo; }).map(function (t) { return { nome: t.nome, curso: t.curso }; })
+    };
+  } catch (e) { return null; }
+}
+
+function admCadastrosLer_(ss) {
+  var cad = lerCadastros_(ss);
+  var uso = { turma: {}, disc: {}, hora: {} };
+  lerLinhasHorarios_(ss).forEach(function (r) {
+    var c = cursoDaTurma_(cad, r[4]);
+    uso.turma[normTxt_(r[4])] = (uso.turma[normTxt_(r[4])] || 0) + 1;
+    var kd = (c ? c.id : "") + "|" + normTxt_(r[5]);
+    uso.disc[kd] = (uso.disc[kd] || 0) + 1;
+    var kh = (c ? c.turno : "") + "|" + r[3];
+    uso.hora[kh] = (uso.hora[kh] || 0) + 1;
+  });
+  return {
+    sucesso: true, turnos: TURNOS,
+    cursos: cad.cursos.map(function (c) { return { id: c.id, nome: c.nome, turno: c.turno, email: c.email, ativo: c.ativo,
+      turmas: cad.turmas.filter(function (t) { return t.curso === c.id; }).length }; }),
+    turmas: cad.turmas.map(function (t) { return { nome: t.nome, curso: t.curso, ativo: t.ativo, aulas: uso.turma[normTxt_(t.nome)] || 0 }; }),
+    disciplinas: cad.disciplinas.map(function (d) { return { nome: d.nome, curso: d.curso, ativo: d.ativo, aulas: uso.disc[d.curso + "|" + normTxt_(d.nome)] || 0 }; }),
+    tempos: cad.tempos.map(function (h) { return { turno: h.turno, hora: h.hora, ordem: h.ordem, aulas: uso.hora[h.turno + "|" + h.hora] || 0 }; })
+  };
+}
+
+function admCadastroSalvar_(ss, d, admin) {
+  var cad = lerCadastros_(ss), it = d.item || {}, orig = d.original || null, tipo = d.tipo;
+  var hs = ss.getSheetByName("Horarios");
+  var nome = String(it.nome || "").trim();
+  var resp = { sucesso: true, atualizadas: 0 };
+  if (tipo === "curso") {
+    if (!nome) throw new Error("Informe o nome do curso.");
+    if (TURNOS.indexOf(it.turno) === -1) throw new Error("Escolha o turno.");
+    var email = String(it.email || "").trim().toLowerCase();
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("E-mail inválido.");
+    var sh = obterOuCriarAba(ss, "Cursos", CAB_CURSOS);
+    var atual = orig ? cad.cursos.filter(function (c) { return c.id === orig; })[0] : null;
+    if (atual) sh.getRange(atual.linha, 2, 1, 4).setValues([[nome, it.turno, email, it.ativo === false ? "Não" : "Sim"]]);
+    else {
+      var base = nome.normalize ? nome.normalize("NFD").replace(/[̀-ͯ]/g, "") : nome;
+      var id = base.split(/\s+/).filter(function (w) { return w.length > 2 && /^[A-Za-z]/.test(w); }).map(function (w) { return w[0]; }).join("").toUpperCase().slice(0, 5) || "CUR";
+      var n = 2, idf = id;
+      while (cad.cursos.some(function (c) { return c.id === idf; })) idf = id + (n++);
+      sh.appendRow([idf, nome, it.turno, email, "Sim"]);
+      resp.id = idf;
+    }
+  } else if (tipo === "turma") {
+    if (!nome) throw new Error("Informe o nome da turma.");
+    if (!cad.cursos.some(function (c) { return c.id === it.curso; })) throw new Error("Escolha o curso.");
+    var shT = obterOuCriarAba(ss, "Turmas", CAB_TURMAS);
+    var tAtual = orig ? cad.turmas.filter(function (t) { return t.nome === orig; })[0] : null;
+    if (cad.turmas.some(function (t) { return normTxt_(t.nome) === normTxt_(nome) && t !== tAtual; })) throw new Error("Já existe uma turma com esse nome.");
+    if (tAtual) {
+      shT.getRange(tAtual.linha, 1, 1, 3).setValues([[nome, it.curso, it.ativo === false ? "Não" : "Sim"]]);
+      if (nome !== tAtual.nome) lerLinhasHorarios_(ss).forEach(function (r) { if (r[4] === tAtual.nome) { hs.getRange(r.__linha, 5).setValue(nome); resp.atualizadas++; } });
+    } else shT.appendRow([nome, it.curso, "Sim"]);
+  } else if (tipo === "disciplina") {
+    if (!nome) throw new Error("Informe o nome da disciplina.");
+    if (!cad.cursos.some(function (c) { return c.id === it.curso; })) throw new Error("Escolha o curso.");
+    var shD = obterOuCriarAba(ss, "Disciplinas", CAB_DISCIPLINAS);
+    var dAtual = orig ? cad.disciplinas.filter(function (x) { return x.nome === orig.nome && x.curso === orig.curso; })[0] : null;
+    if (cad.disciplinas.some(function (x) { return x !== dAtual && x.curso === it.curso && normTxt_(x.nome) === normTxt_(nome); })) throw new Error("Essa disciplina já existe nesse curso.");
+    if (dAtual) {
+      shD.getRange(dAtual.linha, 1, 1, 3).setValues([[nome, it.curso, it.ativo === false ? "Não" : "Sim"]]);
+      if (nome !== dAtual.nome) lerLinhasHorarios_(ss).forEach(function (r) {
+        var c = cursoDaTurma_(cad, r[4]);
+        if (r[5] === dAtual.nome && c && c.id === dAtual.curso) { hs.getRange(r.__linha, 6).setValue(nome); resp.atualizadas++; }
+      });
+    } else shD.appendRow([nome, it.curso, "Sim"]);
+  } else if (tipo === "tempo") {
+    var hora = normHora_(it.hora);
+    if (!hora) throw new Error("Horário no formato 08:40 - 09:30.");
+    if (TURNOS.indexOf(it.turno) === -1) throw new Error("Escolha o turno.");
+    var shH = obterOuCriarAba(ss, "Tempos", CAB_TEMPOS);
+    var hAtual = orig ? cad.tempos.filter(function (h) { return h.turno === orig.turno && h.hora === orig.hora; })[0] : null;
+    if (cad.tempos.some(function (h) { return h !== hAtual && h.turno === it.turno && h.hora === hora; })) throw new Error("Esse horário já existe nesse turno.");
+    var ordem = Number(it.ordem) || (cad.tempos.filter(function (h) { return h.turno === it.turno; }).length + 1);
+    if (hAtual) {
+      shH.getRange(hAtual.linha, 1, 1, 3).setValues([[it.turno, hora, ordem]]);
+      if (hora !== hAtual.hora) lerLinhasHorarios_(ss).forEach(function (r) {
+        var c = cursoDaTurma_(cad, r[4]);
+        if (r[3] === hAtual.hora && c && c.turno === hAtual.turno) { hs.getRange(r.__linha, 4).setValue(hora); resp.atualizadas++; }
+      });
+    } else shH.appendRow([it.turno, hora, ordem]);
+  } else throw new Error("Tipo inválido.");
+  limparCadastros_();
+  registrarHistorico(ss, "ADMIN_CADASTRO_" + tipo.toUpperCase(), admin, "", nome || it.hora, "", "", orig ? "editado" : "novo");
+  return resp;
+}
+
+function admCadastroExcluir_(ss, d, admin) {
+  var cad = lerCadastros_(ss), ch = d.chave || {}, tipo = d.tipo, sh, alvo;
+  var linhas = lerLinhasHorarios_(ss);
+  if (tipo === "curso") {
+    alvo = cad.cursos.filter(function (c) { return c.id === ch.id; })[0];
+    if (alvo && cad.turmas.some(function (t) { return t.curso === alvo.id; })) throw new Error("Esse curso tem turmas. Mova ou exclua as turmas antes, ou desative o curso.");
+    sh = ss.getSheetByName("Cursos");
+  } else if (tipo === "turma") {
+    alvo = cad.turmas.filter(function (t) { return t.nome === ch.nome; })[0];
+    if (alvo && linhas.some(function (r) { return r[4] === alvo.nome; })) throw new Error("Essa turma tem aulas na grade. Desative-a ou mova as aulas antes.");
+    sh = ss.getSheetByName("Turmas");
+  } else if (tipo === "disciplina") {
+    alvo = cad.disciplinas.filter(function (x) { return x.nome === ch.nome && x.curso === ch.curso; })[0];
+    if (alvo && linhas.some(function (r) { var c = cursoDaTurma_(cad, r[4]); return r[5] === alvo.nome && c && c.id === alvo.curso; })) throw new Error("Essa disciplina tem aulas na grade. Desative-a em vez de excluir.");
+    sh = ss.getSheetByName("Disciplinas");
+  } else if (tipo === "tempo") {
+    alvo = cad.tempos.filter(function (h) { return h.turno === ch.turno && h.hora === ch.hora; })[0];
+    if (alvo && linhas.some(function (r) { var c = cursoDaTurma_(cad, r[4]); return r[3] === alvo.hora && c && c.turno === alvo.turno; })) throw new Error("Há aulas nesse horário. Mova as aulas antes de excluir.");
+    sh = ss.getSheetByName("Tempos");
+  } else throw new Error("Tipo inválido.");
+  if (!alvo) throw new Error("Item não encontrado.");
+  sh.deleteRow(alvo.linha);
+  limparCadastros_();
+  registrarHistorico(ss, "ADMIN_EXCLUIU_" + tipo.toUpperCase(), admin, "", alvo.nome || alvo.hora || alvo.id, "", "", "");
+  return { sucesso: true };
+}
+
+// Turmas que estão na grade e ainda não estão cadastradas entram (curso deduzido pelo nome)
+function completarTurmas_(ss, turmasUsadas) {
+  if (!ss.getSheetByName("Cursos")) return 0; // ainda não semeado: a semeadura já pega tudo
+  var cad = lerCadastros_(ss), novas = {};
+  turmasUsadas.forEach(function (t) {
+    if (!t || cad.turmas.some(function (x) { return normTxt_(x.nome) === normTxt_(t); })) return;
+    var c = cursoPorRegra_(t);
+    if (!cad.cursos.some(function (x) { return x.id === c; })) c = cad.cursos.length ? cad.cursos[0].id : "";
+    novas[t] = [t, c, "Sim"];
+  });
+  var l = Object.keys(novas).map(function (k) { return novas[k]; });
+  if (l.length) { var sh = obterOuCriarAba(ss, "Turmas", CAB_TURMAS); sh.getRange(sh.getLastRow() + 1, 1, l.length, 3).setValues(l); limparCadastros_(); }
+  return l.length;
+}
+
+// Disciplinas usadas na grade que ainda não estão cadastradas entram automaticamente
+function completarDisciplinas_(ss, aulas) {
+  var cad = lerCadastros_(ss), novas = {};
+  aulas.forEach(function (a) {
+    var c = cursoDaTurma_(cad, a.turma);
+    if (!c || !a.disc) return;
+    var existe = cad.disciplinas.some(function (x) { return x.curso === c.id && normTxt_(x.nome) === normTxt_(a.disc); });
+    if (!existe) novas[c.id + "|" + a.disc] = [a.disc, c.id, "Sim"];
+  });
+  var l = Object.keys(novas).map(function (k) { return novas[k]; });
+  if (l.length) { var sh = obterOuCriarAba(ss, "Disciplinas", CAB_DISCIPLINAS); sh.getRange(sh.getLastRow() + 1, 1, l.length, 3).setValues(l); limparCadastros_(); }
+  return l.length;
 }

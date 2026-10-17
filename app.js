@@ -72,6 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   migrarNomesAntigos();
   popularListaLogin();
+  popularFiltrosTurma();
   const usuarioSalvo = localStorage.getItem("IFS_SAVED_USER") || sessionStorage.getItem("IFS_SESSION_USER");
   if (usuarioSalvo) {
     usuarioLogado = usuarioSalvo;
@@ -84,6 +85,25 @@ document.addEventListener("DOMContentLoaded", () => {
   // Sincronização em segundo plano suave após a interface estar 100% pronta
   setTimeout(() => recarregarDados(true), 50);
 });
+
+// Filtros de turma do app seguem os cadastros do painel (cursos e turmas)
+function popularFiltrosTurma() {
+  const cad = API.getCadastros && API.getCadastros();
+  if (!cad) return;
+  const grupos = (cad.cursos || []).map((c) => ({ nome: c.nome, turmas: cad.turmas.filter((t) => t.curso === c.id).map((t) => t.nome) }))
+    .filter((g) => g.turmas.length);
+  const chave = JSON.stringify(grupos);
+  [["filtroTurmaSelect", false], ["filtroRelatorioTurma", true]].forEach(([id, comTodas]) => {
+    const sel = document.getElementById(id);
+    if (!sel || sel.dataset.cad === chave) return;
+    const atual = sel.value;
+    sel.innerHTML = (comTodas ? '<option value="TODAS">Todas as Turmas</option>' : "") + grupos.map((g) =>
+      `<optgroup label="${escAviso(g.nome)}">${g.turmas.map((t) => `<option value="${escAviso(t)}">${escAviso(t)}</option>`).join("")}</optgroup>`).join("");
+    sel.dataset.cad = chave;
+    const opcoes = [...sel.options].map((o) => o.value);
+    sel.value = opcoes.includes(atual) ? atual : (opcoes.find((v) => v && atual && v.startsWith(atual)) || opcoes[0] || "");
+  });
+}
 
 // "Prof." ou "Profa." antes do nome na lista do login
 const PROFESSORAS = ["Fernanda", "Grayce", "Raisa", "Érica Delfino"];
@@ -2291,13 +2311,16 @@ function cancelarReposicao(id) {
 // ============================================================================
 function abrirModalConfig() {
   const config = API.getEmailsConfig();
-  const destinos = [
-    ["Desenvolvimento de Sistemas (DS)", config.emailCoordDS],
-    ["Administração (ADM)", config.emailCoordADM],
-    ["Subsequente em Informática", config.emailCoordSubsequente],
-    ["Bacharelado em Administração", config.emailCoordGraduacao],
-    ["Coordenação geral (todos os avisos)", config.emailCoordGeral]
-  ].filter(([, e]) => e);
+  const cad = API.getCadastros();
+  const destinos = (cad && cad.cursos && cad.cursos.length
+    ? cad.cursos.map((c) => [c.nome, c.email]).concat([["Coordenação geral (todos os avisos)", config.emailCoordGeral]])
+    : [
+      ["Desenvolvimento de Sistemas (DS)", config.emailCoordDS],
+      ["Administração (ADM)", config.emailCoordADM],
+      ["Subsequente em Informática", config.emailCoordSubsequente],
+      ["Bacharelado em Administração", config.emailCoordGraduacao],
+      ["Coordenação geral (todos os avisos)", config.emailCoordGeral]
+    ]).filter(([, e]) => e);
   const lista = document.getElementById("listaDestinosAvisos");
   if (lista) lista.innerHTML = destinos.map(([rotulo, email]) =>
     `<div><dt>${escAviso(rotulo)}</dt><dd>${escAviso(email)}</dd></div>`).join("");
@@ -2425,6 +2448,7 @@ async function recarregarDados(silencioso = false) {
     bancoDeDados = resultado.data;
     if (resultado.online) {
       popularListaLogin();
+      popularFiltrosTurma();
       if (usuarioLogado) API.carregarMeusAvisos(usuarioLogado).then(() => atualizarContadoresEAlerta()).catch(() => {});
     }
 

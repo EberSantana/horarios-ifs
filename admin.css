@@ -343,3 +343,8 @@ td.acoes .btn + .btn { margin-left: 6px; }
 .servidor { display: flex; flex-direction: column; gap: 12px; }
 .servidor .input { font-size: 13px; }
 .servidor .acoes-hist { align-items: center; }
+
+#abasCad { align-self: flex-start; }
+.tabela-cad table { min-width: 560px; }
+.tabela-cad tr.dia-grupo th { background: var(--papel); color: var(--tinta); font-size: 13px; font-weight: 700; padding: 8px 14px; border-top: 1px solid var(--linha); }
+.tabela-cad td.acoes .btn-link + .btn-link { margin-left: 14px; }

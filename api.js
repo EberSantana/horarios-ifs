@@ -522,6 +522,9 @@ const API = {
   setAvisosArquivados(prof, ids) {
     localStorage.setItem("IFS_AVISOS_ARQ_" + prof, JSON.stringify([...new Set(ids)].slice(-500)));
   },
+  getCadastros() {
+    try { const c = JSON.parse(localStorage.getItem("IFS_CADASTROS") || "null"); return c && Array.isArray(c.turmas) && c.turmas.length ? c : null; } catch (e) { return null; }
+  },
   getAvisosLidosEm(prof) { return parseInt(localStorage.getItem("IFS_AVISOS_LIDOS_" + prof) || "0", 10); },
   marcarAvisosLidos(prof) { localStorage.setItem("IFS_AVISOS_LIDOS_" + prof, String(Date.now())); },
 
@@ -809,6 +812,9 @@ const API = {
         if (typeof data.servidor === "string") {
           if (RX_URL_SERVIDOR.test(data.servidor)) localStorage.setItem("IFS_SERVIDOR_OFICIAL", data.servidor);
           else if (data.servidor === "") localStorage.removeItem("IFS_SERVIDOR_OFICIAL");
+        }
+        if (data.cadastros && Array.isArray(data.cadastros.turmas)) {
+          try { localStorage.setItem("IFS_CADASTROS", JSON.stringify(data.cadastros)); } catch (e) {}
         }
         if (data.coordenacoes && typeof data.coordenacoes === "object") {
           this.saveEmailsConfig(Object.assign({}, this.getEmailsConfig(), data.coordenacoes));
