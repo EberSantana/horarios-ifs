@@ -2301,17 +2301,10 @@ function abrirModalConfig() {
   const lista = document.getElementById("listaDestinosAvisos");
   if (lista) lista.innerHTML = destinos.map(([rotulo, email]) =>
     `<div><dt>${escAviso(rotulo)}</dt><dd>${escAviso(email)}</dd></div>`).join("");
-  document.getElementById("configBackendUrl").value = API.getBackendUrl();
   abrirModal("modalConfig");
 }
 
-function salvarConfiguracoes() {
-  // Só a URL do servidor é configurável aqui; os destinatários vêm do servidor
-  API.setBackendUrl(document.getElementById("configBackendUrl").value);
-  fecharTodosModais();
-  recarregarDados();
-  mostrarToast("Configurações salvas.");
-}
+function salvarConfiguracoes() { fecharTodosModais(); }
 
 function salvarNovoPin() {
   const pinAtual = document.getElementById("inputPinAtual").value.trim();

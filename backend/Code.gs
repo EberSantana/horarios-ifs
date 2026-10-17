@@ -617,6 +617,7 @@ function doGet(e) {
         reposicoes: lerObjetosJSON_(ss, "Reposicoes"),
         professores: listaProfessoresPublica_(ss),
         coordenacoes: lerConfigEmails_(),
+        servidor: lerUrlServidor_(),
         geradoEm: new Date().getTime()
       };
     } else {
@@ -1372,6 +1373,7 @@ function manterAquecido() {
       reposicoes: lerObjetosJSON_(ss, "Reposicoes"),
       professores: listaProfessoresPublica_(ss),
         coordenacoes: lerConfigEmails_(),
+        servidor: lerUrlServidor_(),
       geradoEm: new Date().getTime()
     };
     try { cache.put("BANCO_TUDO_IFS_V2", JSON.stringify(resposta), 21600); } catch (e) {}
@@ -1604,6 +1606,12 @@ function meusAvisos_(professor) {
     lista.push({ id: r[0], data: new Date(r[1]).getTime(), tipo: r[2], assunto: r[4], status: r[5] === "Erro" ? "Erro" : "Enviado" });
   }
   return { sucesso: true, avisos: lista };
+}
+
+// Endereço oficial do servidor (definido no painel admin). Vazio = os apps usam o endereço embutido.
+var RX_URL_SERVIDOR = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]{20,}\/exec$/;
+function lerUrlServidor_() {
+  return PropertiesService.getScriptProperties().getProperty("URL_SERVIDOR") || "";
 }
 
 /** Destinatários da coordenação: guardados no servidor (o admin altera no painel) */
@@ -1846,9 +1854,14 @@ function adminExecutar_(d, ss, email) {
     case "admin_historico_arquivar": return admHistoricoArquivar_(ss, email);
     case "admin_config_ler":
       var conv = lerConvites_(), agoraCv = new Date().getTime();
-      return { sucesso: true, config: lerConfigEmails_(), admins: Object.keys(lerAdmins_()), eu: email,
+      return { sucesso: true, config: lerConfigEmails_(), admins: Object.keys(lerAdmins_()), eu: email, servidorUrl: lerUrlServidor_(),
                convites: Object.keys(conv).filter(function (k) { return conv[k].expira > agoraCv; }).map(function (k) { return { email: k, expira: conv[k].expira }; }) };
     case "admin_convidar": return admConvidar_(d, email);
+    case "admin_servidor_salvar":
+      var u = String(d.url || "").trim();
+      if (u && !RX_URL_SERVIDOR.test(u)) throw new Error("Endereço inválido. Use o link do Apps Script que termina em /exec.");
+      if (u) PropertiesService.getScriptProperties().setProperty("URL_SERVIDOR", u); else PropertiesService.getScriptProperties().deleteProperty("URL_SERVIDOR");
+      return { sucesso: true, servidorUrl: u };
     case "admin_remover_admin": return admRemoverAdmin_(d, email);
     case "admin_config_salvar": return admConfigSalvar_(d);
   }

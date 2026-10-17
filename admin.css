@@ -339,3 +339,7 @@ td.acoes .btn + .btn { margin-left: 6px; }
 .btn-link.perigo { color: var(--falta); font-size: 13px; }
 .convite { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--linha); }
 .convite .campo { flex: 1 1 180px; }
+
+.servidor { display: flex; flex-direction: column; gap: 12px; }
+.servidor .input { font-size: 13px; }
+.servidor .acoes-hist { align-items: center; }

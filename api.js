@@ -7,6 +7,7 @@
  */
 
 const STORAGE_KEY_API_URL = 'IFS_BACKEND_URL';
+const RX_URL_SERVIDOR = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]{20,}\/exec$/;
 const STORAGE_KEY_LOCAL_DB = 'IFS_LOCAL_DATABASE';
 const STORAGE_KEY_DB_VERSION = 'IFS_DB_VERSION';
 const STORAGE_KEY_PINS = 'IFS_TEACHER_PINS';
@@ -438,19 +439,22 @@ const API = {
     return `${nome.toLowerCase().replace(/[^a-z0-9.]/g, '')}@ifs.edu.br`;
   },
 
+  // Endereço do servidor é fixo. Trocar só é possível em ambiente de teste (localhost),
+  // para ninguém conseguir apontar o app de um professor para outro servidor.
+  _ambienteTeste() {
+    try { return /^(localhost|127\.0\.0\.1)$/.test(location.hostname); } catch (e) { return false; }
+  },
   getBackendUrl() {
     const salvo = localStorage.getItem(STORAGE_KEY_API_URL);
-    if (salvo && salvo.trim() !== "") return salvo.trim();
+    if (salvo && this._ambienteTeste()) return salvo.trim();
+    if (salvo) localStorage.removeItem(STORAGE_KEY_API_URL); // limpa endereços trocados em versões antigas
+    // Endereço novo anunciado pelo próprio servidor (definido no painel admin); só aceita Apps Script
+    const oficial = localStorage.getItem("IFS_SERVIDOR_OFICIAL");
+    if (oficial && RX_URL_SERVIDOR.test(oficial)) return oficial;
     return DEFAULT_BACKEND_URL;
   },
 
-  setBackendUrl(url) {
-    if (url) {
-      localStorage.setItem(STORAGE_KEY_API_URL, url.trim());
-    } else {
-      localStorage.removeItem(STORAGE_KEY_API_URL);
-    }
-  },
+  setBackendUrl() { /* desativado: o endereço do servidor é fixo */ },
 
   // Configurações de E-mails da Coordenação
   getEmailsConfig() {
@@ -802,6 +806,10 @@ const API = {
           ? this.gradeDoServidor(grade)
           : this.mesclarAulasComGoogleSheet(this.getLocalDatabase(), grade);
         if (Array.isArray(data.professores)) this.salvarProfessores(data.professores);
+        if (typeof data.servidor === "string") {
+          if (RX_URL_SERVIDOR.test(data.servidor)) localStorage.setItem("IFS_SERVIDOR_OFICIAL", data.servidor);
+          else if (data.servidor === "") localStorage.removeItem("IFS_SERVIDOR_OFICIAL");
+        }
         if (data.coordenacoes && typeof data.coordenacoes === "object") {
           this.saveEmailsConfig(Object.assign({}, this.getEmailsConfig(), data.coordenacoes));
         }

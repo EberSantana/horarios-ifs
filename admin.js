@@ -6,6 +6,7 @@
 "use strict";
 
 const URL_PADRAO = "https://script.google.com/macros/s/AKfycbwlITC2JrJ3lFYl__oER1B86JFlHpsrjq75BRGD_q-iIhlKIphfdIcQkbIwRMtTjy2kjg/exec";
+const RX_URL_SERVIDOR = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]{20,}\/exec$/;
 const DIAS = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
 const SHEETJS = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
 
@@ -21,7 +22,13 @@ const estado = {
 
 // ---------------------------------------------------------------- utilidades
 function urlServidor() {
-  try { return localStorage.getItem("IFS_BACKEND_URL") || URL_PADRAO; } catch (e) { return URL_PADRAO; }
+  // Fixo em produção; só o ambiente de teste (localhost) aceita outro endereço
+  try {
+    if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && localStorage.getItem("IFS_BACKEND_URL")) return localStorage.getItem("IFS_BACKEND_URL");
+    const oficial = localStorage.getItem("IFS_SERVIDOR_OFICIAL");
+    if (oficial && RX_URL_SERVIDOR.test(oficial)) return oficial;
+  } catch (e) {}
+  return URL_PADRAO;
 }
 function esc(v) {
   return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -77,6 +84,12 @@ async function carregarGrade(forcar) {
   if (!forcar && estado.grade.length && Date.now() - estado.gradeEm < 60000) return estado.grade;
   const r = await fetch(urlServidor() + "?action=obterTudo&t=" + Date.now(), { cache: "no-store" });
   const dados = await r.json();
+  try {
+    if (typeof dados.servidor === "string") {
+      if (RX_URL_SERVIDOR.test(dados.servidor)) localStorage.setItem("IFS_SERVIDOR_OFICIAL", dados.servidor);
+      else if (dados.servidor === "") localStorage.removeItem("IFS_SERVIDOR_OFICIAL");
+    }
+  } catch (e) {}
   const g = dados.grade || dados;
   const lista = [];
   Object.keys(g || {}).forEach((prof) => (g[prof] || []).forEach((a) => lista.push({
@@ -972,6 +985,14 @@ async function telaConfig(main) {
         <div id="cvResultado"></div>
       </section>
     </div>
+    <section class="cartao cartao-pad servidor">
+      <div><h2 class="secao-titulo" style="margin:0 0 4px">Servidor (Google Apps Script)</h2>
+        <p class="mudo pequeno">Os apps dos professores e este painel usam este endereço. Ele não muda quando você publica uma <strong>Nova versão</strong>; só troque aqui se criar uma <strong>Nova implantação</strong> (endereço novo). Os apps passam a usar o novo sozinhos na próxima sincronização — mantenha a implantação antiga ativa por alguns dias.</p></div>
+      <div class="campo"><label for="cfgServidor">Endereço em uso</label>
+        <input id="cfgServidor" class="input" type="url" value="${esc(c.servidorUrl || urlServidor())}" spellcheck="false"></div>
+      <div class="acoes-hist"><button class="btn btn-pequeno" data-acao="testar-servidor">Testar conexão</button>
+        <button class="btn btn-pequeno btn-primario" data-acao="salvar-servidor">Salvar endereço</button><span id="statusServidor" class="pequeno"></span></div>
+    </section>
     <section class="cartao" id="secHistorico"></section>`;
   estado.histArquivo = false;
   desenharHistorico(h);
@@ -1035,6 +1056,33 @@ document.addEventListener("submit", async (ev) => {
     if (c.sucesso) { const res = $("#cvResultado").innerHTML; await telaConfig($("#conteudo")); $("#cvResultado").innerHTML = res; }
   } catch (e) { toast(e.message, true); } finally { b.disabled = false; }
 });
+
+async function testarServidor() {
+  const url = $("#cfgServidor").value.trim(), st = $("#statusServidor");
+  if (!RX_URL_SERVIDOR.test(url)) { st.innerHTML = `<span style="color:var(--falta)">Endereço inválido: use o link do Apps Script que termina em /exec.</span>`; return false; }
+  st.textContent = "Testando…";
+  try {
+    const t0 = Date.now();
+    const d = await (await fetch(url + "?action=obterTudo&t=" + t0, { cache: "no-store" })).json();
+    const n = Object.values(d.grade || {}).reduce((s, l) => s + l.length, 0);
+    st.innerHTML = `<span style="color:var(--ok)">Conectado · ${n} aulas · ${((Date.now() - t0) / 1000).toFixed(1)} s</span>`;
+    return true;
+  } catch (e) { st.innerHTML = `<span style="color:var(--falta)">Não respondeu. Confira se a implantação está ativa e com acesso “Qualquer pessoa”.</span>`; return false; }
+}
+
+async function salvarServidor() {
+  const url = $("#cfgServidor").value.trim();
+  if (url === urlServidor()) { toast("Esse já é o endereço em uso."); return; }
+  if (!(await testarServidor())) return;
+  if (!(await confirmar("Trocar o endereço do servidor?", `Todos os apps passam a usar <strong>${esc(url)}</strong> na próxima sincronização. Deixe a implantação antiga ativa por alguns dias para quem ainda não abriu o app.`, "Trocar"))) return;
+  try {
+    const r = await chamar("admin_servidor_salvar", { url });
+    if (!r.sucesso) throw new Error(r.erro);
+    try { localStorage.setItem("IFS_SERVIDOR_OFICIAL", url); } catch (e) {}
+    toast("Endereço salvo. Os apps vão passar a usá-lo.");
+    recarregarTela();
+  } catch (e) { toast(e.message, true); }
+}
 
 async function removerAdmin(email) {
   if (!(await confirmar("Remover acesso?", `<strong>${esc(email)}</strong> deixa de entrar no painel administrativo (se já estiver dentro, a sessão é encerrada).`, "Remover", true))) return;
@@ -1101,6 +1149,8 @@ document.addEventListener("click", (ev) => {
     case "imprimir-profs": imprimirGrade(false); break;
     case "salvar-config": salvarConfig(); break;
     case "remover-admin": removerAdmin(d.email); break;
+    case "testar-servidor": testarServidor(); break;
+    case "salvar-servidor": salvarServidor(); break;
     case "arquivar-historico": arquivarHistorico(); break;
     case "alternar-historico": alternarHistorico(); break;
     case "sair": sair(false); break;
