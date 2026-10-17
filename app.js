@@ -959,6 +959,12 @@ function renderizarMinhaGrade() {
 // juntando tempos seguidos da mesma turma/disciplina.
 // ----------------------------------------------------------------------------
 let balizadorAulas = [];
+function balizadorOculto() { try { return localStorage.getItem("IFS_BALIZADOR_OCULTO_" + usuarioLogado) === "1"; } catch (e) { return false; } }
+function definirBalizadorOculto(v) { try { localStorage.setItem("IFS_BALIZADOR_OCULTO_" + usuarioLogado, v ? "1" : "0"); } catch (e) {} atualizarBalizador(); }
+document.addEventListener("click", (ev) => {
+  const bt = ev.target.closest && ev.target.closest("[data-balizador]");
+  if (bt) definirBalizadorOculto(bt.getAttribute("data-balizador") === "ocultar");
+});
 function atualizarBalizador(aulas) {
   if (aulas) balizadorAulas = aulas;
   const el = document.getElementById("balizadorAula");
@@ -995,6 +1001,12 @@ function atualizarBalizador(aulas) {
   }
   const b = atual || prox;
   if (!b) { el.style.display = "none"; return; }
+  if (balizadorOculto()) {
+    el.className = "balizador balizador-mini";
+    el.style.display = "block";
+    el.innerHTML = `<button type="button" class="balizador-toggle" data-balizador="mostrar">👁️ Mostrar a hora da minha aula</button>`;
+    return;
+  }
   const tempos = b.tempos > 1 ? b.tempos + " tempos" : "1 tempo";
   let topo, rodape = "", classe = "balizador";
   if (atual) {
@@ -1011,7 +1023,7 @@ function atualizarBalizador(aulas) {
   el.style.display = "block";
   el.innerHTML = `<div class="balizador-topo">${topo}</div>
     <div class="balizador-hora">${hh(b.ini)} – ${hh(b.fim)}</div>
-    <div class="balizador-desc">${escAviso(b.disc)} · ${escAviso(b.turma)} <span>(${tempos})</span></div>${rodape}`;
+    <div class="balizador-desc">${escAviso(b.disc)} · ${escAviso(b.turma)} <span>(${tempos})</span></div>${rodape}<div class="balizador-acoes"><button type="button" class="balizador-toggle" data-balizador="ocultar">🙈 Ocultar</button></div>`;
 }
 setInterval(() => { if (usuarioLogado) atualizarBalizador(); }, 30000);
 

@@ -1965,3 +1965,9 @@ body {
 .balizador-barra { height: 8px; border-radius: 99px; background: rgba(20,83,45,.15); margin-top: 10px; overflow: hidden; }
 .balizador-barra span { display: block; height: 100%; background: #16a34a; border-radius: 99px; }
 .balizador-resto { font-size: .8rem; margin-top: 4px; font-weight: 600; }
+
+.balizador { position: relative; }
+.balizador-toggle { font: inherit; font-size: .78rem; font-weight: 600; background: transparent; color: inherit; border: 1px solid currentColor; border-radius: 99px; padding: 3px 10px; opacity: .7; cursor: pointer; }
+.balizador-toggle:hover { opacity: 1; }
+.balizador-acoes { margin-top: 10px; text-align: right; }
+.balizador-mini { background: transparent; border: 0; padding: 0; margin-bottom: 10px; color: #12315f; }
