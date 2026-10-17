@@ -329,3 +329,7 @@ td.acoes .btn + .btn { margin-left: 6px; }
 .tabela-aulas tr.dia-grupo th { background: var(--papel); color: var(--tinta); font-size: 13px; font-weight: 700; padding: 8px 14px; border-top: 1px solid var(--linha); }
 .tabela-aulas tr.dia-grupo:first-child th { border-top: 0; }
 .tabela-aulas td.acoes { padding-right: 16px; }
+
+.hist-topo { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; padding-bottom: 14px; }
+.hist-topo .secao-titulo + p { margin-top: 2px; }
+.acoes-hist { display: flex; gap: 8px; flex-wrap: wrap; }

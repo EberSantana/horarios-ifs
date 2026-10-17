@@ -643,7 +643,7 @@ function doPost(e) {
   if (dadosAdm && String(dadosAdm.acao || "").indexOf("admin_") === 0) {
     var respAdm = adminRouter_(dadosAdm);
     try { SpreadsheetApp.flush(); } catch (eF2) {}
-    var soLeitura = /^admin_(login|primeiro_acesso|versao_apagar|sair|resumo|versoes|historico|config_ler|importar_previa|emails_listar|emails_acao|prof_listar|config_salvar)$/.test(dadosAdm.acao);
+    var soLeitura = /^admin_(login|primeiro_acesso|versao_apagar|historico_arquivar|sair|resumo|versoes|historico|config_ler|importar_previa|emails_listar|emails_acao|prof_listar|config_salvar)$/.test(dadosAdm.acao);
     if (!soLeitura) invalidarCacheGrade();
     return respAdm;
   }
@@ -1777,7 +1777,8 @@ function adminExecutar_(d, ss, email) {
     case "admin_versoes": return admVersoes_(ss);
     case "admin_restaurar": return admRestaurar_(ss, d, email);
     case "admin_versao_apagar": return admVersaoApagar_(ss, d, email);
-    case "admin_historico": return admHistorico_(ss);
+    case "admin_historico": return admHistorico_(ss, d);
+    case "admin_historico_arquivar": return admHistoricoArquivar_(ss, email);
     case "admin_config_ler": return { sucesso: true, config: lerConfigEmails_(), admins: Object.keys(lerAdmins_()) };
     case "admin_config_salvar": return admConfigSalvar_(d);
   }
@@ -2151,11 +2152,34 @@ function admVersaoApagar_(ss, d, admin) {
 }
 
 // ---------- histórico e configurações ----------
-function admHistorico_(ss) {
+var CAB_HIST = ["Data/Hora Registro", "Tipo de Ação", "Professor Titular", "Professor Substituto", "Disciplina", "Turma", "Horário", "Data da Aula"];
+function lerHist_(ss, nome) {
+  var sh = ss.getSheetByName(nome);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 8).getValues().filter(function (r) { return r[0] || r[1]; })
+    .map(function (r) { var d = new Date(r[0]); r[0] = isNaN(d) ? String(r[0]) : Utilities.formatDate(d, Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm"); return r; });
+}
+// d.arquivo: lista o arquivo; d.incluirArquivo: atual + arquivo (para exportar)
+function admHistorico_(ss, d) {
+  d = d || {};
+  var atual = lerHist_(ss, "Historico"), arq = lerHist_(ss, "Historico_Arquivo");
+  var linhas = d.arquivo ? arq : d.incluirArquivo ? arq.concat(atual) : atual;
+  return { sucesso: true, cabecalho: ["Data/Hora", "Tipo", "Titular", "Substituto", "Disciplina", "Turma", "Horário", "Data da aula"],
+           linhas: linhas.reverse(), totalAtual: atual.length, totalArquivo: arq.length };
+}
+
+// Move os registros do Histórico para a aba Historico_Arquivo (nada é apagado)
+function admHistoricoArquivar_(ss, admin) {
   var sh = ss.getSheetByName("Historico");
-  if (!sh || sh.getLastRow() < 2) return { sucesso: true, linhas: [] };
-  var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 8).getValues().map(function (r) { r[0] = Utilities.formatDate(new Date(r[0]), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm"); return r; });
-  return { sucesso: true, cabecalho: ["Data/Hora", "Tipo", "Titular", "Substituto", "Disciplina", "Turma", "Horário", "Data da aula"], linhas: rows.reverse() };
+  if (!sh || sh.getLastRow() < 2) return { sucesso: true, arquivados: 0 };
+  var n = sh.getLastRow() - 1;
+  var valores = sh.getRange(2, 1, n, 8).getValues();
+  var arq = obterOuCriarAba(ss, "Historico_Arquivo", CAB_HIST.concat(["Arquivado em", "Arquivado por"]));
+  var agora = new Date();
+  var linhas = valores.map(function (r) { return r.concat([agora, admin]); });
+  arq.getRange(arq.getLastRow() + 1, 1, linhas.length, 10).setValues(linhas);
+  sh.deleteRows(2, n);
+  return { sucesso: true, arquivados: n };
 }
 
 function admConfigSalvar_(d) {

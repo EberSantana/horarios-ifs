@@ -879,7 +879,7 @@ async function baixarModelo() {
 
 async function exportarHistorico() {
   try {
-    const r = await chamar("admin_historico");
+    const r = await chamar("admin_historico", { incluirArquivo: true });
     if (!r.sucesso) throw new Error(r.erro);
     baixarArquivo(`Historico_Faltas_Substituicoes_${hojeArquivo()}.csv`, csv([r.cabecalho, ...r.linhas]), "text/csv;charset=utf-8");
   } catch (e) { toast(e.message, true); }
@@ -961,10 +961,51 @@ async function telaConfig(main) {
         <p class="mudo pequeno" style="margin:0">Para incluir alguém ou trocar senha: no Apps Script, execute <strong>gerarCodigoAdministrador</strong> e use “Primeiro acesso ou esqueci a senha” na tela de entrada. Só quem edita o Apps Script vê o código.</p>
       </section>
     </div>
-    <section class="cartao"><div class="cartao-pad" style="padding-bottom:0"><h2 class="secao-titulo">Histórico recente</h2></div>
-      <div class="tabela-rolagem">${hist.length ? `<table><thead><tr>${h.cabecalho.slice(0, 7).map((x) => `<th>${esc(x)}</th>`).join("")}</tr></thead><tbody>
-        ${hist.map((l) => `<tr>${l.slice(0, 7).map((v) => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>` : `<div class="vazio">Sem registros.</div>`}</div>
-    </section>`;
+    <section class="cartao" id="secHistorico"></section>`;
+  estado.histArquivo = false;
+  desenharHistorico(h);
+}
+
+function desenharHistorico(h) {
+  const sec = $("#secHistorico");
+  if (!sec) return;
+  const arquivo = estado.histArquivo;
+  const linhas = (h.linhas || []).slice(0, 200);
+  sec.innerHTML = `<div class="cartao-pad hist-topo">
+      <div><h2 class="secao-titulo" style="margin:0">${arquivo ? "Histórico arquivado" : "Histórico recente"}</h2>
+        <p class="mudo pequeno">${arquivo ? `${h.totalArquivo} registro${h.totalArquivo === 1 ? "" : "s"} guardado${h.totalArquivo === 1 ? "" : "s"} na aba Historico_Arquivo da planilha`
+          : `${h.totalAtual} registro${h.totalAtual === 1 ? "" : "s"} · arquivar guarda tudo na aba Historico_Arquivo e limpa esta lista`}</p></div>
+      <div class="acoes-hist">
+        ${!arquivo && h.totalAtual ? `<button class="btn btn-pequeno" data-acao="arquivar-historico">Arquivar histórico</button>` : ""}
+        ${h.totalArquivo || arquivo ? `<button class="btn btn-pequeno" data-acao="alternar-historico">${arquivo ? "Voltar ao recente" : `Ver arquivados (${h.totalArquivo})`}</button>` : ""}
+      </div></div>
+    <div class="tabela-rolagem">${linhas.length ? `<table><thead><tr>${h.cabecalho.slice(0, 7).map((x) => `<th>${esc(x)}</th>`).join("")}</tr></thead><tbody>
+      ${linhas.map((l) => `<tr>${l.slice(0, 7).map((v) => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>
+      ${h.linhas.length > 200 ? `<div class="paginacao"><span>Mostrando os 200 mais recentes de ${h.linhas.length}. A lista completa sai em Importar / Exportar → Faltas e substituições.</span></div>` : ""}`
+      : `<div class="vazio">${arquivo ? "Nada arquivado ainda." : "Nenhum registro novo. Os anteriores estão em “Ver arquivados”."}</div>`}</div>`;
+}
+
+async function alternarHistorico() {
+  estado.histArquivo = !estado.histArquivo;
+  const arquivo = estado.histArquivo;
+  $("#secHistorico").innerHTML = carregando();
+  try {
+    const h = await chamar("admin_historico", { arquivo });
+    if (!h.sucesso) throw new Error(h.erro);
+    estado.histArquivo = arquivo; desenharHistorico(h);
+  } catch (e) { toast(e.message, true); }
+}
+
+async function arquivarHistorico() {
+  if (!(await confirmar("Arquivar histórico?", "Os registros saem desta lista e ficam guardados na aba <strong>Historico_Arquivo</strong> da planilha. Nada é apagado e dá para consultar em “Ver arquivados”.", "Arquivar"))) return;
+  try {
+    const r = await chamar("admin_historico_arquivar");
+    if (!r.sucesso) throw new Error(r.erro);
+    toast(`${r.arquivados} registro${r.arquivados === 1 ? "" : "s"} arquivado${r.arquivados === 1 ? "" : "s"}.`);
+    estado.histArquivo = false;
+    const h = await chamar("admin_historico");
+    desenharHistorico(h);
+  } catch (e) { toast(e.message, true); }
 }
 
 async function salvarConfig() {
@@ -1022,6 +1063,8 @@ document.addEventListener("click", (ev) => {
     case "imprimir-turmas": imprimirGrade(true); break;
     case "imprimir-profs": imprimirGrade(false); break;
     case "salvar-config": salvarConfig(); break;
+    case "arquivar-historico": arquivarHistorico(); break;
+    case "alternar-historico": alternarHistorico(); break;
     case "sair": sair(false); break;
   }
 });
