@@ -504,9 +504,14 @@ function abrirModalEsqueciPin() {
     mostrarErroLogin("Por favor, selecione primeiro o seu nome na lista para recuperar o PIN.");
     return;
   }
-  const email = `${prof.toLowerCase().replace(/\s+/g, '.')}@ifs.edu.br`;
-  document.getElementById("modalEsqueciPinDesc").innerText = 
-    `Professor(a): ${prof} • E-mail Institucional: ${email}`;
+  // Não "chutamos" mais o e-mail a partir do nome (ex.: "eber@ifs.edu.br") — isso
+  // ficava errado sempre que o e-mail real cadastrado não seguia esse padrão
+  // (ex.: "eber.santana@ifs.edu.br"). O app também não tem acesso à lista real de
+  // e-mails (de propósito, por privacidade — ver listaProfessoresPublica_ no
+  // Code.gs), então o texto fica genérico; o e-mail de verdade, lido da planilha,
+  // é usado no servidor na hora de enviar.
+  document.getElementById("modalEsqueciPinDesc").innerText =
+    `Professor(a): ${prof} • O aviso será enviado para o e-mail institucional já cadastrado no sistema.`;
   abrirModal("modalEsqueciPin");
 }
 
