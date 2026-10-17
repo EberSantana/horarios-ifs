@@ -1971,3 +1971,5 @@ body {
 .balizador-toggle:hover { opacity: 1; }
 .balizador-acoes { margin-top: 10px; text-align: right; }
 .balizador-mini { background: transparent; border: 0; padding: 0; margin-bottom: 10px; color: #12315f; }
+.balizador-toggle { display: inline-flex; align-items: center; gap: 6px; }
+.balizador-toggle .ico-olho { flex: none; }

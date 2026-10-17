@@ -958,6 +958,8 @@ function renderizarMinhaGrade() {
 // BALIZADOR: mostra a aula de agora (ou a próxima) como um bloco único,
 // juntando tempos seguidos da mesma turma/disciplina.
 // ----------------------------------------------------------------------------
+const ICO_OLHO = '<svg class="ico-olho" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const ICO_OLHO_OFF = '<svg class="ico-olho" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></svg>';
 let balizadorAulas = [];
 function balizadorOculto() { try { return localStorage.getItem("IFS_BALIZADOR_OCULTO_" + usuarioLogado) === "1"; } catch (e) { return false; } }
 function definirBalizadorOculto(v) { try { localStorage.setItem("IFS_BALIZADOR_OCULTO_" + usuarioLogado, v ? "1" : "0"); } catch (e) {} atualizarBalizador(); }
@@ -1004,7 +1006,7 @@ function atualizarBalizador(aulas) {
   if (balizadorOculto()) {
     el.className = "balizador balizador-mini";
     el.style.display = "block";
-    el.innerHTML = `<button type="button" class="balizador-toggle" data-balizador="mostrar">👁️ Mostrar a hora da minha aula</button>`;
+    el.innerHTML = `<button type="button" class="balizador-toggle" data-balizador="mostrar">${ICO_OLHO}<span>Mostrar a hora da minha aula</span></button>`;
     return;
   }
   const tempos = b.tempos > 1 ? b.tempos + " tempos" : "1 tempo";
@@ -1023,7 +1025,7 @@ function atualizarBalizador(aulas) {
   el.style.display = "block";
   el.innerHTML = `<div class="balizador-topo">${topo}</div>
     <div class="balizador-hora">${hh(b.ini)} – ${hh(b.fim)}</div>
-    <div class="balizador-desc">${escAviso(b.disc)} · ${escAviso(b.turma)} <span>(${tempos})</span></div>${rodape}<div class="balizador-acoes"><button type="button" class="balizador-toggle" data-balizador="ocultar">🙈 Ocultar</button></div>`;
+    <div class="balizador-desc">${escAviso(b.disc)} · ${escAviso(b.turma)} <span>(${tempos})</span></div>${rodape}<div class="balizador-acoes"><button type="button" class="balizador-toggle" data-balizador="ocultar">${ICO_OLHO_OFF}<span>Ocultar</span></button></div>`;
 }
 setInterval(() => { if (usuarioLogado) atualizarBalizador(); }, 30000);
 
