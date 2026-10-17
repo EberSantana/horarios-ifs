@@ -23,7 +23,7 @@ var CONFIG_PADRAO = {
   EMAIL_COORD_ADM: "coordenacao.adm.tb@ifs.edu.br",
   EMAIL_COORD_SUBSEQUENTE: "coinf.tbarreto@ifs.edu.br",
   EMAIL_COORD_GERAL: "coordenacao.tobiasbarreto@ifs.edu.br",
-  EMAIL_COORD_GRADUACAO: "", // COBAD (Bacharelado em Administração): defina no painel admin → Configurações
+  EMAIL_COORD_GRADUACAO: "cobad.ctb@ifs.edu.br", // COBAD — Bacharelado em Administração
   EMAIL_DIRECAO: "direcao.tobiasbarreto@ifs.edu.br",
   DOMINIO_INSTITUCIONAL: "@ifs.edu.br",
   NOME_INSTITUICAO: "IFS Campus Tobias Barreto",
@@ -75,6 +75,8 @@ var EMAILS_DOCENTES = {
   "Vinicius": "vinicius.canhoto@ifs.edu.br",
   "Vitor": "vitor.almeida@ifs.edu.br",
   "Weder": "weder.almeida@ifs.edu.br",
+  "Claifton": "claifton.carmo@ifs.edu.br",
+  "Érica Delfino": "erica.maria@ifs.edu.br",
   "Welkson": "welkson.nascimento@ifs.edu.br"
 };
 
@@ -1093,8 +1095,8 @@ function sincronizarProfessores(ss) {
 
   var listaProfs = [
     ["Eber", "eber.santana@ifs.edu.br", "Desenvolvimento de Sistemas / Subsequente", "1234"],
-    ["Claifton", "", "Bacharelado em Administração", "1234"],
-    ["Érica Delfino", "", "Bacharelado em Administração", "1234"],
+    ["Claifton", "claifton.carmo@ifs.edu.br", "Bacharelado em Administração", "1234"],
+    ["Érica Delfino", "erica.maria@ifs.edu.br", "Bacharelado em Administração", "1234"],
     ["Adriano", "adriano.vilela@ifs.edu.br", "Administração", "1234"],
     ["Alex", "alexmar.santos@ifs.edu.br", "Administração", "1234"],
     ["Alyrio", "alyrio.neto@ifs.edu.br", "Administração", "1234"],

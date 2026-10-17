@@ -386,6 +386,8 @@ const EMAILS_DOCENTES_IFS = {
   "Vinicius": "vinicius.canhoto@ifs.edu.br",
   "Vitor": "vitor.almeida@ifs.edu.br",
   "Weder": "weder.almeida@ifs.edu.br",
+  "Claifton": "claifton.carmo@ifs.edu.br",
+  "Érica Delfino": "erica.maria@ifs.edu.br",
   "Welkson": "welkson.nascimento@ifs.edu.br"
 };
 
@@ -472,7 +474,7 @@ const API = {
     const t = (turma || "").toUpperCase();
 
     if (t.includes("GRADUA")) {
-      dests.push(config.emailCoordGraduacao || config.emailCoordADM || "coordenacao.adm.tb@ifs.edu.br");
+      dests.push(config.emailCoordGraduacao || "cobad.ctb@ifs.edu.br");
     } else if (t.includes("SUBSEQUENTE") || t.includes("INFO")) {
       if (config.emailCoordSubsequente) dests.push(config.emailCoordSubsequente);
     } else if (t.includes("DS")) {
