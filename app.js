@@ -958,19 +958,15 @@ function renderizarMinhaGrade() {
 // BALIZADOR: mostra a aula de agora (ou a próxima) como um bloco único,
 // juntando tempos seguidos da mesma turma/disciplina.
 // ----------------------------------------------------------------------------
-const ICO_OLHO = '<svg class="ico-olho" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
-const ICO_OLHO_OFF = '<svg class="ico-olho" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></svg>';
 let balizadorAulas = [];
-function balizadorOculto() { try { return localStorage.getItem("IFS_BALIZADOR_OCULTO_" + usuarioLogado) === "1"; } catch (e) { return false; } }
-function definirBalizadorOculto(v) { try { localStorage.setItem("IFS_BALIZADOR_OCULTO_" + usuarioLogado, v ? "1" : "0"); } catch (e) {} atualizarBalizador(); }
-document.addEventListener("click", (ev) => {
-  const bt = ev.target.closest && ev.target.closest("[data-balizador]");
-  if (bt) definirBalizadorOculto(bt.getAttribute("data-balizador") === "ocultar");
-});
+// opcional: desligado por padrão, escolha guardada por professor neste aparelho
+function balizadorAtivo() { try { return localStorage.getItem("IFS_BALIZADOR_" + usuarioLogado) === "1"; } catch (e) { return false; } }
+function definirBalizadorAtivo(v) { try { localStorage.setItem("IFS_BALIZADOR_" + usuarioLogado, v ? "1" : "0"); } catch (e) {} atualizarBalizador(); }
 function atualizarBalizador(aulas) {
   if (aulas) balizadorAulas = aulas;
   const el = document.getElementById("balizadorAula");
   if (!el) return;
+  if (!balizadorAtivo()) { el.style.display = "none"; el.innerHTML = ""; return; }
   const dias = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
   const faixa = (h) => { const m = String(h || "").match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/); return m ? [(+m[1]) * 60 + (+m[2]), (+m[3]) * 60 + (+m[4])] : null; };
   const hh = (min) => String(Math.floor(min / 60)).padStart(2, "0") + ":" + String(min % 60).padStart(2, "0");
@@ -1003,12 +999,6 @@ function atualizarBalizador(aulas) {
   }
   const b = atual || prox;
   if (!b) { el.style.display = "none"; return; }
-  if (balizadorOculto()) {
-    el.className = "balizador balizador-mini";
-    el.style.display = "block";
-    el.innerHTML = `<button type="button" class="balizador-toggle" data-balizador="mostrar">${ICO_OLHO}<span>Mostrar a hora da minha aula</span></button>`;
-    return;
-  }
   const tempos = b.tempos > 1 ? b.tempos + " tempos" : "1 tempo";
   let topo, rodape = "", classe = "balizador";
   if (atual) {
@@ -1025,7 +1015,7 @@ function atualizarBalizador(aulas) {
   el.style.display = "block";
   el.innerHTML = `<div class="balizador-topo">${topo}</div>
     <div class="balizador-hora">${hh(b.ini)} – ${hh(b.fim)}</div>
-    <div class="balizador-desc">${escAviso(b.disc)} · ${escAviso(b.turma)} <span>(${tempos})</span></div>${rodape}<div class="balizador-acoes"><button type="button" class="balizador-toggle" data-balizador="ocultar">${ICO_OLHO_OFF}<span>Ocultar</span></button></div>`;
+    <div class="balizador-desc">${escAviso(b.disc)} · ${escAviso(b.turma)} <span>(${tempos})</span></div>${rodape}`;
 }
 setInterval(() => { if (usuarioLogado) atualizarBalizador(); }, 30000);
 
@@ -2401,6 +2391,8 @@ function abrirModalConfig() {
   const lista = document.getElementById("listaDestinosAvisos");
   if (lista) lista.innerHTML = destinos.map(([rotulo, email]) =>
     `<div><dt>${escAviso(rotulo)}</dt><dd>${escAviso(email)}</dd></div>`).join("");
+  const chk = document.getElementById("chkBalizador");
+  if (chk) { chk.checked = balizadorAtivo(); chk.onchange = () => definirBalizadorAtivo(chk.checked); }
   abrirModal("modalConfig");
 }
 

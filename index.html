@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconLink" type="image/png" href="./icons/icon-192.png">
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=4.39">
+  <link rel="stylesheet" href="./styles.css?v=4.40">
 </head>
 <body>
 
@@ -634,7 +634,16 @@
       <button type="button" class="btn-close-modal">&times;</button>
     </div>
     <div class="modal-body">
-      
+
+      <h4 style="font-size: 14px; margin-bottom: 6px; color: var(--primary-dark);">🕒 Exibição</h4>
+      <label class="switch-linha" for="chkBalizador">
+        <span class="switch-texto"><strong>Mostrar a hora da minha aula</strong><small>Quadro no topo de Minha Grade com a aula em andamento ou a próxima.</small></span>
+        <input type="checkbox" id="chkBalizador" class="switch-input" role="switch">
+        <span class="switch-trilho" aria-hidden="true"></span>
+      </label>
+
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 16px 0;">
+
       <h4 style="font-size: 14px; margin-bottom: 6px; color: var(--primary-dark);">📧 Para onde vão os avisos</h4>
       <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.4;">
         Faltas, substituições, trocas e reposições geram e-mail automático para você, para a coordenação do curso da turma e para a coordenação geral.
@@ -725,8 +734,8 @@
 <!-- Toast de Notificações -->
 <div id="toast">Notificação</div>
 
-<script src="./api.js?v=4.39"></script>
-<script src="./app.js?v=4.39"></script>
+<script src="./api.js?v=4.40"></script>
+<script src="./app.js?v=4.40"></script>
 
 </body>
 </html>
