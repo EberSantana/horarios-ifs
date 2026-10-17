@@ -205,8 +205,11 @@ td.acoes .btn + .btn { margin-left: 6px; }
 .versoes td { padding: 9px 0; }
 .versoes td + td { padding-left: 12px; }
 .versoes td.acoes { text-align: right; }
-.versoes .quando { font-weight: 600; }
-.versoes .aulas { color: var(--grafite); font-size: 13px; }
+.versoes .quando { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.versoes .aulas { color: var(--grafite); font-size: 13px; cursor: default; }
+.btn-restaurar { color: var(--mata); border-color: var(--mata-claro); background: var(--mata-claro); gap: 6px; }
+.btn-restaurar:hover { background: #dfeae3; border-color: var(--mata); }
+.btn-restaurar svg { width: 14px; height: 14px; }
 .btn-icone { min-height: 30px; width: 30px; padding: 0; }
 .btn-icone svg { width: 16px; height: 16px; }
 

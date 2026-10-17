@@ -51,6 +51,28 @@ function nomeBackup(n) {
   const m = String(n).match(/(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})(?:_(\d+))?/);
   return m ? `${m[3]}/${m[2]}/${m[1]} · ${m[4]}:${m[5]}${m[6] ? " (" + m[6] + ")" : ""}` : n;
 }
+function dataDoBackup(n) {
+  const m = String(n).match(/(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null;
+}
+// Tempo relativo ("Hoje às 14:32", "Ontem às...", "Há 3 dias") para a lista de
+// versões — mais fácil de bater o olho do que uma data absoluta. A data exata
+// continua disponível no title (tooltip) e nos diálogos de confirmação.
+function tempoRelativo(n) {
+  const d = dataDoBackup(n);
+  if (!d || isNaN(d)) return nomeBackup(n);
+  const agora = new Date();
+  const diffMin = Math.round((agora - d) / 60000);
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  if (diffMin < 1) return "Agora mesmo";
+  if (diffMin < 60) return `Há ${diffMin} min`;
+  if (d.toDateString() === agora.toDateString()) return `Hoje às ${hora}`;
+  const ontem = new Date(agora); ontem.setDate(ontem.getDate() - 1);
+  if (d.toDateString() === ontem.toDateString()) return `Ontem às ${hora}`;
+  const diffDias = Math.round((agora - d) / 86400000);
+  if (diffDias < 7) return `Há ${diffDias} dias`;
+  return nomeBackup(n);
+}
 function hojeArquivo() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
 
 let timerToast = null;
@@ -887,10 +909,15 @@ async function telaArquivos(main) {
         </div>
         <div id="areaImport">${pv ? htmlPrevia(pv) : htmlZonaArquivo()}</div>
       </section>
-        <section class="cartao cartao-pad" style="margin-top:20px"><h2 class="secao-titulo">Versões anteriores</h2><p class="mudo pequeno" style="margin:-8px 0 10px">Cópias guardadas antes de cada mudança na grade.</p>
-          ${versoes.length ? `<table class="versoes"><tbody>${versoes.map((x) => `<tr>
-            <td><div class="quando">${esc(nomeBackup(x.nome))}</div><div class="aulas">${x.aulas} aulas</div></td>
-            <td class="acoes"><button class="btn btn-pequeno" data-acao="restaurar" data-nome="${esc(x.nome)}">Restaurar</button>
+        <section class="cartao cartao-pad" style="margin-top:20px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <h2 class="secao-titulo">Versões anteriores</h2>
+            ${versoes.length ? `<span class="mudo pequeno">${versoes.length} guardada${versoes.length === 1 ? "" : "s"}</span>` : ""}
+          </div>
+          <p class="mudo pequeno" style="margin:-8px 0 10px">Cópias guardadas antes de cada mudança na grade.</p>
+          ${versoes.length ? `<table class="versoes"><tbody>${versoes.map((x, i) => `<tr>
+            <td><div class="quando">${esc(tempoRelativo(x.nome))}${i === 0 ? ` <span class="etiqueta et-verde">Mais recente</span>` : ""}</div><div class="aulas" title="${esc(nomeBackup(x.nome))}">${x.aulas} aulas</div></td>
+            <td class="acoes"><button class="btn btn-pequeno btn-restaurar" data-acao="restaurar" data-nome="${esc(x.nome)}" title="Restaurar a grade para essa cópia (${esc(nomeBackup(x.nome))})"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg>Restaurar</button>
             <button class="btn btn-pequeno btn-perigo btn-icone" data-acao="apagar-versao" data-nome="${esc(x.nome)}" title="Apagar esta cópia" aria-label="Apagar a cópia de ${esc(nomeBackup(x.nome))}"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg></button></td></tr>`).join("")}</tbody></table>
             ${versoes.length > 3 ? `<button class="btn-link" style="margin-top:12px" data-acao="limpar-versoes">Apagar as antigas e manter as 3 mais recentes</button>` : ""}`
             : `<p class="mudo pequeno">Nenhuma ainda. Cada importação guarda uma cópia antes de mudar a grade.</p>`}
