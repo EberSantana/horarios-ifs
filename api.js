@@ -29,6 +29,7 @@ const DEFAULT_EMAILS_CONFIG = {
   emailCoordSubsequente: "coinf.tbarreto@ifs.edu.br",
   emailCoordGeral: "coordenacao.tobiasbarreto@ifs.edu.br",
   emailDirecao: "direcao.tobiasbarreto@ifs.edu.br",
+  emailCoordGraduacao: "cobad.ctb@ifs.edu.br",
   notificarFalta: true,
   notificarTroca: true,
   notificarReposicao: true,
@@ -801,6 +802,9 @@ const API = {
           ? this.gradeDoServidor(grade)
           : this.mesclarAulasComGoogleSheet(this.getLocalDatabase(), grade);
         if (Array.isArray(data.professores)) this.salvarProfessores(data.professores);
+        if (data.coordenacoes && typeof data.coordenacoes === "object") {
+          this.saveEmailsConfig(Object.assign({}, this.getEmailsConfig(), data.coordenacoes));
+        }
         this.saveLocalDatabase(gradeMesclada);
 
         if (data.grade && Array.isArray(data.trocas)) {

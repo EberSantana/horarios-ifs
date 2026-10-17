@@ -2291,40 +2291,26 @@ function cancelarReposicao(id) {
 // ============================================================================
 function abrirModalConfig() {
   const config = API.getEmailsConfig();
-  document.getElementById("configEmailCoordDS").value = config.emailCoordDS || "";
-  document.getElementById("configEmailCoordADM").value = config.emailCoordADM || "";
-  document.getElementById("configEmailCoordSubsequente").value = config.emailCoordSubsequente || "coinf.tbarreto@ifs.edu.br";
-  document.getElementById("configEmailCoordGeral").value = config.emailCoordGeral || "";
-  document.getElementById("configEmailDir").value = config.emailDirecao || "";
-  document.getElementById("chkNotifFalta").checked = !!config.notificarFalta;
-  document.getElementById("chkNotifTroca").checked = !!config.notificarTroca;
-  document.getElementById("chkNotifReposicao").checked = !!config.notificarReposicao;
-  document.getElementById("chkNotifSubs").checked = !!config.notificarSubstituicao;
+  const destinos = [
+    ["Desenvolvimento de Sistemas (DS)", config.emailCoordDS],
+    ["Administração (ADM)", config.emailCoordADM],
+    ["Subsequente em Informática", config.emailCoordSubsequente],
+    ["Bacharelado em Administração", config.emailCoordGraduacao],
+    ["Coordenação geral (todos os avisos)", config.emailCoordGeral]
+  ].filter(([, e]) => e);
+  const lista = document.getElementById("listaDestinosAvisos");
+  if (lista) lista.innerHTML = destinos.map(([rotulo, email]) =>
+    `<div><dt>${escAviso(rotulo)}</dt><dd>${escAviso(email)}</dd></div>`).join("");
   document.getElementById("configBackendUrl").value = API.getBackendUrl();
-
   abrirModal("modalConfig");
 }
 
 function salvarConfiguracoes() {
-  const url = document.getElementById("configBackendUrl").value;
-  API.setBackendUrl(url);
-
-  const novaConfig = {
-    emailCoordDS: document.getElementById("configEmailCoordDS").value.trim() || "coordenacao.ds.tb@ifs.edu.br",
-    emailCoordADM: document.getElementById("configEmailCoordADM").value.trim() || "coordenacao.adm.tb@ifs.edu.br",
-    emailCoordSubsequente: document.getElementById("configEmailCoordSubsequente").value.trim() || "coinf.tbarreto@ifs.edu.br",
-    emailCoordGeral: document.getElementById("configEmailCoordGeral").value.trim() || "coordenacao.tobiasbarreto@ifs.edu.br",
-    emailDirecao: document.getElementById("configEmailDir").value.trim() || "direcao.tobiasbarreto@ifs.edu.br",
-    notificarFalta: document.getElementById("chkNotifFalta").checked,
-    notificarTroca: document.getElementById("chkNotifTroca").checked,
-    notificarReposicao: document.getElementById("chkNotifReposicao").checked,
-    notificarSubstituicao: document.getElementById("chkNotifSubs").checked
-  };
-
-  API.saveEmailsConfig(novaConfig);
+  // Só a URL do servidor é configurável aqui; os destinatários vêm do servidor
+  API.setBackendUrl(document.getElementById("configBackendUrl").value);
   fecharTodosModais();
   recarregarDados();
-  mostrarToast("Configurações e e-mails salvos com sucesso!");
+  mostrarToast("Configurações salvas.");
 }
 
 function salvarNovoPin() {

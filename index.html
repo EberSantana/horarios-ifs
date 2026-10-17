@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconLink" type="image/png" href="./icons/icon-192.png">
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=4.33">
+  <link rel="stylesheet" href="./styles.css?v=4.34">
 </head>
 <body>
 
@@ -634,50 +634,12 @@
     </div>
     <div class="modal-body">
       
-      <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--primary-dark);">📧 Coordenadores por Curso (IFS Tobias Barreto):</h4>
-      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
-        O sistema envia notificações automaticamente para o coordenador específico do curso da aula afetada (turmas DS, ADM ou Subsequente em Informática) mais a coordenação pedagógica.
+      <h4 style="font-size: 14px; margin-bottom: 6px; color: var(--primary-dark);">📧 Para onde vão os avisos</h4>
+      <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.4;">
+        Faltas, substituições, trocas e reposições geram e-mail automático para você, para a coordenação do curso da turma e para a coordenação geral.
+        Os endereços são definidos pela coordenação no painel administrativo.
       </p>
-      
-      <div class="form-group">
-        <label class="form-label" for="configEmailCoordDS">E-mail Coordenação de Desenvolvimento de Sistemas (DS):</label>
-        <input type="email" id="configEmailCoordDS" class="custom-input" placeholder="coordenacao.ds.tb@ifs.edu.br">
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="configEmailCoordADM">E-mail Coordenação de Administração (ADM):</label>
-        <input type="email" id="configEmailCoordADM" class="custom-input" placeholder="coordenacao.adm.tb@ifs.edu.br">
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="configEmailCoordSubsequente">E-mail Coordenação do Subsequente em Informática (COINF):</label>
-        <input type="email" id="configEmailCoordSubsequente" class="custom-input" placeholder="coinf.tbarreto@ifs.edu.br">
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="configEmailCoordGeral">E-mail Coordenação Pedagógica Geral (DEN):</label>
-        <input type="email" id="configEmailCoordGeral" class="custom-input" placeholder="coordenacao.tobiasbarreto@ifs.edu.br">
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="configEmailDir">E-mail Direção de Ensino (Opcional):</label>
-        <input type="email" id="configEmailDir" class="custom-input" placeholder="direcao.tobiasbarreto@ifs.edu.br">
-      </div>
-
-      <div style="background: #f9f9f9; padding: 10px 12px; border-radius: 8px; margin-bottom: 14px;">
-        <label class="checkbox-label" style="margin-bottom: 6px;">
-          <input type="checkbox" id="chkNotifFalta" checked>
-          <span>Disparar e-mail ao liberar ausência/falta</span>
-        </label>
-        <label class="checkbox-label" style="margin-bottom: 6px;">
-          <input type="checkbox" id="chkNotifTroca" checked>
-          <span>Disparar e-mail em propostas e aceites de permuta</span>
-        </label>
-        <label class="checkbox-label" style="margin-bottom: 6px;">
-          <input type="checkbox" id="chkNotifReposicao" checked>
-          <span>Disparar e-mail ao agendar reposição de aula</span>
-        </label>
-        <label class="checkbox-label">
-          <input type="checkbox" id="chkNotifSubs" checked>
-          <span>Disparar e-mail ao assumir substituição</span>
-        </label>
-      </div>
+      <dl id="listaDestinosAvisos" class="destinos-avisos"></dl>
 
       <hr style="border: 0; border-top: 1px solid #eee; margin: 16px 0;">
 
@@ -723,7 +685,7 @@
     </div>
     <div class="modal-actions">
       <button type="button" class="btn-secondary btn-cancelar-modal">Fechar</button>
-      <button type="button" id="btnSalvarConfig" class="btn-primary" style="flex:1;">Salvar Configurações</button>
+      <button type="button" id="btnSalvarConfig" class="btn-primary" style="flex:1;">Salvar</button>
     </div>
   </div>
 </div>
@@ -770,8 +732,8 @@
 <!-- Toast de Notificações -->
 <div id="toast">Notificação</div>
 
-<script src="./api.js?v=4.33"></script>
-<script src="./app.js?v=4.33"></script>
+<script src="./api.js?v=4.34"></script>
+<script src="./app.js?v=4.34"></script>
 
 </body>
 </html>

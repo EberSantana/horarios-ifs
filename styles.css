@@ -1947,3 +1947,10 @@ body {
 }
 
 
+
+/* Destinatários dos avisos (somente leitura, definidos no painel administrativo) */
+.destinos-avisos { margin: 0 0 16px; border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; }
+.destinos-avisos > div { display: flex; flex-direction: column; gap: 1px; padding: 8px 12px; background: #fafbfa; }
+.destinos-avisos > div + div { border-top: 1px solid var(--border-color); }
+.destinos-avisos dt { font-size: 11.5px; color: var(--text-secondary); }
+.destinos-avisos dd { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-main); word-break: break-all; }

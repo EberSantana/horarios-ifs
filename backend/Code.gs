@@ -616,6 +616,7 @@ function doGet(e) {
         trocas: lerObjetosJSON_(ss, "Trocas_Permutas"),
         reposicoes: lerObjetosJSON_(ss, "Reposicoes"),
         professores: listaProfessoresPublica_(ss),
+        coordenacoes: lerConfigEmails_(),
         geradoEm: new Date().getTime()
       };
     } else {
@@ -1370,6 +1371,7 @@ function manterAquecido() {
       trocas: lerObjetosJSON_(ss, "Trocas_Permutas"),
       reposicoes: lerObjetosJSON_(ss, "Reposicoes"),
       professores: listaProfessoresPublica_(ss),
+        coordenacoes: lerConfigEmails_(),
       geradoEm: new Date().getTime()
     };
     try { cache.put("BANCO_TUDO_IFS_V2", JSON.stringify(resposta), 21600); } catch (e) {}
