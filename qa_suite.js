@@ -7,14 +7,20 @@ const fs = require('fs');
 const path = require('path');
 
 // Mock Browser Environment
-const localStorageData = {};
-global.localStorage = {
-  getItem: (key) => localStorageData[key] || null,
-  setItem: (key, val) => { localStorageData[key] = String(val); },
-  removeItem: (key) => { delete localStorageData[key]; },
-  clear: () => { Object.keys(localStorageData).forEach(k => delete localStorageData[k]); }
-};
-global.sessionStorage = { ...global.localStorage };
+// localStorage e sessionStorage precisam de armazenamentos SEPARADOS — no navegador real
+// eles são independentes, e um teste que confere "ficou só num dos dois" não serve de
+// nada se o mock, por baixo, os fizer compartilhar os mesmos dados.
+function criarStorageMock() {
+  const dados = {};
+  return {
+    getItem: (key) => (key in dados ? dados[key] : null),
+    setItem: (key, val) => { dados[key] = String(val); },
+    removeItem: (key) => { delete dados[key]; },
+    clear: () => { Object.keys(dados).forEach(k => delete dados[k]); }
+  };
+}
+global.localStorage = criarStorageMock();
+global.sessionStorage = criarStorageMock();
 global.window = global;
 global.fetch = async (url, opts) => ({ ok: true, json: async () => ({ sucesso: true }) });
 global.Notification = { permission: 'default', requestPermission: async () => 'granted' };
@@ -46,16 +52,25 @@ const results = {
   tests: []
 };
 
+// Os testes rodam em sequência (não em paralelo), numa fila baseada em Promise:
+// isso é o que permite misturar funções síncronas e assíncronas (como os testes de
+// login, que esperam uma resposta simulada do servidor) sem precisar reescrever a
+// forma como os testes são declarados — cada test() só entra na fila, ninguém
+// executa de verdade até o `await filaDeTestes` no final do arquivo.
+let filaDeTestes = Promise.resolve();
+
 function test(category, testName, fn) {
   results.total++;
-  try {
-    fn();
-    results.passed++;
-    results.tests.push({ category, name: testName, status: 'PASS' });
-  } catch (err) {
-    results.failed++;
-    results.tests.push({ category, name: testName, status: 'FAIL', error: err.message, stack: err.stack });
-  }
+  filaDeTestes = filaDeTestes.then(async () => {
+    try {
+      await fn();
+      results.passed++;
+      results.tests.push({ category, name: testName, status: 'PASS' });
+    } catch (err) {
+      results.failed++;
+      results.tests.push({ category, name: testName, status: 'FAIL', error: err.message, stack: err.stack });
+    }
+  });
 }
 
 function assert(condition, message) {
@@ -466,24 +481,100 @@ test('Performance', 'Tempo de Resposta do Validador de Conflitos (< 5ms)', () =>
 });
 
 // ----------------------------------------------------------------------------
-// IMPRESSÃO DO RELATÓRIO DE RESULTADOS
+// SUITE 13: LOGIN E SESSÃO (PIN VALIDADO NO SERVIDOR)
 // ----------------------------------------------------------------------------
-console.log('----------------------------------------------------------------');
-console.log(`TOTAL DE TESTES EXECUTADOS: ${results.total}`);
-console.log(`✅ APROVADOS: ${results.passed}`);
-console.log(`❌ FALHAS: ${results.failed}`);
-console.log('----------------------------------------------------------------\n');
+// Nota: o backend real (Code.gs) só roda dentro do Google Apps Script, então estes
+// testes cobrem o lado do navegador — que a sessão é tratada corretamente a partir
+// da resposta do servidor (simulada aqui), nunca decidida sozinha pelo cliente.
+test('Auth & Sessão', 'Login bem-sucedido guarda o token (lembrar=true → localStorage)', async () => {
+  localStorage.clear();
+  sessionStorage.clear();
+  const fetchOriginal = global.fetch;
+  global.fetch = async () => ({ ok: true, json: async () => ({ sucesso: true, token: 'TOK-ABC-123' }) });
+  const res = await API.login('Eber', '1234', true);
+  global.fetch = fetchOriginal;
 
-results.tests.forEach((t, i) => {
-  const icon = t.status === 'PASS' ? '✅' : '❌';
-  console.log(`${icon} [${t.category}] #${i + 1}: ${t.name}`);
-  if (t.error) {
-    console.log(`   🚨 Erro: ${t.error}`);
-  }
+  assert(res.sucesso, 'Login deveria ter sucesso quando o servidor confirma o PIN');
+  assertEqual(API.getSessionToken(), 'TOK-ABC-123', 'Token deve ficar disponível após login');
+  assertEqual(API.getProfessorLogado(), 'Eber', 'Professor logado deve ser o que fez login');
+  assert(localStorage.getItem('IFS_SESSION') !== null, 'lembrar=true deve gravar a sessão em localStorage');
+  assert(sessionStorage.getItem('IFS_SESSION') === null, 'lembrar=true não deve duplicar em sessionStorage');
+  API.logout();
 });
 
-if (results.failed > 0) {
-  process.exit(1);
-} else {
-  console.log('\n🌟 TODOS OS TESTES PASSARAM COM 100% DE SUCESSO!');
-}
+test('Auth & Sessão', 'Login com lembrar=false guarda em sessionStorage, não em localStorage', async () => {
+  localStorage.clear();
+  sessionStorage.clear();
+  const fetchOriginal = global.fetch;
+  global.fetch = async () => ({ ok: true, json: async () => ({ sucesso: true, token: 'TOK-SEM-LEMBRAR' }) });
+  await API.login('Eber', '1234', false);
+  global.fetch = fetchOriginal;
+
+  assert(sessionStorage.getItem('IFS_SESSION') !== null, 'lembrar=false deve gravar em sessionStorage');
+  assert(localStorage.getItem('IFS_SESSION') === null, 'lembrar=false não deve gravar em localStorage');
+  API.logout();
+});
+
+test('Auth & Sessão', 'Login recusado pelo servidor não guarda token nenhum', async () => {
+  localStorage.clear();
+  sessionStorage.clear();
+  const fetchOriginal = global.fetch;
+  global.fetch = async () => ({ ok: true, json: async () => ({ sucesso: false, erro: 'PIN incorreto! Se você ainda não alterou, o padrão é 1234.' }) });
+  const res = await API.login('Eber', '0000', false);
+  global.fetch = fetchOriginal;
+
+  assert(!res.sucesso, 'Login com PIN errado não deve ter sucesso');
+  assert(API.getSessionToken() === null, 'Nenhum token deve ser guardado após um login recusado');
+});
+
+test('Auth & Sessão', 'logout() limpa a sessão de ambos os armazenamentos', () => {
+  localStorage.setItem('IFS_SESSION', JSON.stringify({ professor: 'Eber', token: 'X' }));
+  sessionStorage.setItem('IFS_SESSION', JSON.stringify({ professor: 'Eber', token: 'Y' }));
+  API.logout();
+  assert(API.getSessionToken() === null, 'Token não deve sobrar em nenhum dos dois armazenamentos');
+});
+
+test('Auth & Sessão', 'processarAcao envia o token da sessão atual no corpo da requisição', () => {
+  localStorage.clear();
+  localStorage.setItem('IFS_SESSION', JSON.stringify({ professor: 'Eber', token: 'TOKEN-TESTE-999' }));
+  let corpoCapturado = null;
+  const fetchOriginal = global.fetch;
+  global.fetch = async (url, opts) => { corpoCapturado = JSON.parse(opts.body); return { ok: true, json: async () => ({ sucesso: true }) }; };
+
+  API.processarAcao({ acao: 'libertar', profOriginal: 'Eber', index: 0, dataFalta: '2026-10-23', motivo: 'teste de token' });
+
+  global.fetch = fetchOriginal;
+  assert(corpoCapturado !== null, 'processarAcao deveria ter chamado fetch para sincronizar com o servidor');
+  assertEqual(corpoCapturado.token, 'TOKEN-TESTE-999', 'O corpo enviado ao servidor deve incluir o token da sessão atual');
+
+  // Limpa
+  API.processarAcao({ acao: 'recuperar', profOriginal: 'Eber', index: 0 });
+  localStorage.clear();
+});
+
+// ----------------------------------------------------------------------------
+// IMPRESSÃO DO RELATÓRIO DE RESULTADOS
+// ----------------------------------------------------------------------------
+// Só imprime depois que TODOS os testes (síncronos e assíncronos) da fila
+// terminaram de rodar — ver a fila `filaDeTestes` definida no helper test().
+filaDeTestes.then(() => {
+  console.log('----------------------------------------------------------------');
+  console.log(`TOTAL DE TESTES EXECUTADOS: ${results.total}`);
+  console.log(`✅ APROVADOS: ${results.passed}`);
+  console.log(`❌ FALHAS: ${results.failed}`);
+  console.log('----------------------------------------------------------------\n');
+
+  results.tests.forEach((t, i) => {
+    const icon = t.status === 'PASS' ? '✅' : '❌';
+    console.log(`${icon} [${t.category}] #${i + 1}: ${t.name}`);
+    if (t.error) {
+      console.log(`   🚨 Erro: ${t.error}`);
+    }
+  });
+
+  if (results.failed > 0) {
+    process.exit(1);
+  } else {
+    console.log('\n🌟 TODOS OS TESTES PASSARAM COM 100% DE SUCESSO!');
+  }
+});

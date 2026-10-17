@@ -10,7 +10,8 @@ const STORAGE_KEY_API_URL = 'IFS_BACKEND_URL';
 const RX_URL_SERVIDOR = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]{20,}\/exec$/;
 const STORAGE_KEY_LOCAL_DB = 'IFS_LOCAL_DATABASE';
 const STORAGE_KEY_DB_VERSION = 'IFS_DB_VERSION';
-const STORAGE_KEY_PINS = 'IFS_TEACHER_PINS';
+const STORAGE_KEY_PINS = 'IFS_TEACHER_PINS'; // legado: não é mais usado para autenticar (ver STORAGE_KEY_SESSION)
+const STORAGE_KEY_SESSION = 'IFS_SESSION'; // { professor, token } — token emitido e validado pelo servidor
 const STORAGE_KEY_EMAILS_CONFIG = 'IFS_EMAILS_CONFIG';
 const STORAGE_KEY_EMAILS_LOG = 'IFS_EMAILS_LOG';
 const STORAGE_KEY_PROFESSORES = 'IFS_PROFESSORES';
@@ -709,47 +710,103 @@ const API = {
     localStorage.setItem(STORAGE_KEY_LOCAL_DB, JSON.stringify(db));
   },
 
-  // Gerenciamento de PIN
-  getTeacherPins() {
-    const pins = localStorage.getItem(STORAGE_KEY_PINS);
-    return pins ? JSON.parse(pins) : {};
+  // ==========================================================================
+  // LOGIN E SESSÃO: o PIN é validado pelo servidor (Code.gs), nunca no navegador.
+  // O que fica guardado aqui é só o token de sessão que o servidor emite após o
+  // login — sem ele, o backend recusa qualquer ação em nome do professor.
+  // ==========================================================================
+  getSession() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY_SESSION) || sessionStorage.getItem(STORAGE_KEY_SESSION) || "null");
+    } catch (e) { return null; }
   },
 
-  verifyPin(professor, pinDigitado) {
-    const pins = this.getTeacherPins();
-    const pinCorreto = pins[professor] || DEFAULT_PIN;
-    return pinDigitado === pinCorreto;
+  getSessionToken() {
+    const s = this.getSession();
+    return (s && s.token) || null;
   },
 
-  saveNewPin(professor, novoPin) {
-    const pins = this.getTeacherPins();
-    pins[professor] = novoPin;
-    localStorage.setItem(STORAGE_KEY_PINS, JSON.stringify(pins));
-    return true;
+  getProfessorLogado() {
+    const s = this.getSession();
+    return (s && s.professor) || null;
   },
 
-  recuperarPin(professor) {
-    this.saveNewPin(professor, DEFAULT_PIN);
-    const emailProf = this.obterEmailProfessor(professor);
-    const config = this.getEmailsConfig();
-    
-    this.registrarEmailLog(
-      "RECUPERACAO_PIN",
-      `🔑 [SEGURANÇA] Solicitação de recuperação de PIN - Prof. ${professor}`,
-      `${emailProf}, ${config.emailCoordGeral || "coordenacao.tobiasbarreto@ifs.edu.br"}`
-    );
+  // lembrar=true guarda em localStorage (sobrevive ao fechar o navegador, como "IFS_SAVED_USER");
+  // lembrar=false guarda em sessionStorage (some ao fechar a aba, como "IFS_SESSION_USER")
+  _salvarSessao(professor, token, lembrar) {
+    const valor = JSON.stringify({ professor, token });
+    if (lembrar) {
+      localStorage.setItem(STORAGE_KEY_SESSION, valor);
+      sessionStorage.removeItem(STORAGE_KEY_SESSION);
+    } else {
+      sessionStorage.setItem(STORAGE_KEY_SESSION, valor);
+      localStorage.removeItem(STORAGE_KEY_SESSION);
+    }
+  },
 
+  logout() {
+    localStorage.removeItem(STORAGE_KEY_SESSION);
+    sessionStorage.removeItem(STORAGE_KEY_SESSION);
+  },
+
+  // Login real: pede ao servidor para conferir o PIN. Só guarda sessão se ele confirmar.
+  async login(professor, pin, lembrar) {
     const url = this.getBackendUrl();
-    if (url) {
-      fetch(url, {
+    if (!url) return { sucesso: false, erro: "Sem conexão com o servidor." };
+    try {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ acao: "recuperar_pin", professor: professor, email: emailProf }),
+        body: JSON.stringify({ acao: "login_professor", professor, pin }),
         redirect: "follow"
-      }).catch(err => console.warn("Aviso ao recuperar PIN no Google:", err));
+      });
+      const data = await res.json().catch(() => null);
+      if (data && data.sucesso && data.token) {
+        this._salvarSessao(professor, data.token, !!lembrar);
+      }
+      return data || { sucesso: false, erro: "Sem resposta do servidor." };
+    } catch (err) {
+      return { sucesso: false, erro: "Falha de conexão: " + err.message };
     }
+  },
 
-    return { sucesso: true, email: emailProf, pinPadrao: DEFAULT_PIN };
+  // Troca de PIN: o servidor confere o PIN atual antes de gravar o novo.
+  async trocarPin(pinAtual, pinNovo) {
+    const url = this.getBackendUrl();
+    const professor = this.getProfessorLogado();
+    const token = this.getSessionToken();
+    if (!url) return { sucesso: false, erro: "Sem conexão com o servidor." };
+    if (!professor || !token) return { sucesso: false, erro: "Sessão expirada. Faça login novamente." };
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ acao: "trocar_pin", professor, pinAtual, pinNovo, token }),
+        redirect: "follow"
+      });
+      return (await res.json().catch(() => null)) || { sucesso: false, erro: "Sem resposta do servidor." };
+    } catch (err) {
+      return { sucesso: false, erro: "Falha de conexão: " + err.message };
+    }
+  },
+
+  // Reset para o PIN padrão (1234): só o servidor grava isso, e só ele envia o e-mail de aviso.
+  async recuperarPin(professor) {
+    const url = this.getBackendUrl();
+    if (!url) return { sucesso: false, erro: "Sem conexão com o servidor." };
+    const emailProf = this.obterEmailProfessor(professor);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ acao: "recuperar_pin", professor, email: emailProf }),
+        redirect: "follow"
+      });
+      const data = (await res.json().catch(() => null)) || {};
+      return { sucesso: !!data.sucesso, erro: data.erro, email: emailProf, pinPadrao: DEFAULT_PIN };
+    } catch (err) {
+      return { sucesso: false, erro: "Falha de conexão: " + err.message };
+    }
   },
 
   // Controle de escritas em andamento: enquanto um POST não terminou, o GET
@@ -964,7 +1021,7 @@ const API = {
 
     // 2. Dispara envio assíncrono em segundo plano para o Google Apps Script
     if (url) {
-      const payloadEnvio = { ...payload, emailsConfig: config };
+      const payloadEnvio = { ...payload, emailsConfig: config, token: this.getSessionToken() };
       if (payloadEnvio.dataFalta) {
         payloadEnvio.dataFalta = this.formatarDataBR(payloadEnvio.dataFalta);
       }
@@ -996,6 +1053,11 @@ const API = {
               if (typeof mostrarToast === "function") {
                 mostrarToast("Aviso: " + resData.erro);
               }
+            } else if (resData.sessaoExpirada) {
+              // O servidor recusou por falta de sessão válida (token ausente/expirado/de outro
+              // professor) — a ação JÁ foi aplicada localmente de forma otimista, então avisa e
+              // pede login de novo, em vez de deixar a tela mostrando algo que o servidor recusou.
+              if (typeof onSessaoExpirada === "function") onSessaoExpirada(resData.erro);
             }
           }
         }).catch(err => {

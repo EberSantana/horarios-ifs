@@ -133,16 +133,20 @@ function popularListaLogin() {
   } catch (e) { console.warn("Lista de professores:", e); }
 }
 
-// Professores que mudaram de nome no sistema: mantém login salvo e PIN no aparelho
+// Professores que mudaram de nome no sistema: mantém login salvo no aparelho.
+// O PIN em si não precisa migrar mais — ele vive no servidor, associado ao nome
+// na planilha "Professores" (quem renomeia lá já resolve isso de um lado só).
 const NOMES_ANTIGOS = { "Rafael": "Luiz Rafael Freitas" };
 function migrarNomesAntigos() {
   try {
     for (const antigo in NOMES_ANTIGOS) {
       const novo = NOMES_ANTIGOS[antigo];
-      ["IFS_SAVED_USER"].forEach((k) => { if (localStorage.getItem(k) === antigo) localStorage.setItem(k, novo); });
+      if (localStorage.getItem("IFS_SAVED_USER") === antigo) localStorage.setItem("IFS_SAVED_USER", novo);
       if (sessionStorage.getItem("IFS_SESSION_USER") === antigo) sessionStorage.setItem("IFS_SESSION_USER", novo);
-      const pins = API.getTeacherPins();
-      if (pins[antigo] && !pins[novo]) { pins[novo] = pins[antigo]; delete pins[antigo]; localStorage.setItem("IFS_TEACHER_PINS", JSON.stringify(pins)); }
+      // Uma sessão salva em nome do nome antigo não vale mais (o token era para o nome antigo);
+      // melhor pedir login de novo do que arriscar um token associado ao professor errado.
+      const sessao = API.getSession();
+      if (sessao && sessao.professor === antigo) API.logout();
     }
   } catch (e) { console.warn("Aviso ao migrar nomes antigos:", e); }
 }
@@ -423,10 +427,11 @@ function configurarEventosInterface() {
 // ============================================================================
 // SISTEMA DE LOGIN COM PIN
 // ============================================================================
-function executarLogin() {
+async function executarLogin() {
   const selectProf = document.getElementById("loginProf");
   const pinInput = document.getElementById("pinInput");
   const lembrarme = document.getElementById("lembrarAcesso").checked;
+  const btnLogin = document.getElementById("btnLogin");
 
   const prof = selectProf.value;
   const pin = pinInput.value.trim();
@@ -441,9 +446,16 @@ function executarLogin() {
     return;
   }
 
-  const pinValido = API.verifyPin(prof, pin);
-  if (!pinValido) {
-    mostrarErroLogin("PIN incorreto! Se você ainda não alterou, o padrão é 1234.");
+  if (btnLogin) btnLogin.disabled = true;
+  let resultado;
+  try {
+    resultado = await API.login(prof, pin, lembrarme);
+  } finally {
+    if (btnLogin) btnLogin.disabled = false;
+  }
+
+  if (!resultado || !resultado.sucesso) {
+    mostrarErroLogin((resultado && resultado.erro) || "PIN incorreto! Se você ainda não alterou, o padrão é 1234.");
     return;
   }
 
@@ -460,6 +472,24 @@ function executarLogin() {
   pinInput.value = "";
   entrarNoPainel();
   mostrarToast(`Bem-vindo(a), Prof. ${usuarioLogado}!`);
+}
+
+// Chamado quando o servidor recusa uma ação por falta de sessão válida (token
+// ausente, expirado, ou de outro professor). Volta para a tela de login sem
+// apagar o nome selecionado, para o professor só precisar digitar o PIN de novo.
+function onSessaoExpirada(motivo) {
+  API.logout();
+  const profAtual = usuarioLogado;
+  usuarioLogado = null;
+  localStorage.removeItem("IFS_SAVED_USER");
+  sessionStorage.removeItem("IFS_SESSION_USER");
+  document.getElementById("tela-painel").style.display = "none";
+  document.getElementById("tela-login").style.display = "flex";
+  if (profAtual) {
+    const selectProf = document.getElementById("loginProf");
+    if (selectProf) selectProf.value = profAtual;
+  }
+  mostrarErroLogin(motivo || "Sua sessão expirou. Digite seu PIN novamente para continuar.");
 }
 
 function mostrarErroLogin(texto) {
@@ -480,12 +510,24 @@ function abrirModalEsqueciPin() {
   abrirModal("modalEsqueciPin");
 }
 
-function executarRecuperarPin() {
+async function executarRecuperarPin() {
   const prof = document.getElementById("loginProf").value;
   if (!prof) return;
 
-  const res = API.recuperarPin(prof);
+  const btn = document.getElementById("btnConfirmarRecuperarPin");
+  if (btn) btn.disabled = true;
+  let res;
+  try {
+    res = await API.recuperarPin(prof);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+
   fecharTodosModais();
+  if (!res || !res.sucesso) {
+    mostrarErroLogin((res && res.erro) || "Não foi possível redefinir o PIN agora. Tente de novo em instantes.");
+    return;
+  }
   document.getElementById("pinInput").value = res.pinPadrao;
   mostrarToast(`PIN redefinido para 1234 e notificado para ${res.email}!`);
   mostrarErroLogin(`Seu PIN foi redefinido para 1234. Já preenchemos no campo para você! Basta clicar em "Entrar no Painel".`);
@@ -503,6 +545,7 @@ function entrarNoPainel() {
 function executarLogout() {
   localStorage.removeItem("IFS_SAVED_USER");
   sessionStorage.removeItem("IFS_SESSION_USER");
+  API.logout();
   usuarioLogado = "";
   pararPolling();
 
@@ -2398,15 +2441,11 @@ function abrirModalConfig() {
 
 function salvarConfiguracoes() { fecharTodosModais(); }
 
-function salvarNovoPin() {
+async function salvarNovoPin() {
   const pinAtual = document.getElementById("inputPinAtual").value.trim();
   const novoPin = document.getElementById("inputNovoPin").value.trim();
   const confirmaPin = document.getElementById("inputConfirmaPin").value.trim();
 
-  if (!API.verifyPin(usuarioLogado, pinAtual)) {
-    alert("O PIN atual informado está incorreto!");
-    return;
-  }
   if (novoPin.length < 4) {
     alert("O novo PIN deve ter pelo menos 4 dígitos!");
     return;
@@ -2416,7 +2455,20 @@ function salvarNovoPin() {
     return;
   }
 
-  API.saveNewPin(usuarioLogado, novoPin);
+  const btn = document.getElementById("btnSalvarNovoPin");
+  if (btn) btn.disabled = true;
+  let res;
+  try {
+    res = await API.trocarPin(pinAtual, novoPin);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+
+  if (!res || !res.sucesso) {
+    alert((res && res.erro) || "O PIN atual informado está incorreto!");
+    return;
+  }
+
   fecharTodosModais();
   document.getElementById("inputPinAtual").value = "";
   document.getElementById("inputNovoPin").value = "";
