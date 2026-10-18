@@ -16,7 +16,7 @@ const estado = {
   resumo: null, emails: [], selEmails: new Set(), selAulas: new Set(),
   filtrosGrade: { turma: "", prof: "", dia: "", busca: "" },
   filtrosEmail: { busca: "", tipo: "", status: "ativos", periodo: "30" },
-  filtroProf: { busca: "", aba: "ativos" },
+  filtroProf: { busca: "", aba: "ativos", area: "" },
   previa: null, arquivoNome: ""
 };
 
@@ -803,6 +803,12 @@ async function excluirCadastro(tipo, chave) {
 }
 
 // ================================================================ PROFESSORES
+const areasDe = (p) => String(p.curso || "").split(/\s*[\/;,]\s*/).map((x) => x.trim()).filter(Boolean);
+function opcoesArea() {
+  const n = {};
+  estado.professores.forEach((p) => areasDe(p).forEach((a) => { n[a] = (n[a] || 0) + 1; }));
+  return Object.keys(n).sort((a, b) => a.localeCompare(b, "pt-BR")).map((a) => [a, n[a]]);
+}
 async function telaProfessores(main) {
   await carregarProfessores(true);
   const ativos = estado.professores.filter((p) => p.ativo).length;
@@ -812,6 +818,8 @@ async function telaProfessores(main) {
     <section class="cartao">
       <div class="filtros">
         <div class="campo largo"><label for="pBusca">Buscar professor</label><input id="pBusca" class="input" type="search" value="${esc(fp.busca)}"></div>
+        <div class="campo"><label for="pArea">Curso / área</label><select id="pArea" class="input">
+          <option value="">Todos os cursos e áreas</option>${opcoesArea().map(([a, q]) => `<option value="${esc(a)}" ${fp.area === a ? "selected" : ""}>${esc(a)} (${q})</option>`).join("")}</select></div>
         <div class="campo"><label for="pAba">Mostrar</label><select id="pAba" class="input">
           ${[["ativos", "Ativos"], ["desligados", "Desligados"], ["todos", "Todos"]].map(([v, t]) => `<option value="${v}" ${fp.aba === v ? "selected" : ""}>${t}</option>`).join("")}</select></div>
       </div>
@@ -820,14 +828,16 @@ async function telaProfessores(main) {
     <p class="mudo pequeno" style="margin:0">O PIN de cada professor fica guardado só no aparelho dele (padrão 1234). Para trocar o nome no login, edite o nome aqui: as aulas acompanham.</p>`;
   $("#pBusca", main).addEventListener("input", (e) => { fp.busca = e.target.value; desenharProfs(); });
   $("#pAba", main).addEventListener("input", (e) => { fp.aba = e.target.value; desenharProfs(); });
+  $("#pArea", main).addEventListener("input", (e) => { fp.area = e.target.value; desenharProfs(); });
   desenharProfs();
 }
 
 function desenharProfs() {
-  const fp = estado.filtroProf, b = fp.busca.trim().toLowerCase();
+  const fp = estado.filtroProf, b = semAcento(fp.busca.trim());
   const lista = estado.professores.filter((p) => (fp.aba === "todos" || (fp.aba === "ativos" ? p.ativo : !p.ativo)) &&
-    (!b || (p.nome + " " + p.email + " " + p.curso).toLowerCase().includes(b)));
-  if (!lista.length) { $("#tabProfs").innerHTML = `<div class="vazio">Nenhum professor aqui.</div>`; return; }
+    (!fp.area || areasDe(p).includes(fp.area)) &&
+    (!b || semAcento(p.nome + " " + p.email + " " + p.curso).includes(b)));
+  if (!lista.length) { $("#tabProfs").innerHTML = `<div class="vazio">Nenhum professor com esses filtros.</div>`; return; }
   $("#tabProfs").innerHTML = `<table><thead><tr><th>Professor</th><th>E-mail institucional</th><th class="esconder-celular">Curso / área</th><th>Aulas</th><th></th></tr></thead><tbody>
     ${lista.map((p) => `<tr>
       <td><strong>${esc(p.nome)}</strong>${p.ativo ? "" : ` <span class="etiqueta">desligado</span>`}</td>
