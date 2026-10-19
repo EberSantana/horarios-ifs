@@ -734,32 +734,49 @@ function desenharCadastros() {
       return g;
     };
     const semProprio = ft && ft !== "__padrao" && !turmasProprias.has(ft);
-    corpo = (semProprio ? `<div class="cartao-pad" style="margin-bottom:10px"><p class="pequeno" style="margin:0 0 8px"><strong>${esc(ft)}</strong> usa os horários padrão do turno. Para ela ter horários só dela (sem se misturar com as outras turmas):</p>
-      <button class="btn btn-primario btn-pequeno" data-acao="tempos-copiar" data-turma="${esc(ft)}">Criar horários próprios para ${esc(ft)}</button></div>` : "") +
-      `<table><thead><tr><th style="width:70px">Ordem</th><th>Horário</th><th>Aulas na grade</th><th></th></tr></thead><tbody>
-      ${turnos.map((t) => grupos(t).map((tm) => {
-        const hs = c.tempos.filter((h) => h.turno === t && (h.turma || "") === tm);
+    const fm = (min) => String(Math.floor(min / 60)).padStart(2, "0") + ":" + String(min % 60).padStart(2, "0");
+    const fh = (h) => h.replace(" - ", "–");
+    const card = (t, tm, hs) => {
+      const usoPadrao = !tm && c.turmas.filter((x) => x.ativo && !turmasProprias.has(x.nome) && (((c.cursos.find((k) => k.id === x.curso) || {}).turnos) || []).includes(t)).length;
+      const semUso = !tm && !usoPadrao && hs.length && turmasProprias.size;
+      const sobre = (h) => semUso ? [] : hs.filter((o) => o !== h && ini(h)[0] < ini(o)[1] && ini(o)[0] < ini(h)[1]).map((o) => fh(o.hora));
+      const cursosT = c.cursos.filter((x) => (x.turnos || [x.turno]).includes(t)).map((x) => x.nome);
+      const turmaObj = tm ? c.turmas.find((x) => x.nome === tm) : null;
+      const sub = tm ? esc((turmaObj ? nomeCurso(turmaObj.curso) : "") || t) : (semUso ? "Sem uso: todas as turmas deste turno têm horário próprio" : "Vale para as turmas sem horário próprio");
+      const total = hs.reduce((n, h) => n + (h.aulas || 0), 0);
+      const linhas = hs.map((h, i) => {
+        const ant = hs[i - 1], folga = ant ? ini(h)[0] - ini(ant)[1] : 0;
+        const pausa = folga >= 10 ? `<li class="hor-pausa"><span>Intervalo</span><strong>${fm(ini(ant)[1])}–${fm(ini(h)[0])}</strong><span>${folga} min</span></li>` : "";
+        const so = sobre(h);
+        return pausa + `<li class="hor-linha${so.length ? " hor-cruza" : ""}"><span class="hor-ordem">${h.ordem}</span><span class="hor-hora">${esc(fh(h.hora))}${so.length ? ` <span class="etiqueta et-amarelo" title="Horários do mesmo grupo que se cruzam">cruza com ${so.join(", ")}</span>` : ""}</span>
+          <span class="hor-aulas" title="Aulas na grade neste horário">${h.aulas ? h.aulas + (h.aulas === 1 ? " aula" : " aulas") : "—"}</span>
+          <span class="hor-acoes"><button class="btn-link" data-acao="cad-editar" data-tipo="tempo" data-chave="${chaveCad("tempo", h)}">Editar</button><button class="btn-link perigo" data-acao="cad-excluir" data-tipo="tempo" data-chave="${chaveCad("tempo", h)}">Excluir</button></span></li>`;
+      }).join("");
+      if (!tm && !hs.length) return `<div class="hor-vazio-linha"><span>Padrão do turno: nenhum horário cadastrado.</span><button class="btn-link" data-acao="cad-novo" data-tipo="tempo" data-turno="${esc(t)}" data-turma="">+ Adicionar horário</button></div>`;
+      if (semUso) return `<details class="hor-card hor-padrao hor-semuso hor-largo"><summary><span><strong>Padrão do turno</strong> · sem uso <em>(todas as turmas deste turno têm horário próprio)</em></span><span class="hor-contagem">${hs.length} horários</span></summary>
+        <ul class="hor-lista">${linhas}</ul><footer><button class="btn-link" data-acao="cad-novo" data-tipo="tempo" data-turno="${esc(t)}" data-turma="">+ Adicionar horário</button></footer></details>`;
+      return `<article class="hor-card${tm ? "" : " hor-padrao"}${semUso ? " hor-semuso" : ""}">
+        <header><div><h4>${tm ? esc(tm) : "Padrão do turno"}</h4><p>${sub}</p></div><span class="hor-contagem">${hs.length} horário${hs.length === 1 ? "" : "s"}${total ? ` · ${total} aulas` : ""}</span></header>
+        ${hs.length ? `<ul class="hor-lista">${linhas}</ul>` : `<p class="hor-vazio">Nenhum horário aqui.</p>`}
+        <footer><button class="btn-link" data-acao="cad-novo" data-tipo="tempo" data-turno="${esc(t)}" data-turma="${esc(tm)}">+ Adicionar horário</button></footer></article>`;
+    };
+    const secoes = turnos.map((t) => {
+      const cards = grupos(t).map((tm) => {
         if (tm === "" && ft && ft !== "__padrao") return "";
-        const usoPadrao = !tm && c.turmas.filter((x) => x.ativo && !turmasProprias.has(x.nome) && (((c.cursos.find((k) => k.id === x.curso) || {}).turnos) || []).includes(t)).length;
-        const semUso = !tm && !usoPadrao && hs.length && turmasProprias.size;
-        const sobre = (h) => semUso ? [] : hs.filter((o) => o !== h && ini(h)[0] < ini(o)[1] && ini(o)[0] < ini(h)[1]).map((o) => o.hora.replace(" - ", "–"));
-        const cursosT = c.cursos.filter((x) => (x.turnos || [x.turno]).includes(t)).map((x) => esc(x.nome)).join(", ");
-        const tit = tm ? `${esc(t)} · <strong>${esc(tm)}</strong> <span class="etiqueta">horário próprio</span> <span class="mudo">${hs.length} horário(s)</span>`
-          : `${esc(t)} · padrão <span class="mudo">${hs.length} horário(s) · ${semUso ? "sem uso: todas as turmas deste turno têm horário próprio" : "vale para as turmas sem horário próprio"} · ${cursosT || "nenhum curso neste turno"}</span>`;
-        return `<tr class="dia-grupo"><th colspan="3">${tit}</th>
-          <th class="acoes"><button class="btn-link" data-acao="cad-novo" data-tipo="tempo" data-turno="${esc(t)}" data-turma="${esc(tm)}">+ Adicionar</button></th></tr>` +
-        (hs.length ? hs.map((h) => `<tr><td>${h.ordem}º</td><td><strong>${esc(h.hora.replace(" - ", "–"))}</strong>${sobre(h).length ? ` <span class="etiqueta et-amarelo" title="Mesmo grupo, horários que se cruzam">sobrepõe ${sobre(h).join(", ")}</span>` : ""}</td><td>${h.aulas}</td>
-          <td class="acoes"><button class="btn-link" data-acao="cad-editar" data-tipo="tempo" data-chave="${chaveCad("tempo", h)}">Editar</button>
-          <button class="btn-link perigo" data-acao="cad-excluir" data-tipo="tempo" data-chave="${chaveCad("tempo", h)}">Excluir</button></td></tr>`).join("")
-          : `<tr><td colspan="4" class="mudo pequeno">Nenhum horário aqui. Use “+ Adicionar”.</td></tr>`);
-      }).join("")).join("")}</tbody></table>`;
+        const hs = c.tempos.filter((h) => h.turno === t && (h.turma || "") === tm);
+        return card(t, tm, hs);
+      }).join("");
+      return cards ? `<section class="hor-turno"><h3>${esc(t)}</h3><div class="hor-grade">${cards}</div></section>` : "";
+    }).join("");
+    corpo = (semProprio ? `<div class="hor-aviso"><p><strong>${esc(ft)}</strong> usa os horários padrão do turno. Para ter horários só dela, sem se misturar com as outras turmas:</p>
+      <button class="btn btn-primario btn-pequeno" data-acao="tempos-copiar" data-turma="${esc(ft)}">Criar horários próprios para ${esc(ft)}</button></div>` : "") + (secoes || `<div class="vazio">Nenhum horário com esses filtros.</div>`);
   }
   $("#secCad").innerHTML = `<div class="cartao-pad hist-topo"><div><h2 class="secao-titulo" style="margin:0">${titulo}</h2>
       <p class="mudo pequeno">${{ cursos: "O e-mail do curso recebe os avisos das turmas dele. O turno define os horários disponíveis.",
         turmas: "Cada turma pertence a um curso. Renomear atualiza as aulas na grade.",
         disciplinas: "Disciplinas de cada curso aparecem na lista ao cadastrar uma aula. Renomear atualiza a grade.",
         tempos: "Os horários do turno valem para todas as turmas. Se uma turma tem horários diferentes, crie horários próprios para ela: só os dela passam a valer." }[aba]}</p></div>
-      <div class="acoes-hist">${novo}</div></div>${topo}<div class="tabela-rolagem tabela-cad">${corpo}</div>`;
+      <div class="acoes-hist">${novo}</div></div>${topo}<div class="${aba === "tempos" ? "hor-area" : "tabela-rolagem tabela-cad"}">${corpo}</div>`;
   const ligar = (id, campo) => { const el = $(id); if (el) el.addEventListener("input", (e) => { f[campo] = e.target.value; desenharCadastros(); if (campo === "busca") { const i = $("#fcBusca"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }); };
   ligar("#fcCurso", "curso"); ligar("#fcBusca", "busca"); ligar("#fcTurno", "turno"); ligar("#fcTurma", "turma");
 }

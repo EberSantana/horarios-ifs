@@ -352,3 +352,54 @@ td.acoes .btn + .btn { margin-left: 6px; }
 .tabela-cad tr.dia-grupo th { background: var(--papel); color: var(--tinta); font-size: 13px; font-weight: 700; padding: 8px 14px; border-top: 1px solid var(--linha); }
 .tabela-cad td.acoes .btn-link + .btn-link { margin-left: 14px; }
 .et-amarelo { background: #fff4d6; color: #8a5a00; }
+
+/* ---------- Cadastros → Horários: cartões por turno e turma ---------- */
+.hor-area { padding: 4px 16px 20px; }
+.hor-turno { margin-top: 22px; }
+.hor-turno > h3 { margin: 0 0 10px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--grafite); display: flex; align-items: center; gap: 10px; }
+.hor-turno > h3::after { content: ""; flex: 1; height: 1px; background: var(--linha); }
+.hor-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; align-items: start; }
+.hor-card { background: var(--branco); border: 1px solid var(--linha); border-radius: var(--r-painel); overflow: hidden; }
+.hor-card header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--linha); background: #fbfcfa; }
+.hor-card header h4 { margin: 0; font-size: 15px; font-weight: 700; }
+.hor-card header p { margin: 2px 0 0; font-size: 12.5px; color: var(--grafite); line-height: 1.35; }
+.hor-contagem { font-size: 12px; font-weight: 600; color: var(--mata); background: var(--mata-claro); padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.hor-padrao header { background: var(--papel); }
+.hor-padrao .hor-contagem { color: var(--grafite); background: #eceee9; }
+.hor-semuso { opacity: .72; }
+.hor-lista { list-style: none; margin: 0; padding: 4px 0; }
+.hor-linha { display: grid; grid-template-columns: 26px 1fr auto auto; align-items: center; gap: 10px; padding: 7px 14px; }
+.hor-linha + .hor-linha, .hor-pausa + .hor-linha { border-top: 1px solid #f0f2ef; }
+.hor-linha:hover { background: #fafbf9; }
+.hor-ordem { width: 24px; height: 24px; border-radius: 50%; background: var(--mata-claro); color: var(--mata); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+.hor-hora { font-weight: 700; font-size: 15px; letter-spacing: .01em; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.hor-aulas { font-size: 12.5px; color: var(--nevoa); white-space: nowrap; }
+.hor-acoes { display: flex; gap: 12px; opacity: .55; transition: opacity .12s; }
+.hor-linha:hover .hor-acoes, .hor-linha:focus-within .hor-acoes { opacity: 1; }
+.hor-acoes .btn-link { font-size: 13px; }
+.hor-cruza { background: var(--atencao-fundo); }
+.hor-pausa { display: flex; align-items: center; gap: 10px; margin: 2px 14px; padding: 5px 10px; font-size: 12.5px; color: var(--grafite); background: repeating-linear-gradient(135deg, #f6f7f4, #f6f7f4 6px, #f0f2ee 6px, #f0f2ee 12px); border-radius: 6px; }
+.hor-pausa strong { color: var(--tinta); font-weight: 600; }
+.hor-pausa span:last-child { margin-left: auto; }
+.hor-card footer { padding: 9px 14px; border-top: 1px solid var(--linha); }
+.hor-vazio { margin: 0; padding: 14px; font-size: 13.5px; color: var(--nevoa); }
+.hor-aviso { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; background: var(--info-fundo); border: 1px solid var(--info-borda); color: var(--tinta); border-radius: var(--r-painel); padding: 12px 14px; margin-top: 16px; }
+.hor-aviso p { margin: 0; flex: 1 1 260px; font-size: 14px; }
+@media (max-width: 640px) {
+  .hor-area { padding: 4px 12px 16px; }
+  .hor-grade { grid-template-columns: 1fr; }
+  .hor-acoes { opacity: 1; }
+  .hor-linha { grid-template-columns: 26px 1fr auto; }
+  .hor-aulas { display: none; }
+}
+.hor-vazio-linha { grid-column: 1 / -1; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; padding: 10px 14px; border: 1px dashed var(--linha-forte); border-radius: var(--r-painel); font-size: 13.5px; color: var(--grafite); background: var(--branco); }
+.hor-largo { grid-column: 1 / -1; opacity: 1; }
+.hor-largo > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 14px; background: var(--papel); font-size: 14px; color: var(--grafite); }
+.hor-largo > summary::-webkit-details-marker { display: none; }
+.hor-largo > summary::before { content: "▸"; margin-right: 8px; color: var(--nevoa); }
+.hor-largo[open] > summary::before { content: "▾"; }
+.hor-largo > summary em { font-style: normal; font-size: 12.5px; color: var(--nevoa); }
+.hor-largo[open] > summary { border-bottom: 1px solid var(--linha); }
+.hor-largo .hor-lista { columns: 2; column-gap: 0; }
+.hor-largo .hor-linha, .hor-largo .hor-pausa { break-inside: avoid; }
+@media (max-width: 640px) { .hor-largo .hor-lista { columns: 1; } }
