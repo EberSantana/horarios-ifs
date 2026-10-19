@@ -403,3 +403,19 @@ td.acoes .btn + .btn { margin-left: 6px; }
 .hor-largo .hor-lista { columns: 2; column-gap: 0; }
 .hor-largo .hor-linha, .hor-largo .hor-pausa { break-inside: avoid; }
 @media (max-width: 640px) { .hor-largo .hor-lista { columns: 1; } }
+
+/* ---------- Cadastros: cursos, turmas e disciplinas ---------- */
+.cad-meta { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; font-size: 14px; word-break: break-word; }
+.cad-rotulo { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--nevoa); }
+.cad-peq { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.cad-tile { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 11px 14px; }
+.cad-tile p { margin: 2px 0 0; font-size: 12.5px; color: var(--grafite); }
+.cad-tile .hor-acoes { flex-direction: column; align-items: flex-end; gap: 4px; }
+.cad-linha { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; padding: 9px 14px; }
+.cad-linha + .cad-linha { border-top: 1px solid #f0f2ef; }
+.cad-linha:hover { background: #fafbf9; }
+.cad-linha:hover .hor-acoes, .cad-linha:focus-within .hor-acoes { opacity: 1; }
+.cad-profs { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.cad-profs:empty { display: none; }
+.hor-turno > .hor-card { margin-top: 2px; }
+@media (max-width: 640px) { .cad-linha { grid-template-columns: 1fr auto; } .cad-linha .hor-aulas { display: none; } .cad-linha .hor-acoes { grid-column: 1 / -1; flex-wrap: wrap; } }

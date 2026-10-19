@@ -696,27 +696,33 @@ function desenharCadastros() {
   const b = f.busca.trim().toLowerCase();
   if (aba === "cursos") {
     titulo = "Cursos"; novo = `<button class="btn btn-primario btn-pequeno" data-acao="cad-novo" data-tipo="curso">Novo curso</button>`;
-    corpo = `<table><thead><tr><th>Curso</th><th>Turno</th><th>E-mail da coordenação</th><th>Turmas</th><th></th></tr></thead><tbody>
-      ${c.cursos.map((x) => `<tr><td><strong>${esc(x.nome)}</strong>${situacao(x.ativo)}</td><td>${esc(x.turno)}</td>
-        <td>${x.email ? esc(x.email) : `<span class="etiqueta et-vermelho">sem e-mail</span>`}</td><td>${x.turmas}</td>
-        <td class="acoes"><button class="btn-link" data-acao="cad-editar" data-tipo="curso" data-chave="${chaveCad("curso", x)}">Editar</button></td></tr>`).join("")}</tbody></table>`;
+    corpo = c.cursos.length ? `<div class="hor-grade" style="margin-top:16px">${c.cursos.map((x) => `<article class="hor-card${x.ativo ? "" : " hor-semuso"}">
+        <header><div><h4>${esc(x.nome)}${situacao(x.ativo)}</h4><p>${(x.turnos || [x.turno]).map(esc).join(" · ")}</p></div><span class="hor-contagem">${x.turmas} turma${x.turmas === 1 ? "" : "s"}</span></header>
+        <div class="cad-meta"><span class="cad-rotulo">E-mail da coordenação</span>${x.email ? `<span>${esc(x.email)}</span>` : `<span class="etiqueta et-amarelo">sem e-mail</span>`}</div>
+        <footer><button class="btn-link" data-acao="cad-editar" data-tipo="curso" data-chave="${chaveCad("curso", x)}">Editar</button></footer></article>`).join("")}</div>` : `<div class="vazio">Nenhum curso cadastrado.</div>`;
   } else if (aba === "turmas") {
     titulo = "Turmas"; novo = `<button class="btn btn-primario btn-pequeno" data-acao="cad-novo" data-tipo="turma">Nova turma</button>`; topo = filtroCurso(false);
     const l = c.turmas.filter((x) => (!f.curso || x.curso === f.curso) && (!b || x.nome.toLowerCase().includes(b)));
-    corpo = l.length ? `<table><thead><tr><th>Turma</th><th>Curso</th><th>Aulas na grade</th><th></th></tr></thead><tbody>
-      ${l.map((x) => `<tr><td><strong>${esc(x.nome)}</strong>${situacao(x.ativo)}</td><td>${esc(nomeCurso(x.curso))}</td><td>${x.aulas}</td>
-        <td class="acoes"><button class="btn-link" data-acao="cad-editar" data-tipo="turma" data-chave="${chaveCad("turma", x)}">Editar</button>
-        ${x.aulas ? "" : `<button class="btn-link perigo" data-acao="cad-excluir" data-tipo="turma" data-chave="${chaveCad("turma", x)}">Excluir</button>`}</td></tr>`).join("")}</tbody></table>` : `<div class="vazio">Nenhuma turma com esses filtros.</div>`;
+    const porCurso = c.cursos.map((k) => [k, l.filter((x) => x.curso === k.id)]).filter(([, t]) => t.length);
+    const orfas = l.filter((x) => !c.cursos.some((k) => k.id === x.curso));
+    if (orfas.length) porCurso.push([{ nome: "Sem curso" }, orfas]);
+    corpo = porCurso.length ? porCurso.map(([k, ts]) => `<section class="hor-turno"><h3>${esc(k.nome)}</h3><div class="hor-grade cad-peq">${ts.map((x) => `<article class="hor-card cad-tile${x.ativo ? "" : " hor-semuso"}">
+        <div><strong>${esc(x.nome)}</strong>${situacao(x.ativo)}<p>${x.aulas ? x.aulas + (x.aulas === 1 ? " aula" : " aulas") + " na grade" : "Sem aulas na grade"}</p></div>
+        <span class="hor-acoes" style="opacity:1"><button class="btn-link" data-acao="cad-editar" data-tipo="turma" data-chave="${chaveCad("turma", x)}">Editar</button>${x.aulas ? "" : `<button class="btn-link perigo" data-acao="cad-excluir" data-tipo="turma" data-chave="${chaveCad("turma", x)}">Excluir</button>`}</span></article>`).join("")}</div></section>`).join("") : `<div class="vazio">Nenhuma turma com esses filtros.</div>`;
   } else if (aba === "disciplinas") {
     titulo = "Disciplinas"; novo = `<button class="btn btn-primario btn-pequeno" data-acao="cad-novo" data-tipo="disciplina">Nova disciplina</button>`; topo = filtroCurso(false);
     const l = c.disciplinas.filter((x) => (!f.curso || x.curso === f.curso) && (!b || x.nome.toLowerCase().includes(b)))
       .sort((x, y) => nomeCurso(x.curso).localeCompare(nomeCurso(y.curso), "pt-BR") || x.nome.localeCompare(y.nome, "pt-BR"));
-    corpo = l.length ? `<table><thead><tr><th>Disciplina</th><th>Curso</th><th>Professor(es)</th><th>Aulas na grade</th><th></th></tr></thead><tbody>
-      ${l.map((x) => { const au = aulasDaDisciplina(x); const pr = [...new Set(au.map((a) => a.prof))].sort((p, q) => p.localeCompare(q, "pt-BR"));
-        return `<tr><td><strong>${esc(x.nome)}</strong>${situacao(x.ativo)}</td><td>${esc(nomeCurso(x.curso))}</td>
-        <td>${pr.map((p) => `<span class="etiqueta${p === "A definir" ? " et-amarelo" : ""}">${esc(p)}</span>`).join(" ")}${x.professor && !pr.includes(x.professor) ? ` <span class="etiqueta" title="Professor responsável (sem aulas ainda)">${esc(x.professor)} · resp.</span>` : ""}${!pr.length && !x.professor ? `<span class="etiqueta et-amarelo">sem professor</span>` : ""}</td><td>${x.aulas}</td>
-        <td class="acoes">${au.length ? `<button class="btn-link" data-acao="disc-atribuir" data-chave="${chaveCad("disciplina", x)}">Atribuir professor</button>` : ""}<button class="btn-link" data-acao="cad-editar" data-tipo="disciplina" data-chave="${chaveCad("disciplina", x)}">Editar</button>
-        ${x.aulas ? "" : `<button class="btn-link perigo" data-acao="cad-excluir" data-tipo="disciplina" data-chave="${chaveCad("disciplina", x)}">Excluir</button>`}</td></tr>`; }).join("")}</tbody></table>` : `<div class="vazio">Nenhuma disciplina com esses filtros.</div>`;
+    const grupos = c.cursos.map((k) => [k, l.filter((x) => x.curso === k.id)]).filter(([, d]) => d.length);
+    corpo = grupos.length ? grupos.map(([k, ds]) => {
+      const info = ds.map((x) => { const au = aulasDaDisciplina(x); return { x, au, pr: [...new Set(au.map((a) => a.prof))].sort((p, q) => p.localeCompare(q, "pt-BR")) }; });
+      const sem = info.filter((i) => !i.pr.length && !i.x.professor).length;
+      return `<section class="hor-turno"><div class="hor-card"><header><div><h4>${esc(k.nome)}</h4><p>${ds.length} disciplina${ds.length === 1 ? "" : "s"}</p></div>${sem ? `<span class="etiqueta et-amarelo">${sem} sem professor</span>` : `<span class="hor-contagem">todas com professor</span>`}</header>
+        <ul class="hor-lista">${info.map(({ x, au, pr }) => `<li class="cad-linha${x.ativo ? "" : " hor-semuso"}"><div class="cad-nome"><strong>${esc(x.nome)}</strong>${situacao(x.ativo)}
+          <div class="cad-profs">${pr.map((p) => `<span class="etiqueta${p === "A definir" ? " et-amarelo" : ""}">${esc(p)}</span>`).join(" ")}${x.professor && !pr.includes(x.professor) ? ` <span class="etiqueta" title="Professor responsável (sem aulas ainda)">${esc(x.professor)} · resp.</span>` : ""}${!pr.length && !x.professor ? `<span class="etiqueta et-amarelo">sem professor</span>` : ""}</div></div>
+          <span class="hor-aulas">${x.aulas ? x.aulas + (x.aulas === 1 ? " aula" : " aulas") : "—"}</span>
+          <span class="hor-acoes">${au.length ? `<button class="btn-link" data-acao="disc-atribuir" data-chave="${chaveCad("disciplina", x)}">Atribuir professor</button>` : ""}<button class="btn-link" data-acao="cad-editar" data-tipo="disciplina" data-chave="${chaveCad("disciplina", x)}">Editar</button>${x.aulas ? "" : `<button class="btn-link perigo" data-acao="cad-excluir" data-tipo="disciplina" data-chave="${chaveCad("disciplina", x)}">Excluir</button>`}</span></li>`).join("")}</ul></div></section>`;
+    }).join("") : `<div class="vazio">Nenhuma disciplina com esses filtros.</div>`;
   } else {
     titulo = "Horários (tempos de aula)"; novo = `${c.tempos.some((h) => h.turno === "Diurno") || c.cursos.some((x) => (x.turnos || [x.turno]).includes("Diurno")) ? `<button class="btn btn-pequeno" data-acao="organizar-turnos">Organizar em Matutino / Vespertino / Noturno</button>` : ""}<button class="btn btn-pequeno" data-acao="tempos-definir">Definir horários de várias turmas</button><button class="btn btn-pequeno" data-acao="tempos-copiar">Copiar padrão p/ turma</button><button class="btn btn-primario btn-pequeno" data-acao="cad-novo" data-tipo="tempo">Novo horário</button>`;
     const turnos = c.turnos.filter((t) => (!f.turno || f.turno === t) && (t !== "Diurno" || c.tempos.some((h) => h.turno === t) || c.cursos.some((x) => (x.turnos || [x.turno]).includes(t))));
@@ -776,7 +782,7 @@ function desenharCadastros() {
         turmas: "Cada turma pertence a um curso. Renomear atualiza as aulas na grade.",
         disciplinas: "Disciplinas de cada curso aparecem na lista ao cadastrar uma aula. Renomear atualiza a grade.",
         tempos: "Os horários do turno valem para todas as turmas. Se uma turma tem horários diferentes, crie horários próprios para ela: só os dela passam a valer." }[aba]}</p></div>
-      <div class="acoes-hist">${novo}</div></div>${topo}<div class="${aba === "tempos" ? "hor-area" : "tabela-rolagem tabela-cad"}">${corpo}</div>`;
+      <div class="acoes-hist">${novo}</div></div>${topo}<div class="hor-area">${corpo}</div>`;
   const ligar = (id, campo) => { const el = $(id); if (el) el.addEventListener("input", (e) => { f[campo] = e.target.value; desenharCadastros(); if (campo === "busca") { const i = $("#fcBusca"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }); };
   ligar("#fcCurso", "curso"); ligar("#fcBusca", "busca"); ligar("#fcTurno", "turno"); ligar("#fcTurma", "turma");
 }
