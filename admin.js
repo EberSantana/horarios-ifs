@@ -658,7 +658,7 @@ async function modalAtribuir() {
 const ABAS_CAD = [["cursos", "Cursos"], ["turmas", "Turmas"], ["disciplinas", "Disciplinas"], ["tempos", "Horários"]];
 
 async function telaCadastros(main) {
-  await carregarCadastros(true);
+  await Promise.all([carregarCadastros(true), carregarGrade().catch(() => null), carregarProfessores().catch(() => null)]);
   if (!estado.abaCad) estado.abaCad = "cursos";
   estado.filtroCad = estado.filtroCad || { curso: "", busca: "", turno: "" };
   main.innerHTML = cabecalho("Cadastros", "Cursos, turmas, disciplinas e horários usados na grade, no cadastro de aula e na importação",
@@ -668,6 +668,7 @@ async function telaCadastros(main) {
   desenharCadastros();
 }
 
+function aulasDaDisciplina(x) { return estado.grade.filter((a) => a.disc === x.nome && (cursoDe(a.turma) || {}).id === x.curso); }
 function chaveCad(tipo, x) {
   return esc(JSON.stringify(tipo === "curso" ? { id: x.id } : tipo === "turma" ? { nome: x.nome } : tipo === "disciplina" ? { nome: x.nome, curso: x.curso } : { turno: x.turno, hora: x.hora }));
 }
@@ -700,10 +701,12 @@ function desenharCadastros() {
     titulo = "Disciplinas"; novo = `<button class="btn btn-primario btn-pequeno" data-acao="cad-novo" data-tipo="disciplina">Nova disciplina</button>`; topo = filtroCurso(false);
     const l = c.disciplinas.filter((x) => (!f.curso || x.curso === f.curso) && (!b || x.nome.toLowerCase().includes(b)))
       .sort((x, y) => nomeCurso(x.curso).localeCompare(nomeCurso(y.curso), "pt-BR") || x.nome.localeCompare(y.nome, "pt-BR"));
-    corpo = l.length ? `<table><thead><tr><th>Disciplina</th><th>Curso</th><th>Aulas na grade</th><th></th></tr></thead><tbody>
-      ${l.map((x) => `<tr><td><strong>${esc(x.nome)}</strong>${situacao(x.ativo)}</td><td>${esc(nomeCurso(x.curso))}</td><td>${x.aulas}</td>
-        <td class="acoes"><button class="btn-link" data-acao="cad-editar" data-tipo="disciplina" data-chave="${chaveCad("disciplina", x)}">Editar</button>
-        ${x.aulas ? "" : `<button class="btn-link perigo" data-acao="cad-excluir" data-tipo="disciplina" data-chave="${chaveCad("disciplina", x)}">Excluir</button>`}</td></tr>`).join("")}</tbody></table>` : `<div class="vazio">Nenhuma disciplina com esses filtros.</div>`;
+    corpo = l.length ? `<table><thead><tr><th>Disciplina</th><th>Curso</th><th>Professor(es)</th><th>Aulas na grade</th><th></th></tr></thead><tbody>
+      ${l.map((x) => { const au = aulasDaDisciplina(x); const pr = [...new Set(au.map((a) => a.prof))].sort((p, q) => p.localeCompare(q, "pt-BR"));
+        return `<tr><td><strong>${esc(x.nome)}</strong>${situacao(x.ativo)}</td><td>${esc(nomeCurso(x.curso))}</td>
+        <td>${pr.length ? pr.map((p) => `<span class="etiqueta${p === "A definir" ? " et-amarelo" : ""}">${esc(p)}</span>`).join(" ") : `<span class="mudo pequeno">—</span>`}</td><td>${x.aulas}</td>
+        <td class="acoes">${au.length ? `<button class="btn-link" data-acao="disc-atribuir" data-chave="${chaveCad("disciplina", x)}">Atribuir professor</button>` : ""}<button class="btn-link" data-acao="cad-editar" data-tipo="disciplina" data-chave="${chaveCad("disciplina", x)}">Editar</button>
+        ${x.aulas ? "" : `<button class="btn-link perigo" data-acao="cad-excluir" data-tipo="disciplina" data-chave="${chaveCad("disciplina", x)}">Excluir</button>`}</td></tr>`; }).join("")}</tbody></table>` : `<div class="vazio">Nenhuma disciplina com esses filtros.</div>`;
   } else {
     titulo = "Horários (tempos de aula)"; novo = `${c.tempos.some((h) => h.turno === "Diurno") || c.cursos.some((x) => (x.turnos || [x.turno]).includes("Diurno")) ? `<button class="btn btn-pequeno" data-acao="organizar-turnos">Organizar em Matutino / Vespertino / Noturno</button>` : ""}<button class="btn btn-primario btn-pequeno" data-acao="cad-novo" data-tipo="tempo">Novo horário</button>`; topo = filtroCurso(true);
     const turnos = c.turnos.filter((t) => (!f.turno || f.turno === t) && (t !== "Diurno" || c.tempos.some((h) => h.turno === t) || c.cursos.some((x) => (x.turnos || [x.turno]).includes(t))));
@@ -768,6 +771,39 @@ function modalCadastro(tipo, chave, turnoInicial) {
   });
   const ex = $("#kExcluir", m);
   if (ex) ex.addEventListener("click", () => { fecharModal(); excluirCadastro(tipo, chave); });
+}
+
+async function modalAtribuirDisciplina(chave) {
+  const x = estado.cad.disciplinas.find((i) => i.nome === chave.nome && i.curso === chave.curso);
+  if (!x) return;
+  await carregarProfessores();
+  const au = aulasDaDisciplina(x);
+  const turmas = [...new Set(au.map((a) => a.turma))].sort((p, q) => p.localeCompare(q, "pt-BR", { numeric: true }));
+  const nomes = profsAtivos().sort((p, q) => p.localeCompare(q, "pt-BR"));
+  const atuais = (lista) => [...new Set(lista.map((a) => a.prof))].join(", ");
+  const m = abrirModal(`<h2>Atribuir professor</h2>
+    <p class="mudo" style="margin:0"><strong>${esc(x.nome)}</strong> · ${esc((estado.cad.cursos.find((c) => c.id === x.curso) || {}).nome || x.curso)}</p>
+    <div class="campo"><label for="dTurma">Turma</label><select id="dTurma" class="input"><option value="">Todas as turmas (${au.length} aulas)</option>
+      ${turmas.map((t) => `<option value="${esc(t)}">${esc(t)} (${au.filter((a) => a.turma === t).length} aulas)</option>`).join("")}</select></div>
+    <div class="campo"><label for="dProf">Professor</label><select id="dProf" class="input"><option value="A definir">A definir</option>
+      ${nomes.map((n) => `<option>${esc(n)}</option>`).join("")}</select></div>
+    <p class="mudo pequeno" id="dResumo" style="margin:0"></p>
+    <div id="dConf"></div>
+    <div class="botoes"><button class="btn" data-fechar>Cancelar</button><button class="btn btn-primario" id="dOk">Atribuir</button></div>`);
+  const alvo = () => { const t = $("#dTurma", m).value; return t ? au.filter((a) => a.turma === t) : au; };
+  let forcar = false;
+  const resumo = () => { forcar = false; $("#dConf", m).innerHTML = ""; $("#dOk", m).textContent = "Atribuir";
+    $("#dResumo", m).textContent = `${alvo().length} aula(s) passam de ${atuais(alvo())} para ${$("#dProf", m).value}.`; };
+  $("#dTurma", m).addEventListener("input", resumo); $("#dProf", m).addEventListener("input", resumo); resumo();
+  $("#dOk", m).addEventListener("click", async () => {
+    const b = $("#dOk", m); b.disabled = true;
+    try {
+      const r = await chamar("admin_aulas_atribuir", { ids: alvo().map((a) => a.id), professor: $("#dProf", m).value, forcar });
+      if (r.conflitos) { $("#dConf", m).innerHTML = blocoConflitos(r.conflitos); forcar = true; b.textContent = "Atribuir mesmo assim"; return; }
+      if (!r.sucesso) throw new Error(r.erro);
+      fecharModal(); toast(r.afetadas + " aula(s) atribuída(s)."); invalidarDados(); await Promise.all([carregarGrade(true), carregarCadastros(true)]); desenharCadastros();
+    } catch (e) { toast(e.message, true); } finally { b.disabled = false; }
+  });
 }
 
 async function organizarTurnos() {
@@ -1367,6 +1403,7 @@ document.addEventListener("click", (ev) => {
     case "ir-cadastros": fecharModal(); irPara("cadastros"); break;
     case "aba-cadastro": estado.abaCad = d.aba; desenharCadastros(); break;
     case "organizar-turnos": organizarTurnos(); break;
+    case "disc-atribuir": modalAtribuirDisciplina(JSON.parse(d.chave)); break;
     case "cad-novo": modalCadastro(d.tipo, null, d.turno); break;
     case "cad-editar": modalCadastro(d.tipo, JSON.parse(d.chave)); break;
     case "cad-excluir": excluirCadastro(d.tipo, JSON.parse(d.chave)); break;
