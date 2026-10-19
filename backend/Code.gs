@@ -1907,6 +1907,7 @@ function adminExecutar_(d, ss, email) {
     case "admin_cadastro_excluir": return admCadastroExcluir_(ss, d, email);
     case "admin_turnos_organizar": return admTurnosOrganizar_(ss, d, email);
     case "admin_tempos_copiar": return admTemposCopiar_(ss, d, email);
+    case "admin_tempos_definir": return admTemposDefinir_(ss, d, email);
   }
   return { sucesso: false, erro: "Ação desconhecida." };
 }
@@ -2688,6 +2689,64 @@ function admTemposCopiar_(ss, d, admin) {
   limparCadastros_();
   registrarHistorico(ss, "ADMIN_TEMPOS_COPIADOS", admin, "", t.nome + ": " + linhas.length + " horários", "", "", "");
   return { sucesso: true, copiados: linhas.length };
+}
+
+/**
+ * Define os horários próprios de várias turmas de uma vez (substitui os que elas já tinham).
+ * d.turmas = nomes; d.horas = lista "08:40 - 09:30". Sem d.aplicar só devolve a prévia.
+ * O turno de cada horário sai do curso da turma (antes das 12:00 = Matutino, depois = Vespertino,
+ * quando o curso tem os dois). Nunca altera aulas da grade.
+ */
+function admTemposDefinir_(ss, d, admin) {
+  var cad = lerCadastros_(ss);
+  var nomes = (d.turmas || []).map(function (n) { return String(n); });
+  if (!nomes.length) throw new Error("Escolha ao menos uma turma.");
+  if (nomes.length > 60) throw new Error("Turmas demais de uma vez.");
+  var vistos = {}, horas = [];
+  (d.horas || []).forEach(function (h) {
+    var n = normHora_(h);
+    if (!String(h || "").trim()) return;
+    if (!n) throw new Error("Horário inválido: " + String(h).slice(0, 30) + " (use 08:40 - 09:30).");
+    if (!vistos[n]) { vistos[n] = true; horas.push(n); }
+  });
+  if (!horas.length) throw new Error("Informe ao menos um horário.");
+  if (horas.length > 20) throw new Error("Horários demais (máx. 20).");
+  horas.sort(function (a, b) { return horaEmMin_(a) - horaEmMin_(b); });
+  var alvo = nomes.map(function (n) {
+    var t = cad.turmas.filter(function (x) { return normTxt_(x.nome) === normTxt_(n); })[0];
+    if (!t) throw new Error("Turma não cadastrada: " + n);
+    return t;
+  });
+  var linhasH = lerLinhasHorarios_(ss);
+  var turnoDe = function (curso, hora) {
+    var ts = curso ? curso.turnos : [];
+    if (ts.length > 1 && (ts.indexOf("Matutino") !== -1 || ts.indexOf("Vespertino") !== -1)) {
+      var pref = horaEmMin_(hora) < 720 ? "Matutino" : "Vespertino";
+      if (ts.indexOf(pref) !== -1) return pref;
+    }
+    return ts[0] || "Diurno";
+  };
+  var previa = alvo.map(function (t) {
+    var c = cursoDaTurma_(cad, t.nome);
+    var fora = linhasH.filter(function (r) { return normTxt_(r[4]) === normTxt_(t.nome) && horas.indexOf(r[3]) === -1; }).length;
+    return { nome: t.nome, antes: cad.tempos.filter(function (h) { return normTxt_(h.turma) === normTxt_(t.nome); }).length, depois: horas.length, aulasForaDosHorarios: fora, curso: c ? c.nome : "" };
+  });
+  var resumo = { sucesso: true, aplicado: false, horas: horas, turmas: previa };
+  if (!d.aplicar) return resumo;
+  var sh = obterOuCriarAba(ss, "Tempos", CAB_TEMPOS);
+  var nm = alvo.map(function (t) { return normTxt_(t.nome); });
+  cad.tempos.filter(function (h) { return h.turma && nm.indexOf(normTxt_(h.turma)) !== -1; })
+    .sort(function (a, b) { return b.linha - a.linha; }).forEach(function (h) { sh.deleteRow(h.linha); });
+  var novas = [];
+  alvo.forEach(function (t) {
+    var c = cursoDaTurma_(cad, t.nome);
+    horas.forEach(function (h, i) { novas.push([turnoDe(c, h), h, i + 1, t.nome]); });
+  });
+  sh.getRange(sh.getLastRow() + 1, 1, novas.length, 4).setValues(novas);
+  limparCadastros_();
+  registrarHistorico(ss, "ADMIN_TEMPOS_DEFINIDOS", admin, "", alvo.length + " turmas: " + horas.length + " horários", "", "", "");
+  resumo.aplicado = true;
+  return resumo;
 }
 
 function admCadastroExcluir_(ss, d, admin) {

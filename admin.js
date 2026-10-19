@@ -718,7 +718,7 @@ function desenharCadastros() {
         <td class="acoes">${au.length ? `<button class="btn-link" data-acao="disc-atribuir" data-chave="${chaveCad("disciplina", x)}">Atribuir professor</button>` : ""}<button class="btn-link" data-acao="cad-editar" data-tipo="disciplina" data-chave="${chaveCad("disciplina", x)}">Editar</button>
         ${x.aulas ? "" : `<button class="btn-link perigo" data-acao="cad-excluir" data-tipo="disciplina" data-chave="${chaveCad("disciplina", x)}">Excluir</button>`}</td></tr>`; }).join("")}</tbody></table>` : `<div class="vazio">Nenhuma disciplina com esses filtros.</div>`;
   } else {
-    titulo = "Horários (tempos de aula)"; novo = `${c.tempos.some((h) => h.turno === "Diurno") || c.cursos.some((x) => (x.turnos || [x.turno]).includes("Diurno")) ? `<button class="btn btn-pequeno" data-acao="organizar-turnos">Organizar em Matutino / Vespertino / Noturno</button>` : ""}<button class="btn btn-pequeno" data-acao="tempos-copiar">Horários por turma</button><button class="btn btn-primario btn-pequeno" data-acao="cad-novo" data-tipo="tempo">Novo horário</button>`;
+    titulo = "Horários (tempos de aula)"; novo = `${c.tempos.some((h) => h.turno === "Diurno") || c.cursos.some((x) => (x.turnos || [x.turno]).includes("Diurno")) ? `<button class="btn btn-pequeno" data-acao="organizar-turnos">Organizar em Matutino / Vespertino / Noturno</button>` : ""}<button class="btn btn-pequeno" data-acao="tempos-definir">Definir horários de várias turmas</button><button class="btn btn-pequeno" data-acao="tempos-copiar">Copiar padrão p/ turma</button><button class="btn btn-primario btn-pequeno" data-acao="cad-novo" data-tipo="tempo">Novo horário</button>`;
     const turnos = c.turnos.filter((t) => (!f.turno || f.turno === t) && (t !== "Diurno" || c.tempos.some((h) => h.turno === t) || c.cursos.some((x) => (x.turnos || [x.turno]).includes(t))));
     const ft = f.turma || "";
     const ini = (h) => { const m = h.hora.match(/(\d+):(\d+)\s*-\s*(\d+):(\d+)/); return m ? [+m[1] * 60 + +m[2], +m[3] * 60 + +m[4]] : [0, 0]; };
@@ -740,10 +740,12 @@ function desenharCadastros() {
       ${turnos.map((t) => grupos(t).map((tm) => {
         const hs = c.tempos.filter((h) => h.turno === t && (h.turma || "") === tm);
         if (tm === "" && ft && ft !== "__padrao") return "";
-        const sobre = (h) => hs.filter((o) => o !== h && ini(h)[0] < ini(o)[1] && ini(o)[0] < ini(h)[1]).map((o) => o.hora.replace(" - ", "–"));
+        const usoPadrao = !tm && c.turmas.filter((x) => x.ativo && !turmasProprias.has(x.nome) && (((c.cursos.find((k) => k.id === x.curso) || {}).turnos) || []).includes(t)).length;
+        const semUso = !tm && !usoPadrao && hs.length && turmasProprias.size;
+        const sobre = (h) => semUso ? [] : hs.filter((o) => o !== h && ini(h)[0] < ini(o)[1] && ini(o)[0] < ini(h)[1]).map((o) => o.hora.replace(" - ", "–"));
         const cursosT = c.cursos.filter((x) => (x.turnos || [x.turno]).includes(t)).map((x) => esc(x.nome)).join(", ");
         const tit = tm ? `${esc(t)} · <strong>${esc(tm)}</strong> <span class="etiqueta">horário próprio</span> <span class="mudo">${hs.length} horário(s)</span>`
-          : `${esc(t)} · padrão <span class="mudo">${hs.length} horário(s) · vale para as turmas sem horário próprio · ${cursosT || "nenhum curso neste turno"}</span>`;
+          : `${esc(t)} · padrão <span class="mudo">${hs.length} horário(s) · ${semUso ? "sem uso: todas as turmas deste turno têm horário próprio" : "vale para as turmas sem horário próprio"} · ${cursosT || "nenhum curso neste turno"}</span>`;
         return `<tr class="dia-grupo"><th colspan="3">${tit}</th>
           <th class="acoes"><button class="btn-link" data-acao="cad-novo" data-tipo="tempo" data-turno="${esc(t)}" data-turma="${esc(tm)}">+ Adicionar</button></th></tr>` +
         (hs.length ? hs.map((h) => `<tr><td>${h.ordem}º</td><td><strong>${esc(h.hora.replace(" - ", "–"))}</strong>${sobre(h).length ? ` <span class="etiqueta et-amarelo" title="Mesmo grupo, horários que se cruzam">sobrepõe ${sobre(h).join(", ")}</span>` : ""}</td><td>${h.aulas}</td>
@@ -846,6 +848,47 @@ async function modalAtribuirDisciplina(chave) {
       if (!r.sucesso) throw new Error(r.erro);
       fecharModal(); toast(r.afetadas + " aula(s) atribuída(s)."); invalidarDados(); await Promise.all([carregarGrade(true), carregarCadastros(true)]); desenharCadastros();
     } catch (e) { toast(e.message, true); } finally { b.disabled = false; }
+  });
+}
+
+const MODELOS_TEMPOS = [
+  { id: "1", nome: "Integrado · 1º ano (almoço 11:10–11:50)", horas: ["08:40 - 09:30", "09:30 - 10:20", "10:20 - 11:10", "11:50 - 12:40", "12:40 - 13:30", "13:30 - 14:20", "14:20 - 15:10", "15:10 - 16:00"] },
+  { id: "2", nome: "Integrado · 2º ano (almoço 12:50–13:30)", horas: ["08:40 - 09:30", "09:30 - 10:20", "10:20 - 11:10", "11:10 - 12:00", "12:00 - 12:50", "13:30 - 14:20", "14:20 - 15:10", "15:10 - 16:00"] },
+  { id: "3", nome: "Integrado · 3º ano (almoço 12:00–12:40)", horas: ["08:40 - 09:30", "09:30 - 10:20", "10:20 - 11:10", "11:10 - 12:00", "12:40 - 13:30", "13:30 - 14:20", "14:20 - 15:10", "15:10 - 16:00"] },
+];
+function modalDefinirTempos() {
+  const c = estado.cad, proprias = new Set(c.tempos.filter((h) => h.turma).map((h) => h.turma));
+  const nomeCurso = (id) => (c.cursos.find((x) => x.id === id) || {}).nome || "";
+  const m = abrirModal(`<h2>Definir horários de várias turmas</h2>
+    <p class="mudo pequeno">Os horários abaixo passam a valer só para as turmas marcadas (substituem os horários próprios que elas já tinham). Use para turmas com o mesmo intervalo de almoço. As aulas da grade não mudam.</p>
+    <div class="campo"><label for="dtModelo">Modelo</label><select id="dtModelo" class="input"><option value="">Escrever eu mesmo…</option>${MODELOS_TEMPOS.map((x) => `<option value="${x.id}">${esc(x.nome)}</option>`).join("")}</select></div>
+    <div class="campo"><label for="dtHoras">Horários (um por linha)</label><textarea id="dtHoras" class="input" rows="8" placeholder="08:40 - 09:30"></textarea></div>
+    <div class="campo"><label>Turmas</label><div id="dtTurmas" style="display:flex;gap:6px 16px;flex-wrap:wrap;max-height:160px;overflow:auto;padding:6px 0">${c.turmas.map((t) => `<label class="pequeno" style="display:flex;gap:6px;align-items:center"><input type="checkbox" class="chk" value="${esc(t.nome)}"> ${esc(t.nome)}${proprias.has(t.nome) ? " ●" : ""}</label>`).join("")}</div></div>
+    <div id="kErro"></div>
+    <div class="botoes"><button class="btn" data-fechar>Cancelar</button><button class="btn btn-primario" id="dtOk">Ver prévia</button></div>`);
+  let previa = false;
+  const reset = () => { previa = false; $("#dtOk", m).textContent = "Ver prévia"; $("#kErro", m).innerHTML = ""; };
+  $("#dtModelo", m).addEventListener("input", (e) => {
+    const x = MODELOS_TEMPOS.find((k) => k.id === e.target.value); if (!x) return;
+    $("#dtHoras", m).value = x.horas.join("\n");
+    const ano = x.id + "º";
+    $$("#dtTurmas input", m).forEach((i) => { const t = c.turmas.find((y) => y.nome === i.value); i.checked = !!t && i.value.startsWith(ano) && /integrado/i.test(nomeCurso(t.curso)); });
+    reset();
+  });
+  $("#dtHoras", m).addEventListener("input", reset); $("#dtTurmas", m).addEventListener("change", reset);
+  $("#dtOk", m).addEventListener("click", async () => {
+    const turmas = $$("#dtTurmas input:checked", m).map((i) => i.value), horas = $("#dtHoras", m).value.split(/\n/).map((x) => x.trim()).filter(Boolean);
+    const b = $("#dtOk", m); b.disabled = true;
+    try {
+      const r = await chamar("admin_tempos_definir", { turmas, horas, aplicar: previa });
+      if (!r.sucesso) throw new Error(r.erro);
+      if (!previa) {
+        $("#kErro", m).innerHTML = `<div class="cartao-pad" style="margin:8px 0"><p class="pequeno" style="margin:0 0 6px"><strong>${r.horas.length} horários</strong> para ${r.turmas.length} turma(s):</p><ul class="pequeno" style="margin:0 0 0 18px">${r.turmas.map((t) => `<li>${esc(t.nome)}: ${t.antes ? t.antes + " próprios → " : ""}${t.depois}${t.aulasForaDosHorarios ? ` · <span class="etiqueta et-amarelo">${t.aulasForaDosHorarios} aula(s) fora desses horários</span>` : ""}</li>`).join("")}</ul></div>`;
+        previa = true; b.textContent = "Aplicar";
+      } else {
+        fecharModal(); toast(`Horários definidos para ${r.turmas.length} turma(s).`); await carregarCadastros(true); desenharCadastros();
+      }
+    } catch (e) { $("#kErro", m).innerHTML = `<div class="erro">${esc(e.message)}</div>`; } finally { b.disabled = false; }
   });
 }
 
@@ -1470,6 +1513,7 @@ document.addEventListener("click", (ev) => {
     case "disc-atribuir": modalAtribuirDisciplina(JSON.parse(d.chave)); break;
     case "cad-novo": modalCadastro(d.tipo, null, d.turno, d.turma); break;
     case "tempos-copiar": copiarTempos(d.turma); break;
+    case "tempos-definir": modalDefinirTempos(); break;
     case "cad-editar": modalCadastro(d.tipo, JSON.parse(d.chave)); break;
     case "cad-excluir": excluirCadastro(d.tipo, JSON.parse(d.chave)); break;
     case "testar-servidor": testarServidor(); break;
