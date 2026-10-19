@@ -2141,7 +2141,14 @@ function admProfSalvar_(ss, d, admin) {
       if (normTxt_(r[7]) === original.toLowerCase()) hs.getRange(r.__linha, 8).setValue(nome);
     });
   }
+  if (existente && original !== nome) {
+    var shDp = ss.getSheetByName("Disciplinas");
+    if (shDp && shDp.getLastRow() >= 2) lerTabela_(ss, "Disciplinas", CAB_DISCIPLINAS).forEach(function (r) {
+      if (normTxt_(r[3]) === original.toLowerCase()) shDp.getRange(r.__linha, 4).setValue(nome);
+    });
+  }
   limparMapaProfessores_();
+  limparCadastros_();
   registrarHistorico(ss, existente ? "ADMIN_EDITOU_PROFESSOR" : "ADMIN_CADASTROU_PROFESSOR", nome, "", email, "", "", admin);
   return { sucesso: true, renomeadas: renomeadas };
 }
@@ -2343,7 +2350,7 @@ function admConfigSalvar_(d) {
  */
 var CAB_CURSOS = ["ID", "Curso", "Turno", "E-mail coordenação", "Ativo"];
 var CAB_TURMAS = ["Turma", "Curso (ID)", "Ativo"];
-var CAB_DISCIPLINAS = ["Disciplina", "Curso (ID)", "Ativo"];
+var CAB_DISCIPLINAS = ["Disciplina", "Curso (ID)", "Ativo", "Professor"];
 var CAB_TEMPOS = ["Turno", "Horário", "Ordem"];
 var TURNOS = ["Matutino", "Vespertino", "Diurno", "Noturno"];
 
@@ -2427,7 +2434,7 @@ function lerCadastros_(ss) {
     return { nome: String(r[0]).trim(), curso: String(r[1]).trim(), ativo: ativoTxt_(r[2]), linha: r.__linha };
   });
   var disciplinas = lerTabela_(ss, "Disciplinas", CAB_DISCIPLINAS).map(function (r) {
-    return { nome: String(r[0]).trim(), curso: String(r[1]).trim(), ativo: ativoTxt_(r[2]), linha: r.__linha };
+    return { nome: String(r[0]).trim(), curso: String(r[1]).trim(), ativo: ativoTxt_(r[2]), professor: String(r[3] || "").trim(), linha: r.__linha };
   });
   var tempos = lerTabela_(ss, "Tempos", CAB_TEMPOS).map(function (r) {
     return { turno: String(r[0]).trim(), hora: String(r[1]).trim(), ordem: Number(r[2]) || 0, linha: r.__linha };
@@ -2469,7 +2476,7 @@ function admCadastrosLer_(ss) {
     cursos: cad.cursos.map(function (c) { return { id: c.id, nome: c.nome, turno: c.turno, turnos: c.turnos, email: c.email, ativo: c.ativo,
       turmas: cad.turmas.filter(function (t) { return t.curso === c.id; }).length }; }),
     turmas: cad.turmas.map(function (t) { return { nome: t.nome, curso: t.curso, ativo: t.ativo, aulas: uso.turma[normTxt_(t.nome)] || 0 }; }),
-    disciplinas: cad.disciplinas.map(function (d) { return { nome: d.nome, curso: d.curso, ativo: d.ativo, aulas: uso.disc[d.curso + "|" + normTxt_(d.nome)] || 0 }; }),
+    disciplinas: cad.disciplinas.map(function (d) { return { nome: d.nome, curso: d.curso, ativo: d.ativo, professor: d.professor, aulas: uso.disc[d.curso + "|" + normTxt_(d.nome)] || 0 }; }),
     tempos: cad.tempos.map(function (h) { return { turno: h.turno, hora: h.hora, ordem: h.ordem, aulas: uso.hora[h.turno + "|" + h.hora] || 0 }; })
   };
 }
@@ -2513,13 +2520,41 @@ function admCadastroSalvar_(ss, d, admin) {
     var shD = obterOuCriarAba(ss, "Disciplinas", CAB_DISCIPLINAS);
     var dAtual = orig ? cad.disciplinas.filter(function (x) { return x.nome === orig.nome && x.curso === orig.curso; })[0] : null;
     if (cad.disciplinas.some(function (x) { return x !== dAtual && x.curso === it.curso && normTxt_(x.nome) === normTxt_(nome); })) throw new Error("Essa disciplina já existe nesse curso.");
+    // professor responsável (opcional)
+    var profDisc = String(it.professor || "").trim();
+    if (profDisc) {
+      var pm = mapaProfessores_(ss)[normTxt_(profDisc)];
+      if (!pm) throw new Error("Professor não cadastrado: " + profDisc);
+      profDisc = pm.nome;
+    }
+    // aplica às aulas dessa disciplina que estão sem professor ("A definir")
+    var aplicar = [];
+    if (dAtual && profDisc && it.aplicarAulas) {
+      var linhasA = lerLinhasHorarios_(ss);
+      aplicar = linhasA.filter(function (r) {
+        var cc = cursoDaTurma_(cad, r[4]);
+        return r[5] === dAtual.nome && cc && cc.id === dAtual.curso && normTxt_(r[1]) === "a definir";
+      });
+      var confl = [];
+      aplicar.forEach(function (r) {
+        conflitosDaAula_(linhasA, { professor: profDisc, dia: r[2], hora: r[3], turma: r[4], disc: r[5] }, aplicar.map(function (x) { return x[0]; }))
+          .forEach(function (m) { if (m.indexOf("Prof. ") === 0) confl.push(r[2] + " " + r[3] + ": " + m); });
+      });
+      if (confl.length && !d.forcar) return { sucesso: false, conflitos: confl };
+    }
+    if (shD.getLastRow() >= 1 && String(shD.getRange(1, 4).getValue() || "").trim() === "") shD.getRange(1, 4).setValue("Professor");
     if (dAtual) {
-      shD.getRange(dAtual.linha, 1, 1, 3).setValues([[nome, it.curso, it.ativo === false ? "Não" : "Sim"]]);
+      shD.getRange(dAtual.linha, 1, 1, 4).setValues([[nome, it.curso, it.ativo === false ? "Não" : "Sim", profDisc]]);
       if (nome !== dAtual.nome) lerLinhasHorarios_(ss).forEach(function (r) {
         var c = cursoDaTurma_(cad, r[4]);
         if (r[5] === dAtual.nome && c && c.id === dAtual.curso) { hs.getRange(r.__linha, 6).setValue(nome); resp.atualizadas++; }
       });
-    } else shD.appendRow([nome, it.curso, "Sim"]);
+      aplicar.forEach(function (r) {
+        hs.getRange(r.__linha, 2).setValue(profDisc);
+        registrarHistorico(ss, "ADMIN_ATRIBUIU_AULA", r[1], profDisc, nome, r[4], r[2] + " às " + r[3], admin);
+      });
+      resp.atribuidas = aplicar.length;
+    } else shD.appendRow([nome, it.curso, "Sim", profDisc]);
   } else if (tipo === "tempo") {
     var hora = normHora_(it.hora);
     if (!hora) throw new Error("Horário no formato 08:40 - 09:30.");

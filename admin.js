@@ -600,6 +600,10 @@ async function modalAula(id, pre) {
   };
   preencherDependentes();
   if (cad) $("#aTurma", m).addEventListener("change", preencherDependentes);
+  if (cad && !a) $("#aDisc", m).addEventListener("change", () => {
+    const curso = cursoDe($("#aTurma", m).value), d = curso && cad.disciplinas.find((x) => x.curso === curso.id && x.nome === $("#aDisc", m).value);
+    if (d && d.professor && !$("#aProf", m).value) $("#aProf", m).value = d.professor;
+  });
   $$("#aProf,#aDia,#aHora,#aTurma", m).forEach((el) => el.addEventListener("input", () => { forcar = false; $("#aConf", m).innerHTML = ""; $("#aSalvar", m).textContent = "Salvar"; }));
   $("#aSalvar", m).addEventListener("click", async () => {
     const hora = normalizarHora($("#aHora", m).value);
@@ -704,7 +708,7 @@ function desenharCadastros() {
     corpo = l.length ? `<table><thead><tr><th>Disciplina</th><th>Curso</th><th>Professor(es)</th><th>Aulas na grade</th><th></th></tr></thead><tbody>
       ${l.map((x) => { const au = aulasDaDisciplina(x); const pr = [...new Set(au.map((a) => a.prof))].sort((p, q) => p.localeCompare(q, "pt-BR"));
         return `<tr><td><strong>${esc(x.nome)}</strong>${situacao(x.ativo)}</td><td>${esc(nomeCurso(x.curso))}</td>
-        <td>${pr.length ? pr.map((p) => `<span class="etiqueta${p === "A definir" ? " et-amarelo" : ""}">${esc(p)}</span>`).join(" ") : `<span class="mudo pequeno">—</span>`}</td><td>${x.aulas}</td>
+        <td>${pr.map((p) => `<span class="etiqueta${p === "A definir" ? " et-amarelo" : ""}">${esc(p)}</span>`).join(" ")}${x.professor && !pr.includes(x.professor) ? ` <span class="etiqueta" title="Professor responsável (sem aulas ainda)">${esc(x.professor)} · resp.</span>` : ""}${!pr.length && !x.professor ? `<span class="etiqueta et-amarelo">sem professor</span>` : ""}</td><td>${x.aulas}</td>
         <td class="acoes">${au.length ? `<button class="btn-link" data-acao="disc-atribuir" data-chave="${chaveCad("disciplina", x)}">Atribuir professor</button>` : ""}<button class="btn-link" data-acao="cad-editar" data-tipo="disciplina" data-chave="${chaveCad("disciplina", x)}">Editar</button>
         ${x.aulas ? "" : `<button class="btn-link perigo" data-acao="cad-excluir" data-tipo="disciplina" data-chave="${chaveCad("disciplina", x)}">Excluir</button>`}</td></tr>`; }).join("")}</tbody></table>` : `<div class="vazio">Nenhuma disciplina com esses filtros.</div>`;
   } else {
@@ -750,7 +754,12 @@ function modalCadastro(tipo, chave, turnoInicial) {
   else if (tipo === "turma") campos = `<div class="linha"><div class="campo"><label for="kNome">Nome da turma</label><input id="kNome" class="input" placeholder="1º DS" value="${esc(x ? x.nome : "")}"></div>${selCurso(x ? x.curso : estado.filtroCad.curso)}</div>
     ${x && x.aulas ? `<p class="mudo pequeno">${x.aulas} aula(s) na grade usam esta turma; renomear atualiza todas.</p>` : ""}`;
   else if (tipo === "disciplina") campos = `<div class="campo"><label for="kNome">Nome da disciplina</label><input id="kNome" class="input" value="${esc(x ? x.nome : "")}"></div>${selCurso(x ? x.curso : estado.filtroCad.curso)}
-    ${x && x.aulas ? `<p class="mudo pequeno">${x.aulas} aula(s) na grade usam esta disciplina; renomear atualiza todas.</p>` : ""}`;
+    ${x && x.aulas ? `<p class="mudo pequeno">${x.aulas} aula(s) na grade usam esta disciplina; renomear atualiza todas.</p>` : ""}
+    <div class="campo"><label for="kProf">Professor responsável</label><select id="kProf" class="input"><option value="">Nenhum</option>
+      ${profsAtivos().sort((p, q) => p.localeCompare(q, "pt-BR")).concat(x && x.professor && !profsAtivos().includes(x.professor) ? [x.professor] : []).map((n) => `<option ${x && x.professor === n ? "selected" : ""}>${esc(n)}</option>`).join("")}</select></div>
+    ${x && aulasDaDisciplina(x).some((a) => a.prof === "A definir") ? `<label class="pequeno" id="kAplicarLinha" style="display:none;gap:8px;align-items:center"><input type="checkbox" class="chk" id="kAplicar" checked>
+      Passar para ele(a) as ${aulasDaDisciplina(x).filter((a) => a.prof === "A definir").length} aula(s) que estão como “A definir”</label>` : ""}
+    <p class="mudo pequeno" style="margin:0">O professor responsável é sugerido ao cadastrar novas aulas desta disciplina.</p>`;
   else campos = `<div class="linha">${selTurno(x ? x.turno : turnoInicial || estado.filtroCad.turno || "Diurno")}<div class="campo"><label for="kHora">Horário</label><input id="kHora" class="input" placeholder="08:40 - 09:30" value="${esc(x ? x.hora : "")}"></div></div>
     <div class="campo" style="max-width:160px"><label for="kOrdem">Ordem no turno</label><input id="kOrdem" class="input" type="number" min="1" value="${x ? x.ordem : ""}" placeholder="automática"></div>
     ${x && x.aulas ? `<p class="mudo pequeno">${x.aulas} aula(s) estão neste horário; mudar o horário atualiza todas.</p>` : ""}`;
@@ -758,14 +767,22 @@ function modalCadastro(tipo, chave, turnoInicial) {
     <div class="botoes">${x && ((tipo === "curso" && !x.turmas) || tipo === "tempo") ? `<button class="btn btn-perigo esquerda" id="kExcluir">Excluir</button>` : ""}
       <button class="btn" data-fechar>Cancelar</button><button class="btn btn-primario" id="kOk">Salvar</button></div>`);
   const val = (id) => { const el = $(id, m); return el ? el.value.trim() : ""; };
+  let forcarCad = false;
+  if (tipo === "disciplina") {
+    const linha = $("#kAplicarLinha", m), sel = $("#kProf", m);
+    const mostrar = () => { forcarCad = false; $("#kErro", m).innerHTML = ""; $("#kOk", m).textContent = "Salvar"; if (linha) linha.style.display = sel.value ? "flex" : "none"; };
+    if (sel) { sel.addEventListener("input", mostrar); mostrar(); }
+  }
   $("#kOk", m).addEventListener("click", async () => {
     const item = { nome: val("#kNome"), turno: val("#kTurno"), turnos: $$("#kTurnos input:checked", m).map((i) => i.value), email: val("#kEmail"), curso: val("#kCurso"), hora: normalizarHora(val("#kHora")) || val("#kHora"), ordem: val("#kOrdem") };
     if ($("#kAtivo", m)) item.ativo = $("#kAtivo", m).checked;
+    if (tipo === "disciplina") { item.professor = val("#kProf"); item.aplicarAulas = !!($("#kAplicar", m) && $("#kAplicar", m).checked && item.professor); }
     const b = $("#kOk", m); b.disabled = true;
     try {
-      const r = await chamar("admin_cadastro_salvar", { tipo, original: chave ? (tipo === "curso" ? chave.id : tipo === "turma" ? chave.nome : chave) : null, item });
+      const r = await chamar("admin_cadastro_salvar", { tipo, original: chave ? (tipo === "curso" ? chave.id : tipo === "turma" ? chave.nome : chave) : null, item, forcar: forcarCad });
+      if (r.conflitos) { $("#kErro", m).innerHTML = blocoConflitos(r.conflitos); forcarCad = true; b.textContent = "Salvar mesmo assim"; return; }
       if (!r.sucesso) throw new Error(r.erro);
-      fecharModal(); toast(r.atualizadas ? `Salvo. ${r.atualizadas} aula(s) atualizada(s) na grade.` : "Salvo.");
+      fecharModal(); toast(r.atribuidas ? `Salvo. ${r.atribuidas} aula(s) passaram para ${item.professor}.` : r.atualizadas ? `Salvo. ${r.atualizadas} aula(s) atualizada(s) na grade.` : "Salvo.");
       invalidarDados(); await carregarCadastros(true); desenharCadastros();
     } catch (e) { $("#kErro", m).innerHTML = `<div class="erro">${esc(e.message)}</div>`; } finally { b.disabled = false; }
   });
