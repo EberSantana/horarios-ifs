@@ -532,9 +532,9 @@ async function executarRecuperarPin() {
     mostrarErroLogin((res && res.erro) || "Não foi possível redefinir o PIN agora. Tente de novo em instantes.");
     return;
   }
-  document.getElementById("pinInput").value = res.pinPadrao;
-  mostrarToast(`PIN redefinido para 1234 e notificado para ${res.email}!`);
-  mostrarErroLogin(`Seu PIN foi redefinido para 1234. Já preenchemos no campo para você! Basta clicar em "Entrar no Painel".`);
+  document.getElementById("pinInput").value = "";
+  mostrarToast("PIN temporário enviado ao seu e-mail institucional.");
+  mostrarErroLogin("Enviamos um PIN temporário para o seu e-mail institucional. Digite-o no campo e entre; depois troque em ⚙️ Configurações.");
 }
 
 function entrarNoPainel() {
@@ -2570,8 +2570,8 @@ async function salvarNovoPin() {
   const novoPin = document.getElementById("inputNovoPin").value.trim();
   const confirmaPin = document.getElementById("inputConfirmaPin").value.trim();
 
-  if (novoPin.length < 4) {
-    alert("O novo PIN deve ter pelo menos 4 dígitos!");
+  if (!/^\d{4,8}$/.test(novoPin)) {
+    alert("O novo PIN deve ter de 4 a 8 números!");
     return;
   }
   if (novoPin !== confirmaPin) {

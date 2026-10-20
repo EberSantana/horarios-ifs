@@ -695,6 +695,10 @@ function doPostInterno_(e) {
     var limite = limiteDeUso_(acao, dados);
     if (limite) { lock.releaseLock(); return criarRespostaJSON({ sucesso: false, erro: limite }); }
     var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var negada = sessaoProfessorExigida_(ss, acao, dados);
+    if (negada) { lock.releaseLock(); return criarRespostaJSON(negada); }
+    if (acao === "login_professor") { lock.releaseLock(); return criarRespostaJSON(loginProfessor_(ss, dados)); }
+    if (acao === "trocar_pin") { lock.releaseLock(); return criarRespostaJSON(trocarPinProfessor_(ss, dados)); }
     var config = lerConfigEmails_(); // destinatários da coordenação vêm do servidor, nunca do app
 
     // =========================================================================
@@ -955,22 +959,22 @@ function doPostInterno_(e) {
     // CASO 5: RECUPERAR PIN ESQUECIDO (Reset para 1234 e envio por e-mail)
     // =========================================================================
     else if (acao === "recuperar_pin") {
-      var prof = dados.professor;
+      // PIN temporário aleatório, enviado SÓ ao e-mail cadastrado do professor (nunca devolvido na resposta)
+      var prof = String(dados.professor || "").trim();
       var emailProf = obterEmailProfessor(ss, prof);
-      var sheetProfs = obterOuCriarAba(ss, "Professores", ["Professor", "Email", "Curso / Departamento", "PIN"]);
-      var rows = sheetProfs.getDataRange().getValues();
-      for (var i = 1; i < rows.length; i++) {
-        if (rows[i][0] === prof) {
-          sheetProfs.getRange(i + 1, 4).setValue("1234");
-          break;
-        }
+      var regPin = prof ? linhaPinProfessor_(ss, prof) : null;
+      if (!regPin || !emailProf) {
+        lock.releaseLock();
+        return criarRespostaJSON({ sucesso: false, erro: "Este professor não tem e-mail cadastrado. Fale com a coordenação para redefinir o PIN." });
       }
-      var resEnvio = dispararEmailRecuperacaoPin(emailProf, prof, "1234");
+      var temp = ("" + (100000 + Math.floor(Math.random() * 900000)));
+      var saltT = Utilities.getUuid();
+      regPin.sh.getRange(regPin.linha, 4).setNumberFormat("@").setValue("h1$" + saltT + "$" + hashSenha_(saltT, temp));
+      var resEnvio = dispararEmailRecuperacaoPin(emailProf, regPin.nome, temp);
       lock.releaseLock();
       return criarRespostaJSON({
         sucesso: true,
-        mensagem: "PIN resetado para 1234 e notificado por e-mail!",
-        destinatarios: emailProf,
+        mensagem: "PIN temporário enviado ao e-mail institucional.",
         emailStatus: resEnvio
       });
     }
@@ -1459,9 +1463,129 @@ function limparEntrada_(v, prof) {
   return v;
 }
 
+
+/**
+ * ==============================================================================
+ * LOGIN DO PROFESSOR: o PIN é conferido AQUI, nunca no navegador
+ * ==============================================================================
+ * - PIN guardado na aba Professores (coluna PIN). Vazio = PIN padrão 1234.
+ *   Depois que o professor troca, fica gravado só o "hash" (não dá para ler o PIN na planilha).
+ * - O login devolve um token assinado (30 dias). Sem token válido, as ações em nome
+ *   do professor (liberar, assumir, trocar, repor, banco de aulas) são recusadas.
+ * - Trocar o PIN ou resetá-lo invalida os tokens antigos.
+ */
+var PIN_PADRAO_ = "1234";
+
+function linhaPinProfessor_(ss, prof) {
+  var sh = obterOuCriarAba(ss, "Professores", ["Professor", "Email", "Curso / Departamento", "PIN"]);
+  if (sh.getLastRow() < 2) return null;
+  var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 4).getValues();
+  for (var i = 0; i < rows.length; i++) {
+    if (normTxt_(rows[i][0]) === normTxt_(prof)) return { sh: sh, linha: i + 2, nome: String(rows[i][0]).trim(), pin: rows[i][3] };
+  }
+  return null;
+}
+
+function pinConfere_(guardado, digitado) {
+  var g = String(guardado === null || guardado === undefined ? "" : guardado).trim();
+  var d = String(digitado || "").trim();
+  if (!d) return false;
+  if (g.indexOf("h1$") === 0) {
+    var partes = g.split("$");
+    return partes.length === 3 && hashSenha_(partes[1], d) === partes[2];
+  }
+  if (!g) g = PIN_PADRAO_;
+  if (/^\d{1,3}$/.test(g)) g = ("0000" + g).slice(-4); // planilha tirou os zeros à esquerda
+  return g === d;
+}
+
+function carimboPin_(guardado) {
+  var g = String(guardado === null || guardado === undefined ? "" : guardado);
+  return Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, "pin|" + g, Utilities.Charset.UTF_8)).slice(0, 10);
+}
+
+function segredoSessao_() {
+  var props = PropertiesService.getScriptProperties();
+  var seg = props.getProperty("SEGREDO_SESSAO");
+  if (!seg) { seg = Utilities.getUuid() + Utilities.getUuid(); props.setProperty("SEGREDO_SESSAO", seg); }
+  return seg;
+}
+
+function assinar_(texto) {
+  var bytes = Utilities.computeHmacSha256Signature(texto, segredoSessao_());
+  return Utilities.base64EncodeWebSafe(bytes);
+}
+
+function emitirTokenProfessor_(nome, pinGuardado) {
+  var exp = new Date().getTime() + 30 * 24 * 3600 * 1000;
+  var carga = nome + "|" + exp + "|" + carimboPin_(pinGuardado);
+  return Utilities.base64EncodeWebSafe(carga) + "." + assinar_(carga);
+}
+
+// Devolve o nome do professor dono do token, ou "" se inválido/expirado
+function professorDoToken_(ss, token) {
+  try {
+    var partes = String(token || "").split(".");
+    if (partes.length !== 2) return "";
+    var bytes = Utilities.base64DecodeWebSafe(partes[0]);
+    var carga = Utilities.newBlob(bytes).getDataAsString("UTF-8");
+    if (assinar_(carga) !== partes[1]) return "";
+    var c = carga.split("|");
+    if (c.length !== 3 || parseInt(c[1], 10) < new Date().getTime()) return "";
+    var reg = linhaPinProfessor_(ss, c[0]);
+    if (!reg || carimboPin_(reg.pin) !== c[2]) return "";
+    var mapa = mapaProfessores_(ss)[String(reg.nome).toLowerCase()];
+    if (mapa && mapa.ativo === false) return "";
+    return reg.nome;
+  } catch (e) { return ""; }
+}
+
+function loginProfessor_(ss, d) {
+  var prof = String(d.professor || "").trim();
+  var reg = prof ? linhaPinProfessor_(ss, prof) : null;
+  var generico = { sucesso: false, erro: "Professor ou PIN incorretos. Se você ainda não alterou, o PIN padrão é " + PIN_PADRAO_ + "." };
+  if (!reg) return generico;
+  var m = mapaProfessores_(ss)[String(reg.nome).toLowerCase()];
+  if (m && m.ativo === false) return { sucesso: false, erro: "Este professor está inativo. Fale com a coordenação." };
+  if (!pinConfere_(reg.pin, d.pin)) return generico;
+  return { sucesso: true, professor: reg.nome, token: emitirTokenProfessor_(reg.nome, reg.pin), pinPadrao: !String(reg.pin || "").trim() || String(reg.pin).trim() === PIN_PADRAO_ };
+}
+
+function trocarPinProfessor_(ss, d) {
+  var dono = professorDoToken_(ss, d.token);
+  if (!dono) return { sucesso: false, sessaoExpirada: true, erro: "Sessão expirada. Faça login novamente." };
+  var prof = String(d.professor || "").trim();
+  if (normTxt_(prof) !== normTxt_(dono)) return { sucesso: false, erro: "Sessão de outro professor." };
+  var reg = linhaPinProfessor_(ss, dono);
+  if (!reg) return { sucesso: false, erro: "Professor não encontrado." };
+  if (!pinConfere_(reg.pin, d.pinAtual)) return { sucesso: false, erro: "O PIN atual está incorreto." };
+  var novo = String(d.pinNovo || "").trim();
+  if (!/^\d{4,8}$/.test(novo)) return { sucesso: false, erro: "O novo PIN deve ter de 4 a 8 números." };
+  if (novo === PIN_PADRAO_) return { sucesso: false, erro: "Escolha um PIN diferente do padrão (" + PIN_PADRAO_ + ")." };
+  var salt = Utilities.getUuid();
+  var guardado = "h1$" + salt + "$" + hashSenha_(salt, novo);
+  reg.sh.getRange(reg.linha, 4).setNumberFormat("@").setValue(guardado);
+  registrarHistorico(ss, "PIN_ALTERADO", dono, "", "-", "-", "-", "");
+  return { sucesso: true, mensagem: "PIN alterado.", token: emitirTokenProfessor_(dono, guardado) };
+}
+
+// Ações em nome do professor só valem com sessão válida (e do próprio professor, quando o corpo diz quem é)
+var ACOES_COM_SESSAO_ = { libertar: "profOriginal", libertar_multiplos: "profOriginal", recuperar: "profOriginal", recuperar_multiplos: "profOriginal",
+  cancelar: "profOriginal", assumir: "substituto", propor_troca: "", aceitar_troca: "", recusar_troca: "", agendar_reposicao: "", cancelar_reposicao: "",
+  banco_assumir: "professor", banco_cancelar: "professor" };
+
+function sessaoProfessorExigida_(ss, acao, d) {
+  if (!Object.prototype.hasOwnProperty.call(ACOES_COM_SESSAO_, acao)) return null;
+  var dono = professorDoToken_(ss, d.token);
+  if (!dono) return { sucesso: false, sessaoExpirada: true, erro: "Sessão expirada. Entre novamente com o seu PIN." };
+  var campo = ACOES_COM_SESSAO_[acao];
+  if (campo && d[campo] && normTxt_(d[campo]) !== normTxt_(dono)) return { sucesso: false, sessaoExpirada: true, erro: "Esta ação pertence a outro professor." };
+  return null;
+}
+
 // Limite de uso para as ações que enviam e-mail (evita disparo em massa)
 function limiteDeUso_(acao, dados) {
-  var regras = { recuperar_pin: [3, 3600], libertar: [30, 3600], libertar_multiplos: [30, 3600], assumir: [30, 3600],
+  var regras = { login_professor: [12, 900], trocar_pin: [8, 900], recuperar_pin: [3, 3600], libertar: [30, 3600], libertar_multiplos: [30, 3600], assumir: [30, 3600],
                  propor_troca: [15, 3600], aceitar_troca: [15, 3600], agendar_reposicao: [15, 3600], banco_assumir: [20, 3600], banco_cancelar: [30, 3600] };
   var r = regras[acao];
   if (!r) return "";

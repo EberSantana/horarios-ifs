@@ -521,8 +521,8 @@ const API = {
       return (await res.json().catch(() => null)) || { sucesso: false, erro: "Sem resposta do servidor." };
     } catch (err) { return { sucesso: false, erro: "Falha de conexão: " + err.message }; }
   },
-  solicitarBanco(professor, ids, data, obs) { return this._postBanco({ acao: "banco_assumir", professor, ids, data, obs }); },
-  cancelarBanco(professor, id) { return this._postBanco({ acao: "banco_cancelar", professor, id }); },
+  solicitarBanco(professor, ids, data, obs) { return this._postBanco({ acao: "banco_assumir", professor, ids, data, obs, token: this.getSessionToken() }); },
+  cancelarBanco(professor, id) { return this._postBanco({ acao: "banco_cancelar", professor, id, token: this.getSessionToken() }); },
 
   // Avisos do professor (do servidor): só os e-mails que chegaram para ele
   _chaveAvisos(prof) { return "IFS_AVISOS_" + prof; },
@@ -811,13 +811,16 @@ const API = {
         body: JSON.stringify({ acao: "trocar_pin", professor, pinAtual, pinNovo, token }),
         redirect: "follow"
       });
-      return (await res.json().catch(() => null)) || { sucesso: false, erro: "Sem resposta do servidor." };
+      const data = (await res.json().catch(() => null)) || { sucesso: false, erro: "Sem resposta do servidor." };
+      // o PIN novo invalida o token antigo: guarda o novo, no mesmo lugar onde a sessão já estava
+      if (data.sucesso && data.token) this._salvarSessao(professor, data.token, !!localStorage.getItem(STORAGE_KEY_SESSION));
+      return data;
     } catch (err) {
       return { sucesso: false, erro: "Falha de conexão: " + err.message };
     }
   },
 
-  // Reset para o PIN padrão (1234): só o servidor grava isso, e só ele envia o e-mail de aviso.
+  // Reset do PIN (1234): só o servidor grava isso, e só ele envia o e-mail de aviso.
   async recuperarPin(professor) {
     const url = this.getBackendUrl();
     if (!url) return { sucesso: false, erro: "Sem conexão com o servidor." };
@@ -830,7 +833,7 @@ const API = {
         redirect: "follow"
       });
       const data = (await res.json().catch(() => null)) || {};
-      return { sucesso: !!data.sucesso, erro: data.erro, email: emailProf, pinPadrao: DEFAULT_PIN };
+      return { sucesso: !!data.sucesso, erro: data.erro, email: emailProf };
     } catch (err) {
       return { sucesso: false, erro: "Falha de conexão: " + err.message };
     }
