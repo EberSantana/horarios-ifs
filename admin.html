@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./admin.css?v=2.22">
+  <link rel="stylesheet" href="./admin.css?v=2.23">
 </head>
 <body>
 
@@ -30,19 +30,30 @@
       <input id="loginSenha" class="input" type="password" autocomplete="current-password" required>
     </div>
     <button class="btn btn-primario" id="btnEntrar" type="submit" style="min-height:46px">Entrar</button>
-    <button class="btn-link" type="button" id="btnPrimeiro" style="align-self:flex-start">Primeiro acesso ou esqueci a senha</button>
+    <button class="btn-link" type="button" id="btnEsqueci" style="align-self:flex-start">Esqueci minha senha</button>
+    <button class="btn-link" type="button" id="btnPrimeiro" style="align-self:flex-start">Primeiro acesso (tenho um código)</button>
     <a class="pequeno" href="./">← Voltar ao painel dos professores</a>
+  </form>
+  <form class="cartao-login oculto" id="formEsqueci" autocomplete="off">
+    <div class="sobretitulo"><img src="./icons/icon-192.png" alt="" width="32" height="32"><span>Painel Docente<br><small>IFS Campus Tobias Barreto</small></span></div>
+    <h1>Esqueci minha senha</h1>
+    <p class="mudo" style="margin:0">Informe o e-mail de administrador. Enviaremos um código de 6 números (vale 30 minutos) para criar uma senha nova.</p>
+    <div id="erroEsqueci" class="erro oculto" role="alert"></div>
+    <div class="campo"><label for="esEmail">E-mail do administrador</label><input id="esEmail" class="input" type="email" autocomplete="username" required placeholder="nome@ifs.edu.br"></div>
+    <button class="btn btn-primario" id="btnEnviarCodigo" type="submit" style="min-height:46px">Enviar código ao meu e-mail</button>
+    <button class="btn-link" type="button" id="btnTenhoCodigo" style="align-self:flex-start">Já tenho o código</button>
+    <button class="btn-link" type="button" id="btnVoltarLogin2" style="align-self:flex-start">← Voltar ao login</button>
   </form>
   <form class="cartao-login oculto" id="formPrimeiro" autocomplete="off">
     <div class="sobretitulo"><img src="./icons/icon-192.png" alt="" width="32" height="32"><span>Painel Docente<br><small>IFS Campus Tobias Barreto</small></span></div>
-    <h1>Primeiro acesso</h1>
-    <p class="mudo" style="margin:0">Use o código de 6 números que chegou no seu e-mail de convite (ou o gerado no Apps Script pela função <strong>gerarCodigoAdministrador</strong>) e crie sua senha.</p>
+    <h1 id="tituloPrimeiro">Primeiro acesso</h1>
+    <p class="mudo" style="margin:0" id="textoPrimeiro">Use o código de 6 números que chegou no seu e-mail (de convite ou de &ldquo;esqueci minha senha&rdquo;) e crie sua senha. Se for o primeiro administrador, o código é gerado no Apps Script pela função <strong>gerarCodigoAdministrador</strong>.</p>
     <div id="erroPrimeiro" class="erro oculto" role="alert"></div>
     <div class="campo"><label for="paCodigo">Código de 6 números</label><input id="paCodigo" class="input" inputmode="numeric" maxlength="6" required></div>
     <div class="campo"><label for="paEmail">Seu e-mail</label><input id="paEmail" class="input" type="email" autocomplete="username" required placeholder="nome@ifs.edu.br"></div>
     <div class="campo"><label for="paSenha">Senha nova (mínimo 8 caracteres)</label><input id="paSenha" class="input" type="password" autocomplete="new-password" minlength="8" required></div>
     <div class="campo"><label for="paSenha2">Repita a senha</label><input id="paSenha2" class="input" type="password" autocomplete="new-password" minlength="8" required></div>
-    <button class="btn btn-primario" id="btnCriar" type="submit" style="min-height:46px">Criar acesso e entrar</button>
+    <button class="btn btn-primario" id="btnCriar" type="submit" style="min-height:46px">Salvar senha e entrar</button>
     <button class="btn-link" type="button" id="btnVoltarLogin" style="align-self:flex-start">← Já tenho senha</button>
   </form>
 </section>
@@ -84,6 +95,6 @@
 <div id="modais"></div>
 <div id="toast" class="oculto" role="status" aria-live="polite"></div>
 
-<script src="./admin.js?v=2.22"></script>
+<script src="./admin.js?v=2.23"></script>
 </body>
 </html>

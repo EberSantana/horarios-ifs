@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconLink" type="image/png" href="./icons/icon-192.png">
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=4.46">
+  <link rel="stylesheet" href="./styles.css?v=4.47">
 </head>
 <body>
 
@@ -738,7 +738,7 @@
     <div class="modal-body">
       <p id="modalEsqueciPinDesc" style="font-weight: 700; color: var(--primary-dark); margin-bottom: 12px;"></p>
       <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 14px;">
-        Ao confirmar, o sistema enviará um aviso de segurança para o seu e-mail institucional oficial <strong>(@ifs.edu.br)</strong> e redefinirá temporariamente o seu acesso para o PIN padrão de segurança (<strong>1234</strong>).
+        Ao confirmar, o sistema enviará para o seu e-mail institucional oficial <strong>(@ifs.edu.br)</strong> um <strong>PIN temporário</strong>. Use-o para entrar e depois escolha um PIN novo em ⚙️ Configurações.
       </p>
       <div style="background: #e8f5e9; padding: 10px 12px; border-radius: 8px; font-size: 12px; color: #2e7d32; line-height: 1.4;">
         💡 <em>Dica de Gestão: O Coordenador do Curso também pode consultar ou redefinir seu PIN a qualquer momento na aba "Professores" da planilha oficial no Google Sheets.</em>
@@ -746,7 +746,7 @@
     </div>
     <div class="modal-actions">
       <button type="button" class="btn-secondary btn-cancelar-modal">Cancelar</button>
-      <button type="button" id="btnConfirmarRecuperarPin" class="btn-primary" style="flex:1;">Redefinir e Enviar E-mail</button>
+      <button type="button" id="btnConfirmarRecuperarPin" class="btn-primary" style="flex:1;">Enviar PIN temporário</button>
     </div>
   </div>
 </div>
@@ -770,8 +770,8 @@
 <!-- Toast de Notificações -->
 <div id="toast">Notificação</div>
 
-<script src="./api.js?v=4.46"></script>
-<script src="./app.js?v=4.46"></script>
+<script src="./api.js?v=4.47"></script>
+<script src="./app.js?v=4.47"></script>
 
 </body>
 </html>

@@ -1893,6 +1893,37 @@ function adminPrimeiroAcesso_(d) {
   return adminLogin_({ email: emailSalvo, senha: d.senha });
 }
 
+// "Esqueci a senha": envia um código de 6 números (vale 30 min) ao e-mail do administrador.
+// A resposta é sempre a mesma, exista o e-mail ou não (não revela quem é administrador).
+// O código é usado na mesma tela de "Primeiro acesso" (admin_primeiro_acesso), que grava a senha nova.
+function adminEsqueciSenha_(d) {
+  var email = String(d.email || "").trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { sucesso: false, erro: "Digite um e-mail válido." };
+  var resposta = { sucesso: true, mensagem: "Se este e-mail for de um administrador, enviamos um código de 6 números para ele. Confira também a caixa de spam." };
+  var cache = CacheService.getScriptCache();
+  var chaves = ["RL_ADMESQ_" + email, "RL_ADMESQ_GLOBAL"], limites = [3, 20];
+  for (var i = 0; i < chaves.length; i++) {
+    var n = parseInt(cache.get(chaves[i]) || "0", 10);
+    if (n >= limites[i]) return { sucesso: false, erro: "Muitos pedidos em pouco tempo. Tente de novo em cerca de 1 hora." };
+    cache.put(chaves[i], String(n + 1), 3600);
+  }
+  if (!lerAdmins_()[email]) return resposta;
+  var codigo = String(Math.floor(100000 + Math.random() * 900000));
+  var convites = lerConvites_();
+  convites[email] = { hash: hashSenha_("convite", codigo), expira: new Date().getTime() + 30 * 60000, tentativas: 0, por: "esqueci-senha" };
+  gravarConvites_(convites);
+  var link = CONFIG_PADRAO.LINK_PAINEL + "admin.html";
+  try {
+    enviarEmailRegistrado_({ to: email, subject: "Código para redefinir sua senha (Painel Docente IFS)",
+      htmlBody: "<div style='font-family:Arial,sans-serif;font-size:15px;color:#1c2420'>" +
+        "<p>Recebemos um pedido para redefinir a senha de administrador do <strong>Painel Docente — IFS Campus Tobias Barreto</strong>.</p>" +
+        "<p>Informe o código abaixo em <a href='" + link + "'>" + link + "</a> (tela de redefinição) e crie uma senha nova:</p>" +
+        "<p style='font-size:26px;font-weight:bold;letter-spacing:4px'>" + codigo + "</p>" +
+        "<p style='color:#5b6660'>O código vale 30 minutos. Se não foi você, ignore este e-mail: a senha atual continua valendo.</p></div>" });
+  } catch (e) { Logger.log("Falha ao enviar código de redefinição: " + (e && e.message || e)); }
+  return resposta;
+}
+
 // Convite: gera código de 6 números para um e-mail (vale 48 h) e envia por e-mail
 function admConvidar_(d, quem) {
   var email = String(d.email || "").trim().toLowerCase();
@@ -1907,7 +1938,7 @@ function admConvidar_(d, quem) {
     enviarEmailRegistrado_({ to: email, subject: "Convite: acesso ao painel administrativo (Painel Docente IFS)",
       htmlBody: "<div style='font-family:Arial,sans-serif;font-size:15px;color:#1c2420'>" +
         "<p>Você recebeu acesso de administrador ao <strong>Painel Docente — IFS Campus Tobias Barreto</strong>.</p>" +
-        "<p>1. Abra <a href='" + link + "'>" + link + "</a><br>2. Clique em <strong>Primeiro acesso ou esqueci a senha</strong><br>" +
+        "<p>1. Abra <a href='" + link + "'>" + link + "</a><br>2. Clique em <strong>Primeiro acesso (tenho um código)</strong><br>" +
         "3. Informe este e-mail (" + email + "), o código abaixo e crie sua senha.</p>" +
         "<p style='font-size:26px;font-weight:bold;letter-spacing:4px'>" + codigo + "</p>" +
         "<p style='color:#5b6660'>O código vale 48 horas e só funciona para este e-mail. Convite enviado por " + quem + ".</p></div>" });
@@ -1969,6 +2000,10 @@ function menuAbrirPainel() {
 function adminRouter_(d) {
   try {
     if (d.acao === "admin_login") return criarRespostaJSON(adminLogin_(d));
+    if (d.acao === "admin_esqueci_senha") {
+      var lockES = LockService.getScriptLock(); lockES.tryLock(10000);
+      try { return criarRespostaJSON(adminEsqueciSenha_(d)); } finally { lockES.releaseLock(); }
+    }
     if (d.acao === "admin_primeiro_acesso") {
       var lockPA = LockService.getScriptLock(); lockPA.tryLock(10000);
       try { return criarRespostaJSON(adminPrimeiroAcesso_(d)); } finally { lockPA.releaseLock(); }

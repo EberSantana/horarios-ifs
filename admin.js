@@ -162,7 +162,7 @@ function invalidarDados() { estado.gradeEm = 0; estado.profEm = 0; estado.cadEm 
 function mostrarLogin(msg) {
   $("#app").classList.add("oculto");
   $("#tela-login").classList.remove("oculto");
-  $("#formPrimeiro").classList.add("oculto"); $("#formLogin").classList.remove("oculto");
+  $("#formPrimeiro").classList.add("oculto"); $("#formEsqueci").classList.add("oculto"); $("#formLogin").classList.remove("oculto");
   const e = $("#erroLogin");
   if (msg) { e.textContent = msg; e.classList.remove("oculto"); } else e.classList.add("oculto");
 }
@@ -1773,22 +1773,49 @@ document.addEventListener("change", (ev) => {
 
 document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && $("#modais").innerHTML) fecharModal(); });
 $("#formLogin").addEventListener("submit", entrar);
-$("#btnPrimeiro").addEventListener("click", () => { $("#formLogin").classList.add("oculto"); $("#formPrimeiro").classList.remove("oculto"); $("#paCodigo").focus(); });
-$("#btnVoltarLogin").addEventListener("click", () => { $("#formPrimeiro").classList.add("oculto"); $("#formLogin").classList.remove("oculto"); });
+function telaPrimeiro(redefinir, email) {
+  $("#formLogin").classList.add("oculto"); $("#formEsqueci").classList.add("oculto"); $("#formPrimeiro").classList.remove("oculto");
+  $("#tituloPrimeiro").textContent = redefinir ? "Redefinir senha" : "Primeiro acesso";
+  if (redefinir) $("#textoPrimeiro").textContent = "Digite o código de 6 números que enviamos ao seu e-mail e crie a senha nova.";
+  if (email) $("#paEmail").value = email;
+  $("#paCodigo").focus();
+}
+function telaLogin() { $("#formPrimeiro").classList.add("oculto"); $("#formEsqueci").classList.add("oculto"); $("#formLogin").classList.remove("oculto"); }
+$("#btnPrimeiro").addEventListener("click", () => telaPrimeiro(false));
+$("#btnVoltarLogin").addEventListener("click", telaLogin);
+$("#btnVoltarLogin2").addEventListener("click", telaLogin);
+$("#btnEsqueci").addEventListener("click", () => {
+  $("#formLogin").classList.add("oculto"); $("#formEsqueci").classList.remove("oculto");
+  $("#esEmail").value = $("#loginEmail").value.trim(); $("#erroEsqueci").classList.add("oculto"); $("#esEmail").focus();
+});
+$("#btnTenhoCodigo").addEventListener("click", () => telaPrimeiro(true, $("#esEmail").value.trim()));
+$("#formEsqueci").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const erro = $("#erroEsqueci"), btn = $("#btnEnviarCodigo");
+  btn.disabled = true; btn.textContent = "Enviando…"; erro.classList.add("oculto");
+  try {
+    const email = $("#esEmail").value.trim();
+    const r = await chamar("admin_esqueci_senha", { email });
+    if (!r.sucesso) throw new Error(r.erro || "Não foi possível enviar o código.");
+    telaPrimeiro(true, email);
+    toast("Se o e-mail for de administrador, o código foi enviado. Veja também o spam.");
+  } catch (e) { erro.textContent = e.message; erro.classList.remove("oculto"); }
+  finally { btn.disabled = false; btn.textContent = "Enviar código ao meu e-mail"; }
+});
 $("#formPrimeiro").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const erro = $("#erroPrimeiro"), btn = $("#btnCriar");
   const mostrar = (m) => { erro.textContent = m; erro.classList.remove("oculto"); };
   if ($("#paSenha").value !== $("#paSenha2").value) return mostrar("As duas senhas não são iguais.");
-  btn.disabled = true; btn.textContent = "Criando…"; erro.classList.add("oculto");
+  btn.disabled = true; btn.textContent = "Salvando…"; erro.classList.add("oculto");
   try {
     const r = await chamar("admin_primeiro_acesso", { codigo: $("#paCodigo").value.trim(), email: $("#paEmail").value.trim(), senha: $("#paSenha").value });
     if (!r.sucesso) throw new Error(r.erro || "Não foi possível criar o acesso.");
     estado.token = r.token; estado.email = r.email;
     try { sessionStorage.setItem("IFS_ADMIN", JSON.stringify({ token: r.token, email: r.email })); } catch (e) {}
-    $("#formPrimeiro").reset(); $("#formPrimeiro").classList.add("oculto"); $("#formLogin").classList.remove("oculto");
-    abrirApp(); toast("Acesso criado. Bem-vindo!");
-  } catch (e) { mostrar(e.message); } finally { btn.disabled = false; btn.textContent = "Criar acesso e entrar"; }
+    $("#formPrimeiro").reset(); telaLogin();
+    abrirApp(); toast("Senha salva. Bem-vindo!");
+  } catch (e) { mostrar(e.message); } finally { btn.disabled = false; btn.textContent = "Salvar senha e entrar"; }
 });
 $("#btnSair").addEventListener("click", () => sair(false));
 
