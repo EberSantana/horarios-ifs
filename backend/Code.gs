@@ -2548,6 +2548,7 @@ function ativoTxt_(v) { var t = String(v || "Sim").trim().toLowerCase(); return 
 function cursoPorRegra_(turma) {
   var t = String(turma || "").toUpperCase();
   if (t.indexOf("GRADUA") !== -1) return "GRAD";
+  if (/(^|[^A-Z])FIC([^A-Z]|$)/.test(t)) return "FIC";
   if (t.indexOf("SUBSEQUENTE") !== -1 || t.indexOf("INFO") !== -1) return "INFO";
   if (t.indexOf("COMÉRCIO") !== -1 || t.indexOf("COMERCIO") !== -1) return "COM";
   if (t.indexOf("DS") !== -1) return "DS";
@@ -2624,7 +2625,8 @@ function cadastrosPublicos_(ss) {
     var cad = lerCadastros_(ss);
     return {
       cursos: cad.cursos.filter(function (c) { return c.ativo; }).map(function (c) { return { id: c.id, nome: c.nome, turno: c.turno, turnos: c.turnos, email: c.email }; }),
-      turmas: cad.turmas.filter(function (t) { return t.ativo; }).map(function (t) { return { nome: t.nome, curso: t.curso }; })
+      turmas: cad.turmas.filter(function (t) { return t.ativo; }).map(function (t) { return { nome: t.nome, curso: t.curso }; }),
+      tempos: cad.tempos.map(function (h) { return { turno: h.turno, hora: h.hora, turma: h.turma, tipo: h.tipo }; })
     };
   } catch (e) { return null; }
 }
@@ -3025,6 +3027,108 @@ function completarDisciplinas_(ss, aulas) {
   var l = Object.keys(novas).map(function (k) { return novas[k]; });
   if (l.length) { var sh = obterOuCriarAba(ss, "Disciplinas", CAB_DISCIPLINAS); sh.getRange(sh.getLastRow() + 1, 1, l.length, 3).setValues(l); limparCadastros_(); }
   return l.length;
+}
+
+
+/**
+ * ==============================================================================
+ * CURSO FIC (Formação Inicial e Continuada) — noturno
+ * ==============================================================================
+ * Rode UMA vez no editor do Apps Script: escolha "cadastrarFIC" e clique em Executar.
+ * Pode rodar de novo sem duplicar nada. Não mexe nas aulas já existentes.
+ * Cria: curso, turma, disciplinas, professores que faltam, horários próprios da turma
+ * (com o intervalo 20:20–20:30) e as 16 aulas de segunda a quinta.
+ * Depois, em Cadastros → Cursos, informe o e-mail da coordenação do FIC e, em Professores,
+ * o nome completo e o e-mail de Adson e Calisto.
+ */
+var FIC_TURMA = "FIC";
+var FIC_AULAS_ = [
+  // [dia, tempo (índice), disciplina, professor, sigla do ID]
+  ["Segunda-feira", "Princípios de Administração e Empreendedorismo", "Adson", [0, 1]],
+  ["Segunda-feira", "Marketing e Vendas", "Adson", [2, 3]],
+  ["Terça-feira", "Gestão de Pessoas e Rotinas de Pessoal", "Grayce Jesus", [0, 1]],
+  ["Quarta-feira", "Gestão Financeira e Contábil", "Calisto", [0, 1]],
+  ["Quarta-feira", "Gerenciamento das Rotinas de Trabalho e Comunicação Organizacional", "A definir", [2, 3]],
+  ["Quinta-feira", "Ética, Relações Interpessoais e Resolução de Conflitos", "Vinicius Canhoto", [0, 1, 2, 3]]
+];
+var FIC_TEMPOS_ = ["18:40 - 19:30", "19:30 - 20:20", "20:30 - 21:20", "21:20 - 22:10"];
+
+function cadastrarFIC() {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    lerCadastros_(ss); // garante as abas de cadastros
+    limparCadastros_();
+    var log = [];
+    // 1) curso
+    var cad = lerCadastros_(ss);
+    if (!cad.cursos.some(function (c) { return c.id === "FIC"; })) {
+      obterOuCriarAba(ss, "Cursos", CAB_CURSOS).appendRow(["FIC", "Formação Inicial e Continuada (FIC)", "Noturno", "", "Sim"]);
+      log.push("Curso FIC criado (informe o e-mail da coordenação em Cadastros → Cursos).");
+    }
+    // 2) turma
+    limparCadastros_(); cad = lerCadastros_(ss);
+    if (!cad.turmas.some(function (t) { return normTxt_(t.nome) === normTxt_(FIC_TURMA); })) {
+      obterOuCriarAba(ss, "Turmas", CAB_TURMAS).appendRow([FIC_TURMA, "FIC", "Sim"]);
+      log.push("Turma FIC criada.");
+    }
+    // 3) disciplinas
+    limparCadastros_(); cad = lerCadastros_(ss);
+    var shD = obterOuCriarAba(ss, "Disciplinas", CAB_DISCIPLINAS);
+    FIC_AULAS_.forEach(function (a) {
+      if (!cad.disciplinas.some(function (x) { return x.curso === "FIC" && normTxt_(x.nome) === normTxt_(a[1]); })) {
+        shD.appendRow([a[1], "FIC", "Sim", a[2] === "A definir" ? "" : a[2]]);
+        cad.disciplinas.push({ curso: "FIC", nome: a[1] });
+        log.push("Disciplina: " + a[1]);
+      }
+    });
+    // 4) professores que faltam (sem e-mail: complete depois em Professores)
+    var mapa = mapaProfessores_(ss), shP = obterOuCriarAba(ss, "Professores", CAB_PROFESSORES);
+    ["Adson", "Calisto"].forEach(function (n) {
+      if (!mapa[n.toLowerCase()]) {
+        shP.appendRow([n, "", "Administração", "", "Sim"]);
+        log.push("Professor cadastrado: " + n + " (falta sobrenome e e-mail).");
+      }
+    });
+    __mapaProfs = null;
+    // 5) horários próprios da turma FIC (a noite do FIC termina 22:10)
+    limparCadastros_(); cad = lerCadastros_(ss);
+    if (!cad.tempos.some(function (h) { return normTxt_(h.turma) === normTxt_(FIC_TURMA); })) {
+      var shT = obterOuCriarAba(ss, "Tempos", CAB_TEMPOS);
+      var linhasT = [["Noturno", "18:40 - 19:30", 1, FIC_TURMA, ""], ["Noturno", "19:30 - 20:20", 2, FIC_TURMA, ""],
+                     ["Noturno", "20:20 - 20:30", 3, FIC_TURMA, "Intervalo"], ["Noturno", "20:30 - 21:20", 4, FIC_TURMA, ""], ["Noturno", "21:20 - 22:10", 5, FIC_TURMA, ""]];
+      shT.getRange(shT.getLastRow() + 1, 1, linhasT.length, 5).setValues(linhasT);
+      log.push("Horários da turma FIC criados.");
+    }
+    // 6) aulas
+    var existentes = lerLinhasHorarios_(ss), novas = [], conflitos = [], n = 0;
+    FIC_AULAS_.forEach(function (a) {
+      a[3].forEach(function (ti) {
+        var hora = FIC_TEMPOS_[ti];
+        var ja = existentes.some(function (r) { return normTxt_(r[4]) === normTxt_(FIC_TURMA) && normTxt_(r[2]) === normTxt_(a[0]) && r[3] === hora; });
+        if (ja) return;
+        n++;
+        var linha = ["FIC-" + n, a[2], a[0], hora, FIC_TURMA, a[1], "normal", "", "Aula confirmada", ""];
+        var ids = existentes.map(function (r) { return String(r[0]); });
+        while (ids.indexOf(linha[0]) !== -1) { n++; linha[0] = "FIC-" + n; }
+        var c = conflitosDaAula_(existentes.concat(novas.map(function (x) { return x; })), { professor: a[2], dia: a[0], hora: hora, turma: FIC_TURMA, disc: a[1] }, []);
+        if (c.length) conflitos = conflitos.concat(c);
+        novas.push(linha);
+      });
+    });
+    if (novas.length) {
+      var shH = ss.getSheetByName("Horarios");
+      shH.getRange(shH.getLastRow() + 1, 1, novas.length, 10).setValues(novas);
+      log.push(novas.length + " aulas do FIC adicionadas.");
+    } else log.push("As aulas do FIC já estavam na grade.");
+    if (conflitos.length) log.push("ATENÇÃO, choques de horário: " + conflitos.join(" | "));
+    limparCadastros_();
+    invalidarCacheGrade();
+    registrarHistorico(ss, "CADASTRO_FIC", "-", "-", "FIC", FIC_TURMA, novas.length + " aulas", "");
+    Logger.log(log.join("\n"));
+    return log;
+  } finally { lock.releaseLock(); }
 }
 
 /**

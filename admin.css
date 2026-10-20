@@ -435,3 +435,8 @@ td.acoes .btn + .btn { margin-left: 6px; }
 .banco-desc em { color: var(--grafite); font-style: normal; font-size: 12.5px; }
 .banco-bt { display: flex; gap: 8px; flex: 0 0 auto; }
 #abasBanco { align-self: flex-start; margin-bottom: 2px; }
+
+/* almoço e intervalo no quadro semanal */
+.quadro tr.q-pausa td { background: repeating-linear-gradient(135deg, #f6f7f4, #f6f7f4 6px, #f0f2ee 6px, #f0f2ee 12px); color: var(--grafite); text-align: center; font-size: 12.5px; font-weight: 600; letter-spacing: .02em; padding: 6px 10px; }
+.quadro tr.q-pausa th { font-weight: 600; color: var(--grafite); }
+@media print { .quadro tr.q-pausa td { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }

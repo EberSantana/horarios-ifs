@@ -541,7 +541,21 @@ function desenharQuadro() {
   const dias = DIAS.filter((d, i) => i < 5 || base.some((a) => a.dia === d));
   if (!horas.length) { $("#tabAulas").innerHTML = `<div class="vazio">Nenhuma aula para ${esc(f.turma || f.prof)}. Cadastre os horários do turno em Cadastros → Horários.</div>`; return; }
   const total = lista.length;
-  const corpo = horas.map((h) => `<tr><th class="q-hora" scope="row">${esc(h.replace(" - ", "–"))}</th>${dias.map((d) => {
+  const minDe = (h) => { const m = String(h).match(/(\d+):(\d+)\s*-\s*(\d+):(\d+)/); return m ? [+m[1] * 60 + +m[2], +m[3] * 60 + +m[4]] : [0, 0]; };
+  const fmMin = (n) => String(Math.floor(n / 60)).padStart(2, "0") + ":" + String(n % 60).padStart(2, "0");
+  // almoço e intervalo da turma: horários marcados + folgas de 10 min ou mais entre os tempos
+  const pausas = [];
+  if (porTurma) {
+    const tp = estado.cad ? estado.cad.tempos : [];
+    const proprios = tp.filter((h) => h.turma === f.turma);
+    const cursoT = cursoDe(f.turma), ts = cursoT ? (cursoT.turnos || [cursoT.turno]) : [];
+    (proprios.length ? proprios : tp.filter((h) => !h.turma && ts.includes(h.turno))).filter((h) => h.tipo).forEach((h) => pausas.push({ hora: h.hora, tipo: h.tipo }));
+    const aulaH = horas.filter((h) => !pausas.some((p) => p.hora === h));
+    aulaH.forEach((h, i) => { if (!i) return; const a = minDe(aulaH[i - 1])[1], b = minDe(h)[0];
+      if (b - a >= 10 && !pausas.some((p) => minDe(p.hora)[0] < b && minDe(p.hora)[1] > a)) pausas.push({ hora: fmMin(a) + " - " + fmMin(b), tipo: b - a >= 30 ? "Almoço" : "Intervalo" }); });
+  }
+  const linhasQ = [...horas.filter((h) => !pausas.some((p) => p.hora === h)).map((h) => ({ h })), ...pausas.map((p) => ({ h: p.hora, pausa: p.tipo }))].sort((x, y) => minDe(x.h)[0] - minDe(y.h)[0]);
+  const corpo = linhasQ.map((L) => L.pausa ? `<tr class="q-pausa"><th class="q-hora" scope="row">${esc(L.h.replace(" - ", "–"))}</th><td colspan="${dias.length}">${L.pausa === "Almoço" ? "Horário de almoço" : "Intervalo"} · ${minDe(L.h)[1] - minDe(L.h)[0]} min</td></tr>` : `<tr><th class="q-hora" scope="row">${esc(L.h.replace(" - ", "–"))}</th>${dias.map((d) => { const h = L.h;
     const aulas = lista.filter((a) => a.dia === d && a.hora === h);
     if (!aulas.length) return `<td class="q-vazio"><button class="q-add" data-acao="nova-aula-slot" data-dia="${esc(d)}" data-hora="${esc(h)}" aria-label="Cadastrar aula ${esc(d)} ${esc(h)}">+</button></td>`;
     return `<td>${aulas.map((a) => `<button class="q-aula ${classeAula(a)}" data-acao="editar-aula" data-id="${esc(a.id)}">

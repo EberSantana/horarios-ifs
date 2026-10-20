@@ -947,6 +947,40 @@ function extrairMinutosDoHorario(horaStr) {
 // ============================================================================
 // 1. ABA: MINHA GRADE
 // ============================================================================
+
+// ----------------------------------------------------------------------------
+// ALMOÇO E INTERVALO: faixa entre dois cartões do dia (horários e tipos vêm dos cadastros do painel)
+// ----------------------------------------------------------------------------
+function faixaMin(h) { const m = String(h || "").match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/); return m ? [(+m[1]) * 60 + (+m[2]), (+m[3]) * 60 + (+m[4])] : null; }
+function pausaEntre(turma, aulaAnt, aulaProx) {
+  const fa = faixaMin(aulaAnt.hora), fp = faixaMin(aulaProx.hora);
+  if (!fa || !fp || fp[0] <= fa[0]) return null;
+  const fmt = (n) => String(Math.floor(n / 60)).padStart(2, "0") + ":" + String(n % 60).padStart(2, "0");
+  const cad = API.getCadastros && API.getCadastros();
+  const tempos = (cad && cad.tempos) || [];
+  const t = (cad && (cad.turmas || []).find((x) => String(x.nome).toLowerCase() === String(turma).toLowerCase())) || null;
+  const curso = t && (cad.cursos || []).find((c) => c.id === t.curso);
+  const proprios = tempos.filter((h) => h.turma && String(h.turma).toLowerCase() === String(turma).toLowerCase());
+  const doGrupo = proprios.length ? proprios : tempos.filter((h) => !h.turma && curso && (curso.turnos || [curso.turno]).includes(h.turno));
+  const marcada = doGrupo.filter((h) => h.tipo).map((h) => ({ h, f: faixaMin(h.hora) })).find((x) => x.f && x.f[0] >= fa[1] - 1 && x.f[1] <= fp[0] + 1);
+  if (marcada) return { tipo: marcada.h.tipo, hora: fmt(marcada.f[0]) + "–" + fmt(marcada.f[1]), min: marcada.f[1] - marcada.f[0] };
+  const folga = fp[0] - fa[1];
+  if (folga >= 10 && aulaAnt.turma === aulaProx.turma) return { tipo: folga >= 30 ? "Almoço" : "Intervalo", hora: fmt(fa[1]) + "–" + fmt(fp[0]), min: folga };
+  return null;
+}
+function faixaPausaHTML(p) {
+  return `<div class="pausa-faixa"><strong>${p.tipo === "Almoço" ? "Horário de almoço" : "Intervalo"}</strong><span>${p.hora}</span><span>${p.min} min</span></div>`;
+}
+// cartões do dia com a faixa de almoço/intervalo entre eles
+function cartoesDoDia(aulas, contexto) {
+  const out = [];
+  aulas.forEach((aula, i) => {
+    if (i > 0) { const p = pausaEntre(aulas[i - 1].turma, aulas[i - 1], aula); if (p) out.push(`</div>${faixaPausaHTML(p)}<div class="cards-grid">`); }
+    out.push(criarCardHTML(aula, contexto));
+  });
+  return out.join("");
+}
+
 function renderizarMinhaGrade() {
   const container = document.getElementById("minhaGradeContainer");
   container.innerHTML = "";
@@ -994,9 +1028,7 @@ function renderizarMinhaGrade() {
     if (aulasPorDia[dia] && aulasPorDia[dia].length > 0) {
       aulasPorDia[dia].sort((a, b) => extrairMinutosDoHorario(a.hora) - extrairMinutosDoHorario(b.hora));
       htmlChunks.push(`<div class="day-header">${dia}</div><div class="cards-grid">`);
-      aulasPorDia[dia].forEach((aula) => {
-        htmlChunks.push(criarCardHTML(aula, "minha_grade"));
-      });
+      htmlChunks.push(cartoesDoDia(aulasPorDia[dia], "minha_grade"));
       htmlChunks.push(`</div>`);
     }
   });
@@ -1374,9 +1406,7 @@ function renderizarGradePorTurma(turmaAlvo) {
     if (agrupado[dia] && agrupado[dia].length > 0) {
       agrupado[dia].sort((a, b) => extrairMinutosDoHorario(a.hora) - extrairMinutosDoHorario(b.hora));
       htmlChunks.push(`<div class="day-header">${dia}</div><div class="cards-grid">`);
-      agrupado[dia].forEach((aula) => {
-        htmlChunks.push(criarCardHTML(aula, "grade_turma"));
-      });
+      htmlChunks.push(cartoesDoDia(agrupado[dia], "grade_turma"));
       htmlChunks.push(`</div>`);
     }
   });
