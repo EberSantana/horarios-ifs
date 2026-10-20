@@ -401,7 +401,6 @@ function configurarEventosInterface() {
 
   // Modal Configurações
   ligarEvento("btnOpenSettings", "click", abrirModalConfig);
-  ligarEvento("btnSalvarConfig", "click", salvarConfiguracoes);
   ligarEvento("btnResetarDemo", "click", resetarDadosDemo);
   const btnForcarAtualizar = document.getElementById("btnForcarAtualizacaoApp");
   if (btnForcarAtualizar) {
@@ -605,6 +604,8 @@ function renderizarAbaAtiva() {
     renderizarMinhaGrade();
   } else if (tabId === "tab-livres") {
     renderizarAulasLivres();
+  } else if (tabId === "tab-banco") {
+    renderizarBanco();
   } else if (tabId === "tab-trocas") {
     renderizarTrocasEReposicoes();
   } else if (tabId === "tab-turmas") {
@@ -1107,6 +1108,124 @@ function renderizarAulasLivres() {
   cardsHTML += `</div>`;
   container.innerHTML = cardsHTML;
 }
+
+
+// ============================================================================
+// ABA: BANCO DE AULAS (créditos por cobrir aulas sem titular, faltas e adiantamentos)
+// ============================================================================
+const NOMES_DIAS_BANCO = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+let bancoAulaAlvo = null;
+
+function dataLocalISO(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function dataBancoBR(iso) { const p = String(iso || "").split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : "—"; }
+
+function renderizarBanco(jaCarregou) {
+  const container = document.getElementById("bancoContainer");
+  if (!container || !usuarioLogado) return;
+  const dados = API.getMeuBanco(usuarioLogado) || { minhas: [], ocupadas: [], saldo: { creditos: 0, debitos: 0, saldo: 0, abonados: 0 } };
+  const s = dados.saldo || { creditos: 0, debitos: 0, saldo: 0, abonados: 0 };
+  const sinal = s.saldo > 0 ? "+" : "";
+  const livres = (bancoDeDados["A definir"] || []).slice().sort((a, b) => {
+    const ordem = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"];
+    return ordem.indexOf(a.dia) - ordem.indexOf(b.dia) || extrairMinutosDoHorario(a.hora) - extrairMinutosDoHorario(b.hora);
+  });
+  const porDisc = {};
+  livres.forEach((a) => { (porDisc[a.disc + " · " + a.turma] = porDisc[a.disc + " · " + a.turma] || []).push(a); });
+
+  const rotuloTipo = { VAGA: "Aula sem professor", AUSENCIA: "Cobertura de falta", ADIANTAMENTO: "Adiantamento" };
+  const classeStatus = { pendente: "banco-et-pend", confirmado: "banco-et-ok", recusado: "banco-et-no", cancelado: "banco-et-cancel" };
+  const textoStatus = { pendente: "Aguardando coordenação", confirmado: "Confirmado", recusado: "Recusado", cancelado: "Cancelado" };
+  const minhasHTML = (dados.minhas || []).map((m) => {
+    let efeito = "";
+    if (m.status === "confirmado") {
+      if (m.papel === "ministrou") efeito = `<strong class="banco-mais">+${m.tempos}</strong>`;
+      else efeito = m.abonada === "Sim" ? `<span class="banco-neutro">falta abonada</span>` : `<strong class="banco-menos">−${m.tempos}</strong>`;
+    }
+    const quem = m.papel === "ministrou" ? (m.tipo === "AUSENCIA" ? `Você cobriu a falta de Prof. ${escAviso(m.titular)}` : "Você ministrou") : `Prof. ${escAviso(m.professor)} cobriu sua falta`;
+    return `<div class="banco-linha">
+        <div class="banco-linha-txt"><strong>${escAviso(m.disc)} · ${escAviso(m.turma)}</strong>
+          <span>${escAviso(dataBancoBR(m.data))} · ${escAviso(m.hora)} · ${escAviso(rotuloTipo[m.tipo] || m.tipo)}</span>
+          <span>${quem}</span></div>
+        <div class="banco-linha-dir">${efeito}<span class="banco-et ${classeStatus[m.status] || ""}">${escAviso(textoStatus[m.status] || m.status)}</span>
+          ${m.status === "pendente" && m.papel === "ministrou" ? `<button type="button" class="avisos-link" data-banco-acao="cancelar" data-id="${escAviso(m.id)}">Cancelar pedido</button>` : ""}</div>
+      </div>`;
+  }).join("");
+
+  container.innerHTML = `
+    <div class="banco-saldo">
+      <div>
+        <div class="banco-saldo-rotulo">Meu saldo no banco de aulas</div>
+        <div class="banco-saldo-num ${s.saldo < 0 ? "negativo" : ""}">${sinal}${s.saldo} <small>tempo${Math.abs(s.saldo) === 1 ? "" : "s"}</small></div>
+      </div>
+      <div class="banco-saldo-det">${s.creditos} crédito${s.creditos === 1 ? "" : "s"} · ${s.debitos} débito${s.debitos === 1 ? "" : "s"}${s.abonados ? ` · ${s.abonados} falta${s.abonados === 1 ? "" : "s"} abonada${s.abonados === 1 ? "" : "s"}` : ""}</div>
+    </div>
+    <p class="banco-ajuda">Cada tempo que você ministra numa aula sem professor, ou que você cobre de um colega ausente, vira 1 crédito depois que a coordenação confirma. Só vale de hoje em diante.</p>
+    <h3 class="banco-titulo">Aulas sem professor</h3>
+    ${livres.length ? Object.keys(porDisc).map((k) => `<div class="banco-grupo"><div class="banco-grupo-nome">${escAviso(k)}</div>
+        ${porDisc[k].map((a) => `<div class="banco-linha"><div class="banco-linha-txt"><strong>${escAviso(a.dia)} · ${escAviso(a.hora)}</strong></div>
+          <div class="banco-linha-dir"><button type="button" class="btn-card btn-card-primary" data-banco-acao="assumir" data-id="${escAviso(a.id)}">Assumir</button></div></div>`).join("")}</div>`).join("")
+      : `<div class="empty-state" style="padding: 20px;"><div class="empty-state-icon" style="font-size: 32px;">✅</div><div class="empty-state-text" style="font-size: 14px;">Todas as aulas têm professor no momento.</div></div>`}
+    <h3 class="banco-titulo">Meus pedidos e lançamentos</h3>
+    ${minhasHTML || `<div class="empty-state" style="padding: 20px;"><div class="empty-state-text" style="font-size: 14px;">Você ainda não tem lançamentos no banco de aulas.</div></div>`}`;
+  if (!jaCarregou) API.carregarMeuBanco(usuarioLogado).then(() => renderizarBanco(true));
+}
+
+function abrirModalBanco(idAula) {
+  const aula = (bancoDeDados["A definir"] || []).find((a) => a.id === idAula);
+  if (!aula) return;
+  const teste = verificarConflito(aula.dia, aula.hora);
+  if (teste.conflito) {
+    document.getElementById("modalConflitoTexto").innerText =
+      `Você já tem aula nesse mesmo dia e horário:\n▶ ${teste.descricao}\n\nO sistema impede a sobreposição para nenhuma turma ficar sem acompanhamento.`;
+    abrirModal("modalConflito");
+    return;
+  }
+  const dados = API.getMeuBanco(usuarioLogado) || { ocupadas: [] };
+  const alvoDia = NOMES_DIAS_BANCO.indexOf(aula.dia);
+  const opcoes = [];
+  const d = new Date(); d.setHours(12, 0, 0, 0);
+  for (let i = 0; i < 70 && opcoes.length < 8; i++, d.setDate(d.getDate() + 1)) {
+    if (d.getDay() !== alvoDia) continue;
+    const iso = dataLocalISO(d);
+    const oc = (dados.ocupadas || []).find((o) => o.aulaId === aula.id && o.data === iso);
+    opcoes.push(`<option value="${iso}" ${oc ? "disabled" : ""}>${escAviso(aula.dia.replace("-feira", ""))}, ${dataBancoBR(iso)}${oc ? (oc.meu ? " (você já pediu)" : " (já pedida)") : ""}</option>`);
+  }
+  bancoAulaAlvo = aula;
+  document.getElementById("modalBancoTexto").textContent = `${aula.disc} (${aula.turma}) · ${aula.dia} às ${aula.hora}`;
+  document.getElementById("selectDataBanco").innerHTML = opcoes.join("");
+  const livre = Array.from(document.querySelectorAll("#selectDataBanco option")).find((o) => !o.disabled);
+  if (livre) document.getElementById("selectDataBanco").value = livre.value;
+  document.getElementById("inputObsBanco").value = "";
+  abrirModal("modalBanco");
+}
+
+ligarEvento("btnConfirmarBanco", "click", async () => {
+  if (!bancoAulaAlvo) return;
+  const sel = document.getElementById("selectDataBanco");
+  if (!sel.value || sel.selectedOptions[0].disabled) { mostrarToast("Escolha uma data disponível."); return; }
+  const btn = document.getElementById("btnConfirmarBanco");
+  btn.disabled = true; btn.textContent = "Enviando…";
+  const r = await API.solicitarBanco(usuarioLogado, [bancoAulaAlvo.id], sel.value, document.getElementById("inputObsBanco").value.trim());
+  btn.disabled = false; btn.textContent = "Enviar pedido";
+  if (!r.sucesso) { mostrarToast(r.erro || "Não foi possível enviar o pedido."); return; }
+  fecharTodosModais();
+  mostrarToast(r.mensagem || "Pedido enviado à coordenação.");
+  bancoAulaAlvo = null;
+  await API.carregarMeuBanco(usuarioLogado);
+  renderizarBanco(true);
+});
+
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-banco-acao]");
+  if (!b || !usuarioLogado) return;
+  if (b.dataset.bancoAcao === "assumir") abrirModalBanco(b.dataset.id);
+  else if (b.dataset.bancoAcao === "cancelar" && confirm("Cancelar este pedido?")) {
+    const r = await API.cancelarBanco(usuarioLogado, b.dataset.id);
+    mostrarToast(r.sucesso ? "Pedido cancelado." : (r.erro || "Não foi possível cancelar."));
+    await API.carregarMeuBanco(usuarioLogado);
+    renderizarBanco(true);
+  }
+});
 
 // ============================================================================
 // 3. ABA: TROCAS (PERMUTAS) & REPOSIÇÕES DE AULA

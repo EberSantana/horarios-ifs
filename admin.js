@@ -204,7 +204,7 @@ function abrirApp() {
 
 // ---------------------------------------------------------------- navegação
 const TELAS = {
-  inicio: telaInicio, emails: telaEmails, grade: telaGrade, cadastros: telaCadastros,
+  inicio: telaInicio, emails: telaEmails, grade: telaGrade, cadastros: telaCadastros, banco: telaBanco,
   professores: telaProfessores, arquivos: telaArquivos, config: telaConfig
 };
 function irPara(tela) {
@@ -269,6 +269,8 @@ async function telaInicio(main) {
   if (r.aDefinir) avisos.push(`<div class="aviso aviso-azul"><div class="txt"><strong>${r.aDefinir} aula${r.aDefinir > 1 ? "s" : ""} sem professor</strong>
     <span>Marcadas como “A definir” na grade</span></div>
     <button class="btn" data-acao="ver-grade" data-prof="A definir">Atribuir professor</button></div>`);
+  if (r.bancoPendentes) avisos.push(`<div class="aviso aviso-azul"><div class="txt"><strong>${r.bancoPendentes} pedido${r.bancoPendentes > 1 ? "s" : ""} no Banco de aulas</strong>
+    <span>Aguardando a confirmação da coordenação</span></div><button class="btn" data-acao="ir" data-tela="banco">Ver pedidos</button></div>`);
   if (r.emails.erros) avisos.push(`<div class="aviso aviso-vermelho"><div class="txt"><strong>${r.emails.erros} e-mail${r.emails.erros > 1 ? "s" : ""} com erro nesta semana</strong>
     <span>Confira os destinatários e reenvie</span></div><button class="btn" data-acao="ir" data-tela="emails">Ver e-mails</button></div>`);
   if (!avisos.length) avisos.push(`<div class="aviso aviso-verde"><div class="txt"><strong>Tudo em ordem</strong><span>Nenhuma falta aberta, choque ou aula sem professor.</span></div></div>`);
@@ -289,6 +291,7 @@ async function telaInicio(main) {
         <div class="lista-acoes">
           <button class="btn" data-acao="nova-aula">+ Cadastrar aula</button>
           <button class="btn" data-acao="novo-prof">+ Cadastrar professor</button>
+          <button class="btn" data-acao="ir" data-tela="banco">Banco de aulas</button>
           <button class="btn" data-acao="ir" data-tela="arquivos">Importar grade nova</button>
           <button class="btn" data-acao="exportar-excel">Exportar grade (Excel)</button>
         </div>
@@ -969,6 +972,172 @@ async function excluirCadastro(tipo, chave) {
 }
 
 // ================================================================ PROFESSORES
+// ================================================================ BANCO DE AULAS
+const TIPO_BANCO = { VAGA: "Aula sem titular", AUSENCIA: "Cobertura de falta", ADIANTAMENTO: "Adiantamento" };
+const COR_STATUS_BANCO = { pendente: "et-laranja", confirmado: "et-verde", recusado: "et-vermelho", cancelado: "" };
+const dataBR = (iso) => { const p = String(iso || "").split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : "—"; };
+const fmtSaldo = (n) => (n > 0 ? "+" : "") + n;
+
+async function telaBanco(main) {
+  const [r] = await Promise.all([chamar("admin_banco_listar"), carregarProfessores().catch(() => null), carregarGrade().catch(() => null)]);
+  if (!r.sucesso) throw new Error(r.erro);
+  estado.banco = r;
+  atualizarSeloBanco(r.pendentes);
+  if (!estado.bancoAba) estado.bancoAba = r.pendentes ? "pendentes" : "saldos";
+  estado.filtroBanco = estado.filtroBanco || { mes: "", prof: "", status: "", tipo: "" };
+  const vagaTempos = r.institucional.vaga;
+  main.innerHTML = cabecalho("Banco de aulas", "Créditos e débitos de quem cobre aulas sem titular, faltas e adiantamentos · 1 tempo = 1 crédito",
+      `<button class="btn" data-acao="banco-exportar">Exportar lançamentos</button>
+       <button class="btn btn-primario" data-acao="banco-lancar">+ Lançar manualmente</button>`) + `
+    <div class="grade-numeros">
+      <div class="numero ${r.pendentes ? "alerta" : ""}"><span class="valor">${r.pendentes}</span><span class="rotulo">Aguardando confirmação</span><span class="detalhe">${r.pendentes ? "confirme ou recuse na aba ao lado" : "nada pendente"}</span></div>
+      <div class="numero"><span class="valor">${vagaTempos}</span><span class="rotulo">Tempos de aulas sem titular</span><span class="detalhe">débito da instituição, não é de ninguém</span></div>
+      <div class="numero"><span class="valor">${r.institucional.ausenciaAbonada}</span><span class="rotulo">Faltas abonadas</span><span class="detalhe">cobertas, sem débito ao titular</span></div>
+      <div class="numero"><span class="valor">${r.saldos.filter((s) => s.saldo !== 0).length}</span><span class="rotulo">Professores com saldo</span><span class="detalhe">${r.saldos.filter((s) => s.saldo > 0).length} a favor · ${r.saldos.filter((s) => s.saldo < 0).length} devendo</span></div>
+    </div>
+    <div class="alternador" role="tablist" aria-label="Banco de aulas" id="abasBanco"></div>
+    <section class="cartao" id="secBanco"></section>`;
+  desenharBanco();
+}
+
+function atualizarSeloBanco(n) {
+  const s = $("#seloBanco"); if (!s) return;
+  s.textContent = n || ""; s.classList.toggle("oculto", !n);
+}
+
+function desenharBanco() {
+  const b = estado.banco, aba = estado.bancoAba;
+  const abas = [["pendentes", `Para confirmar${b.pendentes ? " (" + b.pendentes + ")" : ""}`], ["saldos", "Saldos"], ["lancamentos", "Lançamentos"]];
+  $("#abasBanco").innerHTML = abas.map(([k, t]) => `<button type="button" role="tab" data-acao="banco-aba" data-aba="${k}" aria-pressed="${aba === k}">${esc(t)}</button>`).join("");
+  const sec = $("#secBanco");
+  if (aba === "pendentes") {
+    const lista = b.entradas.filter((e) => e.status === "pendente").sort((x, y) => (x.data || "9").localeCompare(y.data || "9"));
+    sec.innerHTML = lista.length ? lista.map((e) => `<div class="banco-item">
+        <div class="banco-txt">
+          <strong>${e.tipo === "AUSENCIA" ? `Prof. ${esc(e.professor)} cobriu a falta do Prof. ${esc(e.titular)}` : `Prof. ${esc(e.professor)} quer ministrar aula sem titular`}</strong>
+          <span>${esc(e.disc)} · ${esc(e.turma)} · ${e.data ? esc(dataBR(e.data)) + " (" + esc(diaCurto(e.dia)) + ")" : esc(diaCurto(e.dia))} · ${esc(e.hora)} · ${e.tempos} tempo${e.tempos > 1 ? "s" : ""}</span>
+          ${e.obs ? `<span class="mudo">${esc(e.obs)}</span>` : ""}
+          ${e.tipo === "AUSENCIA" ? `<label class="banco-desc"><input type="checkbox" class="chk" data-desconta="${esc(e.id)}"> Descontar do Prof. ${esc(e.titular)} <em>(padrão: falta abonada, sem débito)</em></label>` : ""}
+        </div>
+        <div class="banco-bt"><button class="btn btn-primario btn-pequeno" data-acao="banco-decidir" data-id="${esc(e.id)}" data-dec="confirmar">Confirmar</button>
+          <button class="btn btn-pequeno btn-perigo" data-acao="banco-decidir" data-id="${esc(e.id)}" data-dec="recusar">Recusar</button></div>
+      </div>`).join("") : `<div class="vazio">Nenhum pedido aguardando confirmação.</div>`;
+  } else if (aba === "saldos") {
+    sec.innerHTML = b.saldos.length ? `<div class="tabela-rolagem"><table><thead><tr><th>Professor</th><th>Créditos</th><th>Débitos</th><th>Saldo</th><th class="esconder-celular">Origem dos créditos</th><th class="esconder-celular">Abonadas</th></tr></thead><tbody>
+      ${b.saldos.map((s) => `<tr><td><strong>${esc(s.professor)}</strong></td><td>${s.creditos}</td><td>${s.debitos}</td>
+        <td><span class="etiqueta ${s.saldo > 0 ? "et-verde" : s.saldo < 0 ? "et-vermelho" : ""}">${fmtSaldo(s.saldo)}</span></td>
+        <td class="esconder-celular mudo">${s.vaga} sem titular · ${s.ausencia} cobertura · ${s.adiantamento} adiantamento</td>
+        <td class="esconder-celular">${s.abonados}</td></tr>`).join("")}</tbody></table></div>
+      <div class="paginacao"><span>Só lançamentos confirmados entram no saldo. Aulas sem titular são crédito para quem ministra e débito da instituição (não são cobradas de nenhum professor).</span></div>`
+      : `<div class="vazio">Ainda não há lançamentos confirmados.</div>`;
+  } else {
+    const f = estado.filtroBanco, lista = lancamentosFiltrados();
+    const nomes = [...new Set(b.entradas.flatMap((e) => [e.professor, e.titular]).filter((n) => n && n !== "A definir"))].sort((x, y) => x.localeCompare(y, "pt-BR"));
+    sec.innerHTML = `<div class="filtros">
+        <div class="campo"><label for="bMes">Mês</label><input id="bMes" class="input" type="month" value="${esc(f.mes)}"></div>
+        <div class="campo"><label for="bProf">Professor</label><select id="bProf" class="input"><option value="">Todos</option>${nomes.map((n) => `<option ${f.prof === n ? "selected" : ""}>${esc(n)}</option>`).join("")}</select></div>
+        <div class="campo"><label for="bTipo">Tipo</label><select id="bTipo" class="input"><option value="">Todos</option>${Object.entries(TIPO_BANCO).map(([k, t]) => `<option value="${k}" ${f.tipo === k ? "selected" : ""}>${t}</option>`).join("")}</select></div>
+        <div class="campo"><label for="bStatus">Situação</label><select id="bStatus" class="input"><option value="">Todas</option>${["pendente", "confirmado", "recusado", "cancelado"].map((s) => `<option value="${s}" ${f.status === s ? "selected" : ""}>${s}</option>`).join("")}</select></div>
+      </div>
+      ${lista.length ? `<div class="tabela-rolagem"><table><thead><tr><th>Data</th><th>Tipo</th><th>Ministrou</th><th class="esconder-celular">Titular</th><th>Aula</th><th>Tempos</th><th>Situação</th><th></th></tr></thead><tbody>
+      ${lista.slice(0, 400).map((e) => `<tr><td style="white-space:nowrap">${esc(dataBR(e.data))}</td><td>${esc(TIPO_BANCO[e.tipo] || e.tipo)}</td><td>${esc(e.professor)}</td>
+        <td class="esconder-celular">${e.titular && e.titular !== "A definir" ? esc(e.titular) + (e.tipo === "AUSENCIA" ? (e.abonada === "Sim" ? ` <span class="etiqueta">abonada</span>` : ` <span class="etiqueta et-vermelho">descontada</span>`) : "") : "—"}</td>
+        <td>${esc(e.disc || "—")}${e.turma ? " · " + esc(e.turma) : ""}<br><span class="mudo pequeno">${esc(e.hora)}</span></td><td>${e.tempos}</td>
+        <td><span class="etiqueta ${COR_STATUS_BANCO[e.status] || ""}">${esc(e.status)}</span></td>
+        <td class="acoes">${e.status === "confirmado" || e.status === "pendente" ? `<button class="btn btn-pequeno btn-perigo" data-acao="banco-decidir" data-id="${esc(e.id)}" data-dec="cancelar">Cancelar</button>`
+          : `<button class="btn btn-pequeno" data-acao="banco-decidir" data-id="${esc(e.id)}" data-dec="reabrir">Reabrir</button>`}</td></tr>`).join("")}</tbody></table></div>
+      <div class="paginacao"><span>${lista.length} lançamento${lista.length === 1 ? "" : "s"}${lista.length > 400 ? " (mostrando 400)" : ""}</span></div>` : `<div class="vazio">Nenhum lançamento com esses filtros.</div>`}`;
+    const ligar = (id, c) => $(id, sec).addEventListener("input", (ev) => { f[c] = ev.target.value; desenharBanco(); });
+    ligar("#bMes", "mes"); ligar("#bProf", "prof"); ligar("#bTipo", "tipo"); ligar("#bStatus", "status");
+  }
+}
+
+function lancamentosFiltrados() {
+  const f = estado.filtroBanco;
+  return estado.banco.entradas.filter((e) => (!f.mes || (e.data || "").startsWith(f.mes)) && (!f.tipo || e.tipo === f.tipo) && (!f.status || e.status === f.status) &&
+    (!f.prof || e.professor === f.prof || e.titular === f.prof));
+}
+
+function pedirData(titulo, texto) {
+  return new Promise((res) => {
+    const m = abrirModal(`<h2>${esc(titulo)}</h2><p style="margin:0">${esc(texto)}</p>
+      <div class="campo"><label for="pdData">Data</label><input id="pdData" class="input" type="date"></div>
+      <div class="botoes"><button class="btn" data-r="0">Cancelar</button><button class="btn btn-primario" data-r="1">Continuar</button></div>`);
+    $$("[data-r]", m).forEach((b) => b.addEventListener("click", () => {
+      const v = $("#pdData", m).value;
+      if (b.dataset.r === "1" && !v) { toast("Escolha a data.", true); return; }
+      fecharModal(); res(b.dataset.r === "1" ? v : "");
+    }));
+  });
+}
+
+async function decidirBanco(id, dec, el) {
+  const e = estado.banco.entradas.find((x) => x.id === id);
+  if (!e) return;
+  if (dec === "cancelar" && !(await confirmar("Cancelar este lançamento?", "Ele deixa de contar no saldo. Dá para reabrir depois.", "Cancelar lançamento", true))) return;
+  const dados = { id, decisao: dec };
+  if (e.tipo === "AUSENCIA") {
+    const chk = $(`[data-desconta="${id}"]`);
+    dados.abonada = chk ? !chk.checked : e.abonada !== "Não";
+  }
+  if (dec === "confirmar" && e.tipo === "AUSENCIA" && !e.data) {
+    const dia = await pedirData("Em que dia foi a falta?", "Essa aula foi liberada sem a data da falta. Informe o dia para confirmar o crédito.");
+    if (!dia) return;
+    dados.data = dia;
+  }
+  try {
+    const r = await chamar("admin_banco_decidir", dados);
+    if (!r.sucesso) throw new Error(r.erro);
+    toast({ confirmar: "Confirmado. Crédito lançado.", recusar: "Pedido recusado.", cancelar: "Lançamento cancelado.", reabrir: "Reaberto para confirmação." }[dec]);
+    recarregarTela();
+  } catch (er) { toast(er.message, true); }
+}
+
+function modalLancarBanco() {
+  const profs = profsAtivos();
+  const turmas = [...new Set(estado.grade.map((a) => a.turma))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const opt = (l) => l.map((n) => `<option>${esc(n)}</option>`).join("");
+  const m = abrirModal(`<h2>Lançar no banco de aulas</h2>
+    <p class="mudo pequeno" style="margin:0 0 8px">Use para aulas já dadas (pode ser data passada), adiantamentos e acertos. O lançamento já entra confirmado.</p>
+    <div class="campo"><label for="blTipo">O que aconteceu?</label><select id="blTipo" class="input">
+      <option value="VAGA">Aula sem titular (ministrada por um professor)</option><option value="AUSENCIA">Cobertura de falta de outro professor</option><option value="ADIANTAMENTO">Aula adiantada / extra</option></select></div>
+    <div class="campo"><label for="blProf">Quem ministrou</label><select id="blProf" class="input"><option value="">Escolha…</option>${opt(profs)}</select></div>
+    <div class="campo oculto" id="blTitularBox"><label for="blTitular">Quem faltou (titular)</label><select id="blTitular" class="input"><option value="">Escolha…</option>${opt(profs)}</select></div>
+    <div class="campo"><label for="blData">Data da aula</label><input id="blData" class="input" type="date"></div>
+    <div class="campo"><label for="blHora">Horário</label><input id="blHora" class="input" placeholder="08:40 - 09:30"></div>
+    <div class="campo"><label for="blTurma">Turma</label><select id="blTurma" class="input"><option value="">—</option>${opt(turmas)}</select></div>
+    <div class="campo"><label for="blDisc">Disciplina</label><input id="blDisc" class="input" placeholder="Ex.: Física"></div>
+    <div class="campo"><label for="blTempos">Quantidade de tempos</label><input id="blTempos" class="input" type="number" min="1" max="10" value="1"></div>
+    <label class="banco-desc oculto" id="blDescBox"><input type="checkbox" class="chk" id="blDesc"> Descontar do titular <em>(padrão: falta abonada, sem débito)</em></label>
+    <div class="campo"><label for="blObs">Observação (opcional)</label><input id="blObs" class="input" maxlength="200"></div>
+    <div id="blErro"></div>
+    <div class="botoes"><button class="btn" data-fechar>Cancelar</button><button class="btn btn-primario" id="blOk">Lançar</button></div>`);
+  $("#blTipo", m).addEventListener("input", (ev) => {
+    const aus = ev.target.value === "AUSENCIA";
+    $("#blTitularBox", m).classList.toggle("oculto", !aus); $("#blDescBox", m).classList.toggle("oculto", !aus);
+  });
+  $("#blOk", m).addEventListener("click", async () => {
+    const b = $("#blOk", m); b.disabled = true;
+    try {
+      const tipo = $("#blTipo", m).value;
+      const r = await chamar("admin_banco_lancar", { tipo, professor: $("#blProf", m).value, titular: $("#blTitular", m).value, data: $("#blData", m).value,
+        hora: $("#blHora", m).value.trim(), turma: $("#blTurma", m).value, disc: $("#blDisc", m).value.trim(), tempos: parseInt($("#blTempos", m).value, 10) || 1,
+        abonada: !$("#blDesc", m).checked, obs: $("#blObs", m).value.trim() });
+      if (!r.sucesso) throw new Error(r.erro);
+      fecharModal(); toast("Lançamento registrado."); estado.bancoAba = "lancamentos"; recarregarTela();
+    } catch (er) { $("#blErro", m).innerHTML = `<div class="erro">${esc(er.message)}</div>`; } finally { b.disabled = false; }
+  });
+}
+
+function exportarBanco() {
+  if (!estado.banco) return;
+  const l = [["Data da aula", "Tipo", "Ministrou", "Titular", "Disciplina", "Turma", "Horário", "Tempos", "Situação", "Abonada", "Decidido por", "Observação"]];
+  lancamentosFiltrados().forEach((e) => l.push([dataBR(e.data), TIPO_BANCO[e.tipo] || e.tipo, e.professor, e.titular === "A definir" ? "" : e.titular, e.disc, e.turma, e.hora, e.tempos, e.status, e.tipo === "AUSENCIA" ? e.abonada : "", e.decididoPor, e.obs]));
+  l.push([]); l.push(["Saldos (confirmados)"]); l.push(["Professor", "Créditos", "Débitos", "Saldo", "Abonadas"]);
+  estado.banco.saldos.forEach((s) => l.push([s.professor, s.creditos, s.debitos, s.saldo, s.abonados]));
+  baixarArquivo(`banco-de-aulas_${hojeArquivo()}.csv`, csv(l), "text/csv;charset=utf-8");
+}
+
 const areasDe = (p) => String(p.curso || "").split(/\s*[\/;,]\s*/).map((x) => x.trim()).filter(Boolean);
 function opcoesArea() {
   const n = {};
@@ -1543,6 +1712,10 @@ document.addEventListener("click", (ev) => {
     case "salvar-servidor": salvarServidor(); break;
     case "arquivar-historico": arquivarHistorico(); break;
     case "alternar-historico": alternarHistorico(); break;
+    case "banco-aba": estado.bancoAba = d.aba; desenharBanco(); break;
+    case "banco-decidir": decidirBanco(d.id, d.dec, el); break;
+    case "banco-lancar": carregarProfessores().then(modalLancarBanco); break;
+    case "banco-exportar": exportarBanco(); break;
     case "sair": sair(false); break;
   }
 });

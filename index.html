@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconLink" type="image/png" href="./icons/icon-192.png">
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=4.40">
+  <link rel="stylesheet" href="./styles.css?v=4.41">
 </head>
 <body>
 
@@ -149,6 +149,9 @@
         <button type="button" class="tab-btn" data-tab="tab-livres">
           <span>🔴 Disponíveis</span>
         </button>
+        <button type="button" class="tab-btn" data-tab="tab-banco">
+          <span>🏦 Banco de aulas</span>
+        </button>
         <button type="button" class="tab-btn" data-tab="tab-trocas">
           <span>🔄 Trocas & Reposições</span>
           <span class="badge-counter" id="badgeQtdTrocas" style="display:none; background: var(--accent-swap);">0</span>
@@ -210,6 +213,11 @@
       <!-- ABA 2: AULAS DISPONÍVEIS -->
       <div id="tab-livres" class="tab-pane">
         <div id="aulasLivresContainer"></div>
+      </div>
+
+      <!-- ABA: BANCO DE AULAS -->
+      <div id="tab-banco" class="tab-pane">
+        <div id="bancoContainer"></div>
       </div>
 
       <!-- ABA 3: TROCAS E REPOSIÇÕES -->
@@ -489,6 +497,34 @@
   </div>
 </div>
 
+<!-- Modal: Assumir aula sem professor (Banco de aulas) -->
+<div id="modalBanco" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 class="modal-title">Assumir aula no Banco de aulas</h3>
+      <button type="button" class="btn-close-modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="modalBancoTexto" style="margin-bottom: 12px;"></p>
+      <div class="form-group">
+        <label for="selectDataBanco" class="form-label">Em que dia você vai ministrar?</label>
+        <select id="selectDataBanco" class="custom-input custom-select"></select>
+      </div>
+      <div class="form-group">
+        <label for="inputObsBanco" class="form-label">Observação (opcional)</label>
+        <input type="text" id="inputObsBanco" class="custom-input" maxlength="120" placeholder="Ex: conteúdo que vou trabalhar">
+      </div>
+      <p style="margin-top: 8px; font-size: 12px; color: var(--primary-color);">
+        A coordenação confirma o pedido. Depois da confirmação, cada tempo vira 1 crédito no seu banco de aulas.
+      </p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary btn-cancelar-modal">Voltar</button>
+      <button type="button" id="btnConfirmarBanco" class="btn-primary" style="flex:1;">Enviar pedido</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal 3: Propor Troca de Horário (Permuta de Múltiplos Tempos) -->
 <div id="modalTroca" class="modal-overlay">
   <div class="modal-card modal-card-large">
@@ -734,8 +770,8 @@
 <!-- Toast de Notificações -->
 <div id="toast">Notificação</div>
 
-<script src="./api.js?v=4.40"></script>
-<script src="./app.js?v=4.40"></script>
+<script src="./api.js?v=4.41"></script>
+<script src="./app.js?v=4.41"></script>
 
 </body>
 </html>

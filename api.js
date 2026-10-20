@@ -498,6 +498,32 @@ const API = {
     return dests.join(", ");
   },
 
+  // Banco de aulas: créditos/débitos de quem cobre aulas sem titular, faltas e adiantamentos
+  _chaveBanco(prof) { return "IFS_BANCO_" + prof; },
+  getMeuBanco(prof) {
+    try { return JSON.parse(localStorage.getItem(this._chaveBanco(prof)) || "null"); } catch (e) { return null; }
+  },
+  async carregarMeuBanco(prof) {
+    const url = this.getBackendUrl();
+    if (!url || !prof) return this.getMeuBanco(prof);
+    try {
+      const r = await fetch(`${url}?action=meuBanco&professor=${encodeURIComponent(prof)}`, { cache: "no-store" });
+      const d = await r.json();
+      if (d && d.sucesso) { localStorage.setItem(this._chaveBanco(prof), JSON.stringify(d)); return d; }
+    } catch (e) { console.warn("Banco de aulas indisponível agora:", e); }
+    return this.getMeuBanco(prof);
+  },
+  async _postBanco(corpo) {
+    const url = this.getBackendUrl();
+    if (!url) return { sucesso: false, erro: "Sem conexão com o servidor." };
+    try {
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(corpo), redirect: "follow" });
+      return (await res.json().catch(() => null)) || { sucesso: false, erro: "Sem resposta do servidor." };
+    } catch (err) { return { sucesso: false, erro: "Falha de conexão: " + err.message }; }
+  },
+  solicitarBanco(professor, ids, data, obs) { return this._postBanco({ acao: "banco_assumir", professor, ids, data, obs }); },
+  cancelarBanco(professor, id) { return this._postBanco({ acao: "banco_cancelar", professor, id }); },
+
   // Avisos do professor (do servidor): só os e-mails que chegaram para ele
   _chaveAvisos(prof) { return "IFS_AVISOS_" + prof; },
   getMeusAvisos(prof) {

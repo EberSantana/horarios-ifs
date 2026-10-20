@@ -620,6 +620,7 @@ function doGet(e) {
   try {
     var acao = (e && e.parameter && e.parameter.action) || "obterGrade";
     if (acao === "meusAvisos") return criarRespostaJSON(meusAvisos_(e.parameter.professor));
+    if (acao === "meuBanco") return criarRespostaJSON(meuBanco_(e.parameter.professor));
     var chave = acao === "obterTudo" ? "BANCO_TUDO_IFS_V2" : "BANCO_GRADE_IFS";
     var cache = CacheService.getScriptCache();
     var cached = cache.get(chave);
@@ -665,7 +666,7 @@ function doPost(e) {
   if (dadosAdm && String(dadosAdm.acao || "").indexOf("admin_") === 0) {
     var respAdm = adminRouter_(dadosAdm);
     try { SpreadsheetApp.flush(); } catch (eF2) {}
-    var soLeitura = /^admin_(cadastros_ler|login|primeiro_acesso|convidar|remover_admin|versao_apagar|historico_arquivar|sair|resumo|versoes|historico|config_ler|importar_previa|emails_listar|emails_acao|prof_listar|config_salvar)$/.test(dadosAdm.acao);
+    var soLeitura = /^admin_(cadastros_ler|login|primeiro_acesso|convidar|remover_admin|versao_apagar|historico_arquivar|banco_listar|banco_decidir|banco_lancar|sair|resumo|versoes|historico|config_ler|importar_previa|emails_listar|emails_acao|prof_listar|config_salvar)$/.test(dadosAdm.acao);
     if (!soLeitura) invalidarCacheGrade();
     return respAdm;
   }
@@ -742,6 +743,7 @@ function doPostInterno_(e) {
 
       var destFinal = emailsArray.join(", ");
       registrarHistorico(ss, "SUBSTITUICAO_ASSUMIDA", dados.profOriginal, dados.substituto, disc, turma, dia + " às " + hora, "");
+      bancoRegistrarCobertura_(ss, sheetHorarios.getRange(linhaAlvo, 1).getValue(), dados.profOriginal, dados.substituto, sheetHorarios.getRange(linhaAlvo, 10).getValue(), dia, hora, turma, disc);
       var resEnvio = dispararEmailSubstituicaoAssumida(destFinal, dados.profOriginal, dados.substituto, disc, turma, dia, hora);
 
       lock.releaseLock();
@@ -786,6 +788,7 @@ function doPostInterno_(e) {
           contagem++;
 
           registrarHistorico(ss, "AULA_DISPONIBILIZADA", dados.profOriginal, "", disc, turma, dia + " às " + hora, formatarDataBR(dados.dataFalta));
+          bancoCancelarPendentesDaAula_(ss, sheetHorarios.getRange(linhaAlvo, 1).getValue(), "AUSENCIA");
         }
       }
 
@@ -983,6 +986,7 @@ function doPostInterno_(e) {
         sheetHorarios.getRange(linhaAlvo, 8).setValue("");
         sheetHorarios.getRange(linhaAlvo, 9).setValue("Aula confirmada");
         sheetHorarios.getRange(linhaAlvo, 10).setValue("");
+        bancoCancelarPendentesDaAula_(ss, sheetHorarios.getRange(linhaAlvo, 1).getValue(), "AUSENCIA");
       }
       lock.releaseLock();
       return criarRespostaJSON({ sucesso: true, mensagem: "Aula restaurada ao estado original." });
@@ -1003,6 +1007,14 @@ function doPostInterno_(e) {
       }
       lock.releaseLock();
       return criarRespostaJSON({ sucesso: true, mensagem: "Ausências canceladas." });
+    }
+
+    else if (acao === "banco_assumir" || acao === "banco_cancelar") {
+      var respBanco;
+      try { respBanco = acao === "banco_assumir" ? bancoAssumir_(ss, dados) : bancoCancelarDoProfessor_(ss, dados); }
+      catch (eB) { respBanco = { sucesso: false, erro: String(eB && eB.message || eB) }; }
+      lock.releaseLock();
+      return criarRespostaJSON(respBanco);
     }
 
     else if (acao === "recusar_troca") {
@@ -1450,7 +1462,7 @@ function limparEntrada_(v, prof) {
 // Limite de uso para as ações que enviam e-mail (evita disparo em massa)
 function limiteDeUso_(acao, dados) {
   var regras = { recuperar_pin: [3, 3600], libertar: [30, 3600], libertar_multiplos: [30, 3600], assumir: [30, 3600],
-                 propor_troca: [15, 3600], aceitar_troca: [15, 3600], agendar_reposicao: [15, 3600] };
+                 propor_troca: [15, 3600], aceitar_troca: [15, 3600], agendar_reposicao: [15, 3600], banco_assumir: [20, 3600], banco_cancelar: [30, 3600] };
   var r = regras[acao];
   if (!r) return "";
   var quem = String(dados.professor || dados.profOriginal || dados.substituto || (dados.troca && dados.troca.proponente) || (dados.reposicao && dados.reposicao.professor) || "?");
@@ -1841,7 +1853,7 @@ function adminRouter_(d) {
     if (email && !lerAdmins_()[email]) { CacheService.getScriptCache().remove("ADMTOK_" + d.token); email = null; }
     if (!email) return criarRespostaJSON({ sucesso: false, sessaoExpirada: true, erro: "Sessão expirada. Entre novamente." });
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var leitura = { admin_cadastros_ler: 1, admin_resumo: 1, admin_emails_listar: 1, admin_prof_listar: 1, admin_versoes: 1, admin_historico: 1, admin_config_ler: 1, admin_importar_previa: 1 };
+    var leitura = { admin_cadastros_ler: 1, admin_banco_listar: 1, admin_resumo: 1, admin_emails_listar: 1, admin_prof_listar: 1, admin_versoes: 1, admin_historico: 1, admin_config_ler: 1, admin_importar_previa: 1 };
     if (leitura[d.acao]) return criarRespostaJSON(adminExecutar_(d, ss, email));
     var lock = LockService.getScriptLock();
     if (!lock.tryLock(15000)) return criarRespostaJSON({ sucesso: false, erro: "Sistema ocupado. Tente de novo em alguns segundos." });
@@ -1908,6 +1920,9 @@ function adminExecutar_(d, ss, email) {
     case "admin_turnos_organizar": return admTurnosOrganizar_(ss, d, email);
     case "admin_tempos_copiar": return admTemposCopiar_(ss, d, email);
     case "admin_tempos_definir": return admTemposDefinir_(ss, d, email);
+    case "admin_banco_listar": return admBancoListar_(ss);
+    case "admin_banco_decidir": return admBancoDecidir_(ss, d, email);
+    case "admin_banco_lancar": return admBancoLancar_(ss, d, email);
   }
   return { sucesso: false, erro: "Ação desconhecida." };
 }
@@ -1980,7 +1995,8 @@ function admResumo_(ss) {
   var versoes = admVersoes_(ss).versoes;
   return { sucesso: true, totalAulas: linhas.length, aDefinir: aDefinir, professoresAtivos: ativos.length,
            professoresInativos: Object.keys(mapa).length - ativos.length, faltas: faltas, assumidasInativo: assumidasInativo,
-           conflitos: conflitos, emails: emails, ultimaVersao: versoes[0] || null };
+           conflitos: conflitos, emails: emails, ultimaVersao: versoes[0] || null,
+           bancoPendentes: lerBanco_(ss).filter(function (b) { return b.status === "pendente"; }).length };
 }
 
 // ---------- e-mails ----------
@@ -2097,6 +2113,7 @@ function admAulaStatus_(ss, d, admin) {
     if (conf.length && !d.forcar) return { sucesso: false, conflitos: conf };
     sh.getRange(r.__linha, 7, 1, 3).setValues([["assumed", d.substituto, "Substituição indicada pela coordenação"]]);
     registrarHistorico(ss, "SUBSTITUICAO_INDICADA_ADMIN", r[1], d.substituto, r[5], r[4], r[2] + " às " + r[3], formatarDataBR(r[9]));
+    bancoRegistrarCobertura_(ss, r[0], r[1], d.substituto, r[9], r[2], r[3], r[4], r[5]);
     try {
       var cfg = lerConfigEmails_();
       var dest = [obterEmailsPorTurma(r[4], cfg), obterEmailProfessor(ss, r[1]), obterEmailProfessor(ss, d.substituto)].filter(String).join(", ");
@@ -2105,6 +2122,7 @@ function admAulaStatus_(ss, d, admin) {
   } else if (d.tipo === "liberar") {
     sh.getRange(r.__linha, 7, 1, 3).setValues([["alert", "", "⚠️ Substituto indisponível — aula liberada pela coordenação"]]);
     registrarHistorico(ss, "AULA_LIBERADA_ADMIN", r[1], r[7], r[5], r[4], r[2] + " às " + r[3], formatarDataBR(r[9]));
+    bancoCancelarPendentesDaAula_(ss, r[0], "AUSENCIA");
   } else if (d.tipo === "normal") {
     sh.getRange(r.__linha, 7, 1, 4).setValues([["normal", "", "Aula confirmada", ""]]);
     registrarHistorico(ss, "AULA_NORMALIZADA_ADMIN", r[1], "", r[5], r[4], r[2] + " às " + r[3], "");
@@ -2806,4 +2824,245 @@ function completarDisciplinas_(ss, aulas) {
   var l = Object.keys(novas).map(function (k) { return novas[k]; });
   if (l.length) { var sh = obterOuCriarAba(ss, "Disciplinas", CAB_DISCIPLINAS); sh.getRange(sh.getLastRow() + 1, 1, l.length, 3).setValues(l); limparCadastros_(); }
   return l.length;
+}
+
+/**
+ * ==============================================================================
+ * BANCO DE AULAS: créditos e débitos de cobertura e adiantamento
+ * ==============================================================================
+ * Cada linha da aba "Banco_Aulas" é UM tempo de aula (1 tempo = 1 crédito).
+ * Tipos:
+ *   VAGA          aula sem titular ("A definir") ministrada por um professor.
+ *                 Crédito ao professor; débito INSTITUCIONAL (não é cobrado de ninguém).
+ *   AUSENCIA      aula de um titular ausente coberta por outro professor.
+ *                 Crédito a quem cobriu; débito ao ausente, a menos que seja "abonada" (padrão).
+ *   ADIANTAMENTO  aula adiantada/extra lançada pela coordenação. Crédito de reserva.
+ * Status: pendente → confirmado | recusado | cancelado. Só "confirmado" entra no saldo.
+ * Nada é retroativo: o professor só solicita datas de hoje em diante (a coordenação pode lançar manualmente).
+ */
+var ABA_BANCO = "Banco_Aulas";
+var CAB_BANCO = ["ID", "Registrado em", "Tipo", "Professor (ministrou)", "Titular", "Data da aula", "Dia", "Horário", "Turma",
+                 "Disciplina", "Tempos", "Status", "Abonada", "Decidido por", "Decidido em", "Observação", "ID da aula"];
+var TIPOS_BANCO = ["VAGA", "AUSENCIA", "ADIANTAMENTO"];
+var NOMES_DIAS_ = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+
+function hojeISO_() { return Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "America/Bahia", "yyyy-MM-dd"); }
+
+// Aceita Date, 2026-10-21, 21-10-2026 e 21/10/2026; devolve 2026-10-21 (ou "" se inválida)
+function normData_(v) {
+  if (!v) return "";
+  if (v instanceof Date) return isNaN(v.getTime()) ? "" : Utilities.formatDate(v, Session.getScriptTimeZone() || "America/Bahia", "yyyy-MM-dd");
+  var s = String(v).trim(), m;
+  var a, mes, dia;
+  if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})/))) { a = +m[1]; mes = +m[2]; dia = +m[3]; }
+  else if ((m = s.match(/^(\d{2})[-\/](\d{2})[-\/](\d{4})/))) { a = +m[3]; mes = +m[2]; dia = +m[1]; }
+  else return "";
+  var dt = new Date(a, mes - 1, dia);
+  if (dt.getFullYear() !== a || dt.getMonth() !== mes - 1 || dt.getDate() !== dia) return "";
+  return a + "-" + ("0" + mes).slice(-2) + "-" + ("0" + dia).slice(-2);
+}
+function diaDaSemanaDe_(iso) { var p = iso.split("-"); return NOMES_DIAS_[new Date(+p[0], +p[1] - 1, +p[2]).getDay()]; }
+function dataBRdeISO_(iso) { var p = String(iso || "").split("-"); return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : ""; }
+
+function abaBanco_(ss) {
+  var sh = ss.getSheetByName(ABA_BANCO);
+  if (!sh) {
+    sh = obterOuCriarAba(ss, ABA_BANCO, CAB_BANCO);
+    formatarCabecalho(sh, "#1b5e20");
+    sh.getRange("F:F").setNumberFormat("@");
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function lerBanco_(ss) {
+  var sh = ss.getSheetByName(ABA_BANCO);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, CAB_BANCO.length).getValues().map(function (r, i) {
+    return { linha: i + 2, id: String(r[0] || ""), criado: r[1] instanceof Date ? r[1].getTime() : 0, tipo: String(r[2] || ""),
+             professor: String(r[3] || ""), titular: String(r[4] || ""), data: normData_(r[5]), dia: String(r[6] || ""),
+             hora: String(r[7] || ""), turma: String(r[8] || ""), disc: String(r[9] || ""), tempos: parseInt(r[10], 10) || 1,
+             status: String(r[11] || ""), abonada: String(r[12] || ""), decididoPor: String(r[13] || ""),
+             decididoEm: r[14] instanceof Date ? r[14].getTime() : 0, obs: String(r[15] || ""), aulaId: String(r[16] || "") };
+  }).filter(function (x) { return x.id; });
+}
+
+function gravarBanco_(ss, e) {
+  var sh = abaBanco_(ss);
+  var id = "BA-" + new Date().getTime() + "-" + Math.floor(Math.random() * 1000);
+  var linha = sh.getLastRow() + 1;
+  sh.getRange(linha, 1, 1, CAB_BANCO.length).setValues([[id, new Date(), e.tipo, e.professor, e.titular || "", e.data || "", e.dia || "", e.hora || "",
+    e.turma || "", e.disc || "", e.tempos || 1, e.status || "pendente", e.abonada || "", e.decididoPor || "", e.decididoPor ? new Date() : "", e.obs || "", e.aulaId || ""]]);
+  return id;
+}
+
+function bancoAtualizar_(ss, entrada, campos) {
+  var sh = ss.getSheetByName(ABA_BANCO);
+  var col = { status: 12, abonada: 13, decididoPor: 14, decididoEm: 15, obs: 16 };
+  Object.keys(campos).forEach(function (k) { if (col[k]) sh.getRange(entrada.linha, col[k]).setValue(campos[k]); });
+}
+
+// Saldo de cada professor. Só entradas confirmadas contam.
+function bancoSaldos_(entradas) {
+  var s = {}, inst = { vaga: 0, adiantamento: 0, ausenciaAbonada: 0 };
+  function get(n) { return s[n] || (s[n] = { professor: n, creditos: 0, debitos: 0, abonados: 0, vaga: 0, ausencia: 0, adiantamento: 0 }); }
+  entradas.forEach(function (e) {
+    if (e.status !== "confirmado") return;
+    if (e.professor) {
+      var p = get(e.professor);
+      p.creditos += e.tempos;
+      if (e.tipo === "VAGA") p.vaga += e.tempos; else if (e.tipo === "AUSENCIA") p.ausencia += e.tempos; else p.adiantamento += e.tempos;
+    }
+    if (e.tipo === "VAGA") inst.vaga += e.tempos;
+    if (e.tipo === "ADIANTAMENTO") inst.adiantamento += e.tempos;
+    if (e.tipo === "AUSENCIA" && e.titular && e.titular !== "A definir") {
+      if (e.abonada === "Sim") { get(e.titular).abonados += e.tempos; inst.ausenciaAbonada += e.tempos; }
+      else get(e.titular).debitos += e.tempos;
+    }
+  });
+  var lista = Object.keys(s).map(function (k) { s[k].saldo = s[k].creditos - s[k].debitos; return s[k]; });
+  lista.sort(function (a, b) { return b.saldo - a.saldo || a.professor.localeCompare(b.professor); });
+  return { saldos: lista, institucional: inst };
+}
+
+// Professor solicita assumir aula(s) sem titular numa data (hoje em diante). Fica pendente até a coordenação confirmar.
+function bancoAssumir_(ss, d) {
+  var prof = String(d.professor || "").trim();
+  var p = mapaProfessores_(ss)[prof.toLowerCase()];
+  if (!p || !p.ativo) throw new Error("Professor não encontrado.");
+  var data = normData_(d.data);
+  if (!data) throw new Error("Informe a data da aula.");
+  if (data < hojeISO_()) throw new Error("A data não pode ser anterior a hoje. O banco de aulas não vale para aulas que já passaram.");
+  var ids = (d.ids && d.ids.length ? d.ids : (d.aulaId ? [d.aulaId] : [])).slice(0, 12);
+  if (!ids.length) throw new Error("Escolha ao menos uma aula.");
+  var linhas = lerLinhasHorarios_(ss), banco = lerBanco_(ss), dia = diaDaSemanaDe_(data), criadas = [], resumo = [];
+  ids.forEach(function (idAula) {
+    var r = null; linhas.forEach(function (x) { if (String(x[0]).toUpperCase() === String(idAula).toUpperCase()) r = x; });
+    if (!r) throw new Error("Aula não encontrada.");
+    if (r[1] !== "A definir") throw new Error(r[5] + " (" + r[4] + ") já tem professor titular.");
+    if (normTxt_(r[2]) !== normTxt_(dia)) throw new Error("A aula de " + r[5] + " (" + r[4] + ") é na " + r[2] + ", mas " + dataBRdeISO_(data) + " é " + dia + ".");
+    banco.forEach(function (b) {
+      if (b.aulaId.toUpperCase() === String(r[0]).toUpperCase() && b.data === data && (b.status === "pendente" || b.status === "confirmado"))
+        throw new Error("Esta aula em " + dataBRdeISO_(data) + " já foi solicitada" + (b.professor === prof ? " por você." : " por outro professor."));
+      if (normTxt_(b.professor) === normTxt_(prof) && b.data === data && normTxt_(b.hora) === normTxt_(r[3]) && (b.status === "pendente" || b.status === "confirmado"))
+        throw new Error("Você já tem outra aula do banco em " + dataBRdeISO_(data) + " às " + r[3] + ".");
+    });
+    var conf = conflitosDaAula_(linhas, { professor: prof, dia: r[2], hora: r[3], turma: r[4], disc: r[5] }, [r[0]]).filter(function (m) { return m.indexOf("Prof. ") === 0; });
+    if (conf.length) throw new Error(conf[0]);
+    criadas.push(r);
+  });
+  var novosIds = criadas.map(function (r) {
+    resumo.push(r[5] + " (" + r[4] + ") " + r[3]);
+    registrarHistorico(ss, "BANCO_AULA_SOLICITADA", "A definir", prof, r[5], r[4], r[2] + " às " + r[3], dataBRdeISO_(data));
+    return gravarBanco_(ss, { tipo: "VAGA", professor: prof, titular: "A definir", data: data, dia: r[2], hora: r[3], turma: r[4], disc: r[5],
+                               tempos: 1, status: "pendente", aulaId: String(r[0]), obs: String(d.obs || "").slice(0, 200) });
+  });
+  try {
+    var cfg = lerConfigEmails_(), turmas = [];
+    criadas.forEach(function (r) { if (turmas.indexOf(r[4]) === -1) turmas.push(r[4]); });
+    var dest = []; turmas.forEach(function (t) { String(obterEmailsPorTurma(t, cfg)).split(",").forEach(function (em) { em = em.trim(); if (em && dest.indexOf(em) === -1) dest.push(em); }); });
+    if (dest.length) enviarEmailRegistrado_({ to: dest.join(", "), subject: "[BANCO DE AULAS] Prof. " + prof + " pede para assumir aula em " + dataBRdeISO_(data),
+      htmlBody: "<div style='font-family:Arial,sans-serif;max-width:600px'><h3>Pedido no Banco de aulas</h3><p>O(a) <b>Prof. " + prof + "</b> quer ministrar, em <b>" + dataBRdeISO_(data) + "</b> (" + dia + "):</p><ul><li>" + resumo.join("</li><li>") +
+        "</li></ul><p>Confirme ou recuse em <b>Painel administrativo → Banco de aulas</b>. Ao confirmar, cada tempo vira 1 crédito para o professor.</p></div>" });
+  } catch (eM) {}
+  return { sucesso: true, ids: novosIds, mensagem: "Pedido enviado à coordenação. O crédito vale depois da confirmação." };
+}
+
+function bancoCancelarDoProfessor_(ss, d) {
+  var prof = String(d.professor || "").trim(), alvo = null;
+  lerBanco_(ss).forEach(function (b) { if (b.id === String(d.id)) alvo = b; });
+  if (!alvo || normTxt_(alvo.professor) !== normTxt_(prof)) throw new Error("Pedido não encontrado.");
+  if (alvo.status !== "pendente") throw new Error("Só dá para cancelar pedidos que ainda aguardam confirmação.");
+  bancoAtualizar_(ss, alvo, { status: "cancelado", decididoPor: prof, decididoEm: new Date() });
+  return { sucesso: true };
+}
+
+// Quando uma aula volta a ser liberada/normalizada, os pedidos AUSENCIA pendentes dela perdem o sentido
+function bancoCancelarPendentesDaAula_(ss, aulaId, tipo) {
+  try {
+    if (!aulaId || !ss.getSheetByName(ABA_BANCO)) return;
+    lerBanco_(ss).forEach(function (b) {
+      if (b.status === "pendente" && b.tipo === (tipo || "AUSENCIA") && b.aulaId.toUpperCase() === String(aulaId).toUpperCase())
+        bancoAtualizar_(ss, b, { status: "cancelado", decididoPor: "sistema", decididoEm: new Date(), obs: "Aula voltou ao estado anterior" });
+    });
+  } catch (e) {}
+}
+
+// Chamado quando alguém assume a aula de um titular ausente: abre o pedido de crédito (pendente)
+function bancoRegistrarCobertura_(ss, aulaId, titular, substituto, dataTxt, dia, hora, turma, disc) {
+  try {
+    if (!substituto || !titular || titular === "A definir") return;
+    var data = normData_(dataTxt);
+    bancoCancelarPendentesDaAula_(ss, aulaId, "AUSENCIA");
+    gravarBanco_(ss, { tipo: "AUSENCIA", professor: substituto, titular: titular, data: data, dia: dia, hora: hora, turma: turma, disc: disc,
+                       tempos: 1, status: "pendente", abonada: "Sim", aulaId: String(aulaId || ""), obs: data ? "" : "Data da falta não informada" });
+  } catch (e) { Logger.log("Banco de aulas: não registrou cobertura: " + e); }
+}
+
+function meuBanco_(professor) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), prof = String(professor || "").trim();
+  if (!prof) return { sucesso: true, minhas: [], ocupadas: [], saldo: null };
+  var todas = lerBanco_(ss);
+  var minhas = todas.filter(function (b) { return normTxt_(b.professor) === normTxt_(prof) || (normTxt_(b.titular) === normTxt_(prof) && b.tipo === "AUSENCIA"); })
+    .sort(function (a, b) { return b.criado - a.criado; }).slice(0, 80)
+    .map(function (b) { return { id: b.id, tipo: b.tipo, status: b.status, data: b.data, dia: b.dia, hora: b.hora, turma: b.turma, disc: b.disc, tempos: b.tempos,
+                                  papel: normTxt_(b.professor) === normTxt_(prof) ? "ministrou" : "ausente", titular: b.titular, professor: b.professor, abonada: b.abonada }; });
+  var ocupadas = todas.filter(function (b) { return b.tipo === "VAGA" && (b.status === "pendente" || b.status === "confirmado") && b.data >= hojeISO_(); })
+    .map(function (b) { return { aulaId: b.aulaId, data: b.data, meu: normTxt_(b.professor) === normTxt_(prof) }; });
+  var s = bancoSaldos_(todas).saldos.filter(function (x) { return normTxt_(x.professor) === normTxt_(prof); })[0] ||
+          { professor: prof, creditos: 0, debitos: 0, abonados: 0, saldo: 0 };
+  return { sucesso: true, minhas: minhas, ocupadas: ocupadas, saldo: s, hoje: hojeISO_() };
+}
+
+// ----- painel administrativo -----
+function admBancoListar_(ss) {
+  var todas = lerBanco_(ss).sort(function (a, b) { return b.criado - a.criado; });
+  var s = bancoSaldos_(todas);
+  return { sucesso: true, entradas: todas.slice(0, 1500), saldos: s.saldos, institucional: s.institucional,
+           pendentes: todas.filter(function (b) { return b.status === "pendente"; }).length, hoje: hojeISO_() };
+}
+
+function admBancoDecidir_(ss, d, admin) {
+  var alvo = null;
+  lerBanco_(ss).forEach(function (b) { if (b.id === String(d.id)) alvo = b; });
+  if (!alvo) throw new Error("Lançamento não encontrado.");
+  var dec = String(d.decisao || "");
+  var mapaStatus = { confirmar: "confirmado", recusar: "recusado", reabrir: "pendente", cancelar: "cancelado" };
+  if (!mapaStatus[dec]) throw new Error("Decisão inválida.");
+  if (dec === "confirmar" && alvo.tipo === "AUSENCIA" && !alvo.data && !normData_(d.data)) throw new Error("Informe a data da falta para confirmar.");
+  var campos = { status: mapaStatus[dec], decididoPor: dec === "reabrir" ? "" : admin, decididoEm: dec === "reabrir" ? "" : new Date() };
+  if (d.obs !== undefined) campos.obs = String(d.obs).slice(0, 200);
+  if (alvo.tipo === "AUSENCIA") campos.abonada = d.abonada === false || d.abonada === "Não" ? "Não" : "Sim";
+  bancoAtualizar_(ss, alvo, campos);
+  var nd = normData_(d.data);
+  if (nd && !alvo.data) { ss.getSheetByName(ABA_BANCO).getRange(alvo.linha, 6).setNumberFormat("@").setValue(nd); }
+  registrarHistorico(ss, "BANCO_AULA_" + dec.toUpperCase(), alvo.titular || "-", alvo.professor, alvo.disc, alvo.turma, alvo.dia + " às " + alvo.hora, dataBRdeISO_(alvo.data));
+  if (dec === "confirmar" || dec === "recusar") {
+    try {
+      var em = obterEmailProfessor(ss, alvo.professor);
+      if (em) enviarEmailRegistrado_({ to: em, subject: "[BANCO DE AULAS] Seu pedido foi " + (dec === "confirmar" ? "confirmado" : "recusado"),
+        htmlBody: "<div style='font-family:Arial,sans-serif;max-width:600px'><p>Prof. " + alvo.professor + ", seu lançamento de <b>" + alvo.disc + " (" + alvo.turma + ")</b> em <b>" + dataBRdeISO_(alvo.data) + "</b> às " + alvo.hora +
+          " foi <b>" + (dec === "confirmar" ? "confirmado: +" + alvo.tempos + " crédito(s) no seu banco de aulas" : "recusado pela coordenação") + "</b>.</p></div>" });
+    } catch (eM) {}
+  }
+  return { sucesso: true };
+}
+
+function admBancoLancar_(ss, d, admin) {
+  var tipo = String(d.tipo || "");
+  if (TIPOS_BANCO.indexOf(tipo) === -1) throw new Error("Tipo inválido.");
+  var prof = String(d.professor || "").trim();
+  var p = mapaProfessores_(ss)[prof.toLowerCase()];
+  if (!p) throw new Error("Escolha o professor que ministrou a aula.");
+  var data = normData_(d.data);
+  if (!data) throw new Error("Informe a data da aula.");
+  var tempos = Math.max(1, Math.min(10, parseInt(d.tempos, 10) || 1));
+  var titular = String(d.titular || "").trim();
+  if (tipo === "AUSENCIA" && (!titular || titular === "A definir")) throw new Error("Informe o professor que faltou.");
+  if (tipo === "AUSENCIA" && normTxt_(titular) === normTxt_(prof)) throw new Error("Quem cobriu e quem faltou não podem ser a mesma pessoa.");
+  var id = gravarBanco_(ss, { tipo: tipo, professor: prof, titular: tipo === "VAGA" ? "A definir" : titular, data: data, dia: diaDaSemanaDe_(data),
+    hora: String(d.hora || "").slice(0, 30), turma: String(d.turma || "").slice(0, 30), disc: String(d.disc || "").slice(0, 80), tempos: tempos,
+    status: "confirmado", abonada: tipo === "AUSENCIA" ? (d.abonada === false || d.abonada === "Não" ? "Não" : "Sim") : "", decididoPor: admin, obs: String(d.obs || "").slice(0, 200) });
+  registrarHistorico(ss, "BANCO_AULA_LANCADA", titular || "-", prof, d.disc || "-", d.turma || "-", (d.hora || "-"), dataBRdeISO_(data));
+  return { sucesso: true, id: id };
 }

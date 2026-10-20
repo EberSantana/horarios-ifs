@@ -419,3 +419,13 @@ td.acoes .btn + .btn { margin-left: 6px; }
 .cad-profs:empty { display: none; }
 .hor-turno > .hor-card { margin-top: 2px; }
 @media (max-width: 640px) { .cad-linha { grid-template-columns: 1fr auto; } .cad-linha .hor-aulas { display: none; } .cad-linha .hor-acoes { grid-column: 1 / -1; flex-wrap: wrap; } }
+
+/* ---- Banco de aulas ---- */
+.banco-item { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; padding: 16px 20px; border-bottom: 1px solid var(--linha); }
+.banco-item:last-child { border-bottom: 0; }
+.banco-txt { flex: 1 1 320px; display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 14px; color: var(--grafite); }
+.banco-txt strong { font-size: 15px; font-weight: 600; color: var(--tinta); }
+.banco-desc { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 13.5px; color: var(--tinta); cursor: pointer; }
+.banco-desc em { color: var(--grafite); font-style: normal; font-size: 12.5px; }
+.banco-bt { display: flex; gap: 8px; flex: 0 0 auto; }
+#abasBanco { align-self: flex-start; margin-bottom: 2px; }
