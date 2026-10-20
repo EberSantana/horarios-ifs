@@ -790,6 +790,7 @@ const API = {
       if (data && data.sucesso && data.token) {
         this._salvarSessao(professor, data.token, !!lembrar);
       }
+      if (data && data.erro === "Ação não suportada.") return { sucesso: false, erro: "O servidor do Google ainda está na versão antiga. A coordenação precisa publicar o Code.gs atualizado (Implantar → Nova versão)." };
       return data || { sucesso: false, erro: "Sem resposta do servidor." };
     } catch (err) {
       return { sucesso: false, erro: "Falha de conexão: " + err.message };
