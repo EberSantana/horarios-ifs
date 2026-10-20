@@ -2011,5 +2011,5 @@ body {
 .btn-card-primary { background: #2e7d32; color: #fff; border: 0; }
 
 /* almoço e intervalo entre as aulas do dia */
-.pausa-faixa { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; margin: 2px 0 8px; padding: 7px 12px; border-radius: 8px; font-size: 12.5px; color: #5d6b5f; background: repeating-linear-gradient(135deg, #f4f6f3, #f4f6f3 6px, #eceff0 6px, #eceff0 12px); border: 1px dashed #cfd6cf; }
+.pausa-faixa { display: flex; align-items: center; justify-content: center; text-align: center; gap: 12px; flex-wrap: wrap; margin: 2px 0 8px; padding: 10px 12px; border-radius: 8px; font-size: 13px; color: #5d6b5f; background: repeating-linear-gradient(135deg, #f4f6f3, #f4f6f3 6px, #eceff0 6px, #eceff0 12px); border: 1px dashed #cfd6cf; }
 .pausa-faixa strong { color: #2f4a35; font-weight: 700; }
