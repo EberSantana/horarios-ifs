@@ -439,5 +439,6 @@ td.acoes .btn + .btn { margin-left: 6px; }
 
 /* almoço e intervalo no quadro semanal */
 .quadro tr.q-pausa td { background: repeating-linear-gradient(135deg, #fbf6e8, #fbf6e8 6px, #f6efd8 6px, #f6efd8 12px); color: #6b5a1e; text-align: center; vertical-align: middle; font-size: 13px; font-weight: 700; letter-spacing: .02em; padding: 10px; border-top: 1px dashed #e3d7a8; border-bottom: 1px dashed #e3d7a8; }
+.quadro tbody tr.q-pausa:hover td, .quadro tbody tr.q-pausa:focus-within td { background: repeating-linear-gradient(135deg, #fbf6e8, #fbf6e8 6px, #f6efd8 6px, #f6efd8 12px); }
 .quadro tr.q-pausa th { font-weight: 600; color: #6b5a1e; vertical-align: middle; }
-@media print { .quadro tr.q-pausa td { background: repeating-linear-gradient(135deg, #fbf6e8, #fbf6e8 6px, #f6efd8 6px, #f6efd8 12px); color: #6b5a1e; text-align: center; vertical-align: middle; font-size: 13px; font-weight: 700; letter-spacing: .02em; padding: 10px; border-top: 1px dashed #e3d7a8; border-bottom: 1px dashed #e3d7a8; } }
+@media print { .quadro tr.q-pausa td { background: #f6efd8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
