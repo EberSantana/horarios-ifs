@@ -1286,11 +1286,21 @@ async function telaSinais(main) {
   const nomes = [...new Set(estado.grade.map((a) => a.prof).concat(estado.grade.map((a) => a.substituto)))].filter((n) => n && n !== "A definir");
   const profs = nomes.map((n) => ({ nome: n, aulas: aulasSinalDe(n) })).filter((p) => p.aulas.length)
     .map((p) => ({ ...p, total: S.totalEventos(p.aulas) })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-  const fim = S.FIM_PADRAO.split("-").reverse().join("/");
+  const cfg = await chamar("admin_config_ler").catch(() => null);
+  if (cfg && cfg.sucesso && cfg.periodoSinal) S.definirPeriodo(cfg.periodoSinal);
+  const per = S.periodo(), fim = S.br(per.fim);
   if (!estado.sinalProf || !profs.some((p) => p.nome === estado.sinalProf)) estado.sinalProf = profs.length ? profs[0].nome : "";
   if (estado.sinalNome === undefined) estado.sinalNome = true;
   main.innerHTML = cabecalho("Sinais dos professores", "Cada professor recebe um calendário com os toques das <strong>próprias</strong> aulas. Aqui a coordenação confere e baixa o arquivo de qualquer professor.",
     `<button class="btn" data-acao="sinal-zip">Baixar de todos (.zip)</button>`) + `
+    <section class="cartao cartao-pad sinal-periodo">
+      <div><strong>Período dos toques</strong><div class="mudo pequeno">Muda a cada semestre, bimestre ou trimestre. Vale para todos os professores${per.definido ? "" : " — ainda não definido (usando " + fim + ")"}.</div>
+        ${per.vencido ? '<div class="pequeno" style="color:#9a5b00;margin-top:4px">⚠️ O período cadastrado já terminou. Informe o novo.</div>' : ""}</div>
+      <div class="campo"><label for="spNome">Nome</label><input id="spNome" class="input" type="text" maxlength="60" placeholder="Ex.: 2026.2 ou 1º bimestre" value="${esc(per.nome)}"></div>
+      <div class="campo"><label for="spIni">Início</label><input id="spIni" class="input" type="date" value="${esc(per.inicio)}"></div>
+      <div class="campo"><label for="spFim">Fim</label><input id="spFim" class="input" type="date" value="${esc(per.fim)}"></div>
+      <button class="btn btn-primario" data-acao="sinal-periodo">Salvar período</button>
+    </section>
     <div class="sinais-layout">
       <section class="cartao sinais-lista" aria-label="Professores"><div id="sinProfs"></div></section>
       <section class="cartao" id="sinDetalhe" style="min-width:0"></section>
@@ -1313,6 +1323,16 @@ async function telaSinais(main) {
   main._sinal = { profs, desenhar };
   estado.sinalDados = profs;
   desenhar();
+}
+async function salvarPeriodoSinal() {
+  const d = { nome: $("#spNome").value.trim(), inicio: $("#spIni").value, fim: $("#spFim").value };
+  try {
+    const r = await chamar("admin_sinal_periodo_salvar", d);
+    if (!r.sucesso) throw new Error(r.erro);
+    window.SinalEscolar.definirPeriodo(r.periodoSinal);
+    toast("Período salvo. Os professores passam a baixar com estas datas.");
+    recarregarTela();
+  } catch (e) { toast(e.message, true); }
 }
 function baixarSinais(todos) {
   const S = window.SinalEscolar, profs = estado.sinalDados || [];
@@ -1755,6 +1775,7 @@ document.addEventListener("click", (ev) => {
     case "ir": irPara(d.tela); break;
     case "sinal-pick": estado.sinalProf = d.nome; { const m = $("#conteudo"); if (m._sinal) m._sinal.desenhar(); } break;
     case "sinal-baixar": baixarSinais(false); break;
+    case "sinal-periodo": salvarPeriodoSinal(); break;
     case "sinal-zip": baixarSinais(true); break;
     case "indicar": modalIndicar(d.id); break;
     case "liberar": mudarStatus(d.id, "liberar"); break;

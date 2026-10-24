@@ -467,3 +467,6 @@ td.acoes .btn + .btn { margin-left: 6px; }
   .sinal-semana { grid-template-columns: 1fr; }
   .sinal-col { border-right: 0; border-bottom: 1px solid #edf0ea; }
 }
+.sinal-periodo { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; margin-bottom: 16px; }
+.sinal-periodo > div:first-child { flex: 1 1 260px; }
+.sinal-periodo .campo { min-width: 150px; }

@@ -900,6 +900,7 @@ const API = {
           if (RX_URL_SERVIDOR.test(data.servidor)) localStorage.setItem("IFS_SERVIDOR_OFICIAL", data.servidor);
           else if (data.servidor === "") localStorage.removeItem("IFS_SERVIDOR_OFICIAL");
         }
+        if (data.periodoSinal && typeof data.periodoSinal === "object" && window.SinalEscolar) window.SinalEscolar.definirPeriodo(data.periodoSinal);
         if (data.cadastros && Array.isArray(data.cadastros.turmas)) {
           try { localStorage.setItem("IFS_CADASTROS", JSON.stringify(data.cadastros)); } catch (e) {}
         }

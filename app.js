@@ -2607,8 +2607,11 @@ function abrirModalSinal() {
   const aulas = aulasParaSinal();
   const sem = SinalEscolar.eventosSemana(aulas);
   const dias = SinalEscolar.DIAS.filter((d) => sem[d]);
-  const fim = SinalEscolar.FIM_PADRAO.split("-").reverse().join("/");
+  const per = SinalEscolar.periodo();
+  const fim = SinalEscolar.br(per.fim);
   document.getElementById("sinalFim").textContent = fim;
+  const venc = document.getElementById("sinalVencido");
+  if (venc) venc.hidden = !per.vencido;
   const chk = document.getElementById("chkSinalNome");
   const btn = document.getElementById("btnBaixarSinal");
   const resumo = document.getElementById("sinalResumo");
@@ -2624,7 +2627,7 @@ function abrirModalSinal() {
     abrirModal("modalSinal"); return;
   }
   btn.disabled = false;
-  resumo.innerHTML = `<strong>${total} avisos por semana</strong><span>${dias.map((d) => d.replace("-feira", "")).join(", ")} · até ${fim}</span>`;
+  resumo.innerHTML = `<strong>${total} avisos por semana</strong><span>${per.nome ? escAviso(per.nome) + " · " : ""}${dias.map((d) => d.replace("-feira", "")).join(", ")} · até ${fim}</span>`;
   const desenhar = () => {
     wDias.innerHTML = dias.map((d) => `<button type="button" class="sinal-dia${d === dia ? " ativo" : ""}" data-dia="${d}" role="tab" aria-selected="${d === dia}">${d.replace("-feira", "")}</button>`).join("");
     lista.innerHTML = sem[dia].map((e) => `<div class="sinal-ev sinal-${e.tipo}"><span class="sinal-hora">${SinalEscolar.hhmm(e.min)}</span><span class="sinal-tipo">${escAviso(SinalEscolar.titulo(e, false))}</span><span class="sinal-txt">${chk.checked && e.tipo !== "intervalo" ? escAviso(e.turma + " · " + e.disc) : ""}</span></div>`).join("");

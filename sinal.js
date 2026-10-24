@@ -13,6 +13,21 @@
   var DIA_NUM = { "Segunda-feira": 1, "Terça-feira": 2, "Quarta-feira": 3, "Quinta-feira": 4, "Sexta-feira": 5 };
   var PAUSA_MAX = 30; // intervalo entre aulas (min): menos que isso é "intervalo"; a partir disso é saída
 
+  var CHAVE_PERIODO = "IFS_SINAL_PERIODO";
+  // Período definido pela coordenação (painel → Sinais dos professores). Sem definição, usa FIM_PADRAO.
+  function periodo() {
+    var p = {};
+    try { p = JSON.parse(localStorage.getItem(CHAVE_PERIODO) || "{}") || {}; } catch (e) {}
+    var fim = /^\d{4}-\d{2}-\d{2}$/.test(p.fim || "") ? p.fim : FIM_PADRAO;
+    var ini = /^\d{4}-\d{2}-\d{2}$/.test(p.inicio || "") ? p.inicio : "";
+    var h = new Date(), hoje = h.getFullYear() + "-" + ("0" + (h.getMonth() + 1)).slice(-2) + "-" + ("0" + h.getDate()).slice(-2);
+    return { inicio: ini, fim: fim, nome: p.nome || "", definido: !!p.fim, vencido: fim < hoje };
+  }
+  function definirPeriodo(p) {
+    try { if (p && p.fim) localStorage.setItem(CHAVE_PERIODO, JSON.stringify({ inicio: p.inicio || "", fim: p.fim, nome: p.nome || "" })); } catch (e) {}
+  }
+  function br(iso) { return String(iso || "").split("-").reverse().join("/"); }
+
   function faixa(h) {
     var m = String(h || "").match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/);
     return m ? [(+m[1]) * 60 + (+m[2]), (+m[3]) * 60 + (+m[4])] : null;
@@ -108,8 +123,10 @@
   function gerarICS(professor, aulas, opcoes) {
     opcoes = opcoes || {};
     var comNome = opcoes.comNome !== false;
+    var per = periodo();
     var desde = opcoes.desde || new Date();
-    var fim = String(opcoes.fim || FIM_PADRAO).split("-");
+    if (!opcoes.desde && per.inicio) { var i = per.inicio.split("-"), di = new Date(+i[0], +i[1] - 1, +i[2]); if (di > desde) desde = di; }
+    var fim = String(opcoes.fim || per.fim).split("-");
     var depois = new Date(+fim[0], +fim[1] - 1, +fim[2] + 1); // até o fim do último dia (23:59 em Bahia = 02:59Z do dia seguinte)
     var ate = dataStr(depois) + "T025900Z";
     var agora = new Date();
@@ -185,7 +202,7 @@
   }
 
   var API = {
-    FIM_PADRAO: FIM_PADRAO, DIAS: DIAS, faixa: faixa, hhmm: hhmm, aulasPorDia: aulasPorDia, eventosSemana: eventosSemana,
+    FIM_PADRAO: FIM_PADRAO, periodo: periodo, definirPeriodo: definirPeriodo, br: br, DIAS: DIAS, faixa: faixa, hhmm: hhmm, aulasPorDia: aulasPorDia, eventosSemana: eventosSemana,
     totalEventos: totalEventos, titulo: titulo, gerarICS: gerarICS, nomeArquivo: nomeArquivo, montarZip: montarZip, crc32: crc32
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API; else raiz.SinalEscolar = API;

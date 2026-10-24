@@ -639,6 +639,7 @@ function doGet(e) {
         coordenacoes: lerConfigEmails_(),
         cadastros: cadastrosPublicos_(ss),
         servidor: lerUrlServidor_(),
+        periodoSinal: lerPeriodoSinal_(),
         geradoEm: new Date().getTime()
       };
     } else {
@@ -1392,6 +1393,7 @@ function manterAquecido() {
         coordenacoes: lerConfigEmails_(),
         cadastros: cadastrosPublicos_(ss),
         servidor: lerUrlServidor_(),
+        periodoSinal: lerPeriodoSinal_(),
       geradoEm: new Date().getTime()
     };
     try { cache.put("BANCO_TUDO_IFS_V2", JSON.stringify(resposta), 21600); } catch (e) {}
@@ -1788,6 +1790,24 @@ function lerUrlServidor_() {
   return PropertiesService.getScriptProperties().getProperty("URL_SERVIDOR") || "";
 }
 
+/** Período dos toques do sinal escolar (início e fim do semestre/bimestre/trimestre), definido no painel */
+function lerPeriodoSinal_() {
+  try {
+    var p = JSON.parse(PropertiesService.getScriptProperties().getProperty("SINAL_PERIODO") || "{}");
+    return { inicio: String(p.inicio || ""), fim: String(p.fim || ""), nome: String(p.nome || "") };
+  } catch (e) { return { inicio: "", fim: "", nome: "" }; }
+}
+function admSinalPeriodoSalvar_(d) {
+  var rx = /^\d{4}-\d{2}-\d{2}$/, ini = String(d.inicio || "").trim(), fim = String(d.fim || "").trim();
+  if (ini && !rx.test(ini)) throw new Error("Data de início inválida.");
+  if (!rx.test(fim)) throw new Error("Informe a data final do período.");
+  if (ini && ini > fim) throw new Error("A data final não pode ser antes da inicial.");
+  var nome = String(d.nome || "").trim().slice(0, 60);
+  PropertiesService.getScriptProperties().setProperty("SINAL_PERIODO", JSON.stringify({ inicio: ini, fim: fim, nome: nome }));
+  invalidarCacheGrade();
+  return { sucesso: true, periodoSinal: lerPeriodoSinal_() };
+}
+
 /** Destinatários da coordenação: guardados no servidor (o admin altera no painel) */
 function lerConfigEmails_() {
   var cfg = {
@@ -2063,8 +2083,9 @@ function adminExecutar_(d, ss, email) {
     case "admin_historico_arquivar": return admHistoricoArquivar_(ss, email);
     case "admin_config_ler":
       var conv = lerConvites_(), agoraCv = new Date().getTime();
-      return { sucesso: true, config: lerConfigEmails_(), admins: Object.keys(lerAdmins_()), eu: email, servidorUrl: lerUrlServidor_(),
+      return { sucesso: true, config: lerConfigEmails_(), admins: Object.keys(lerAdmins_()), eu: email, servidorUrl: lerUrlServidor_(), periodoSinal: lerPeriodoSinal_(),
                convites: Object.keys(conv).filter(function (k) { return conv[k].expira > agoraCv; }).map(function (k) { return { email: k, expira: conv[k].expira }; }) };
+    case "admin_sinal_periodo_salvar": return admSinalPeriodoSalvar_(d);
     case "admin_convidar": return admConvidar_(d, email);
     case "admin_servidor_salvar":
       var u = String(d.url || "").trim();
