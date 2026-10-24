@@ -2142,3 +2142,18 @@ body {
   /* título do painel dentro do menu lateral */
   .tab-navigation::before { content: "Painel Docente"; position: absolute; top: 28px; left: 24px; color: #fff; font-weight: 800; font-size: 19px; }
 }
+
+/* Janelas de aviso/confirmação do próprio app */
+.dialogo-app { z-index: 1500; }
+.dialogo-app .modal-card { max-width: 420px; width: 100%; padding: 22px 22px 18px; border-radius: 16px; }
+.dialogo-texto { white-space: pre-line; font-size: 15px; line-height: 1.5; color: #14211a; padding: 0 0 18px; }
+.dialogo-acoes { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.btn-dialogo { min-height: 46px; padding: 0 20px; border-radius: 12px; font-weight: 700; font-size: 15px; cursor: pointer; border: 1px solid #b9cbbd; }
+.btn-dialogo-sec { background: #fff; color: #17402a; }
+.btn-dialogo-ok { background: #17402a; color: #fff; border-color: #17402a; }
+@media (max-width: 480px) { .dialogo-acoes .btn-dialogo { flex: 1; } }
+/* Celular: área de toque mínima confortável para botões pequenos */
+@media screen and (max-width: 700px) {
+  .btn-refresh, .btn-view-alert, .avisos-link, .btn-notif-action { min-height: 36px; padding-top: 8px; padding-bottom: 8px; }
+  .btn-refresh { padding-left: 8px; padding-right: 8px; }
+}

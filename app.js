@@ -933,7 +933,7 @@ async function solicitarPermissaoNotificacoesPWA() {
       console.warn("Erro ao solicitar permissão de notificações:", e);
     }
   } else {
-    alert("Para exibir notificações no ícone do iPhone, adicione o app à Tela de Início (Compartilhar > Adicionar à Tela de Início).");
+    avisar("Para exibir notificações no ícone do iPhone, adicione o app à Tela de Início (Compartilhar > Adicionar à Tela de Início).");
   }
 }
 
@@ -1251,7 +1251,7 @@ document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-banco-acao]");
   if (!b || !usuarioLogado) return;
   if (b.dataset.bancoAcao === "assumir") abrirModalBanco(b.dataset.id);
-  else if (b.dataset.bancoAcao === "cancelar" && confirm("Cancelar este pedido?")) {
+  else if (b.dataset.bancoAcao === "cancelar" && await confirmar("Cancelar este pedido?")) {
     const r = await API.cancelarBanco(usuarioLogado, b.dataset.id);
     mostrarToast(r.sucesso ? "Pedido cancelado." : (r.erro || "Não foi possível cancelar."));
     await API.carregarMeuBanco(usuarioLogado);
@@ -1550,7 +1550,7 @@ function exportarRelatorioCSV() {
   });
 
   if (filtrados.length === 0) {
-    alert("Não há dados para exportar com os filtros atuais.");
+    avisar("Não há dados para exportar com os filtros atuais.");
     return;
   }
 
@@ -1605,7 +1605,7 @@ function copiarRelatorioTabela() {
   });
 
   if (filtrados.length === 0) {
-    alert("Não há dados para copiar.");
+    avisar("Não há dados para copiar.");
     return;
   }
 
@@ -1637,7 +1637,7 @@ function copiarRelatorioTabela() {
   navigator.clipboard.writeText(tsv).then(() => {
     mostrarToast("Tabela copiada! Cole direto no Excel, Planilhas ou Word (Ctrl+V).");
   }).catch(() => {
-    alert("Não foi possível copiar automaticamente para a área de transferência.");
+    avisar("Não foi possível copiar automaticamente para a área de transferência.");
   });
 }
 
@@ -2019,6 +2019,16 @@ ligarEvento("btnConfirmarLiberar", "click", () => {
   const indicesSelecionados = checkboxes.map((chk) => parseInt(chk.value, 10));
   const dataFalta = formatarDataBR(document.getElementById("inputDataFalta").value);
   const motivo = document.getElementById("inputMotivoFalta").value.trim();
+  if (!document.getElementById("inputDataFalta").value) {
+    mostrarToast("Informe a data da falta.");
+    document.getElementById("inputDataFalta").focus();
+    return;
+  }
+  if (!motivo) {
+    mostrarToast("Informe o motivo da falta (vai no e-mail para a coordenação).");
+    document.getElementById("inputMotivoFalta").focus();
+    return;
+  }
 
   fecharTodosModais();
 
@@ -2084,9 +2094,9 @@ ligarEvento("btnConfirmarAssumir", "click", () => {
   mostrarToast(`Sucesso! Aula de ${aula.disc} assumida.`);
 });
 
-function cancelarAusencia(prof, index) {
+async function cancelarAusencia(prof, index) {
   const aula = bancoDeDados[prof][index];
-  if (confirm(`Deseja cancelar a ausência e lecionar a aula de ${aula.disc} normalmente?`)) {
+  if (await confirmar(`Deseja cancelar a ausência e lecionar a aula de ${aula.disc} normalmente?`)) {
     const emailDocente = API.obterEmailProfessor(prof);
     bancoDeDados = API.processarAcao({ acao: "recuperar", profOriginal: prof, index, aula, emailDocente });
     renderizarTudo();
@@ -2094,8 +2104,8 @@ function cancelarAusencia(prof, index) {
   }
 }
 
-function desistirSubstituicao(profOriginal, index) {
-  if (confirm("Deseja desistir desta substituição? A aula voltará a ficar disponível para outros colegas.")) {
+async function desistirSubstituicao(profOriginal, index) {
+  if (await confirmar("Deseja desistir desta substituição? A aula voltará a ficar disponível para outros colegas.")) {
     const aula = bancoDeDados[profOriginal][index];
     const emailDocente = API.obterEmailProfessor(profOriginal);
     bancoDeDados = API.processarAcao({ acao: "libertar", profOriginal, index, aula, emailDocente });
@@ -2434,7 +2444,7 @@ async function executarPropostaTroca() {
   for (const aulaDesejada of aulasColegaObjetos) {
     const conflitoEu = verificarConflito(aulaDesejada.dia, aulaDesejada.hora, usuarioLogado);
     if (conflitoEu.conflito) {
-      alert(`⚠️ CONFLITO DETECTADO:\nVocê já possui aula agendada no horário:\n▶ ${aulaDesejada.dia} às ${aulaDesejada.hora} (${conflitoEu.descricao})`);
+      avisar(`⚠️ CONFLITO DETECTADO:\nVocê já possui aula agendada no horário:\n▶ ${aulaDesejada.dia} às ${aulaDesejada.hora} (${conflitoEu.descricao})`);
       return;
     }
   }
@@ -2442,7 +2452,7 @@ async function executarPropostaTroca() {
   for (const minhaAula of minhasAulasObjetos) {
     const conflitoColega = verificarConflito(minhaAula.dia, minhaAula.hora, colega);
     if (conflitoColega.conflito) {
-      alert(`⚠️ CONFLITO DO COLEGA:\nO Prof. ${colega} já possui aula agendada no horário da aula cedida:\n▶ ${minhaAula.dia} às ${minhaAula.hora} (${conflitoColega.descricao})`);
+      avisar(`⚠️ CONFLITO DO COLEGA:\nO Prof. ${colega} já possui aula agendada no horário da aula cedida:\n▶ ${minhaAula.dia} às ${minhaAula.hora} (${conflitoColega.descricao})`);
       return;
     }
   }
@@ -2474,12 +2484,12 @@ async function executarPropostaTroca() {
   mostrarToast(`Proposta de permuta (${minhasAulasObjetos.length} ↔️ ${aulasColegaObjetos.length} tempos) enviada ao Prof. ${colega}!`);
 }
 
-function aceitarTroca(trocaId) {
+async function aceitarTroca(trocaId) {
   const trocas = API.getTrocas();
   const troca = trocas.find(t => t.id === trocaId);
   if (!troca) return;
 
-  if (confirm(`Confirmar o aceite da troca com o Prof. ${troca.proponente}?`)) {
+  if (await confirmar(`Confirmar o aceite da troca com o Prof. ${troca.proponente}?`)) {
     bancoDeDados = API.processarAcao({
       acao: "aceitar_troca",
       trocaId,
@@ -2492,8 +2502,8 @@ function aceitarTroca(trocaId) {
   }
 }
 
-function recusarTroca(trocaId) {
-  if (confirm("Deseja recusar esta proposta de troca de aula?")) {
+async function recusarTroca(trocaId) {
+  if (await confirmar("Deseja recusar esta proposta de troca de aula?")) {
     bancoDeDados = API.processarAcao({ acao: "recusar_troca", trocaId });
     renderizarTudo();
     mostrarToast("Proposta de troca recusada.");
@@ -2534,7 +2544,7 @@ function executarAgendarReposicao() {
   const motivo = document.getElementById("inputMotivoReposicao").value.trim();
 
   if (!horario) {
-    alert("Por favor, informe o horário da reposição (Ex: 08:40 - 10:20)!");
+    avisar("Por favor, informe o horário da reposição (Ex: 08:40 - 10:20)!");
     return;
   }
 
@@ -2562,8 +2572,8 @@ function executarAgendarReposicao() {
   mostrarToast(`Reposição de aula cadastrada com sucesso!`);
 }
 
-function cancelarReposicao(id) {
-  if (confirm("Deseja realmente cancelar este agendamento de reposição?")) {
+async function cancelarReposicao(id) {
+  if (await confirmar("Deseja realmente cancelar este agendamento de reposição?")) {
     bancoDeDados = API.processarAcao({ acao: "cancelar_reposicao", id });
     renderizarTudo();
     mostrarToast("Reposição cancelada.");
@@ -2654,11 +2664,11 @@ async function salvarNovoPin() {
   const confirmaPin = document.getElementById("inputConfirmaPin").value.trim();
 
   if (!/^\d{4,8}$/.test(novoPin)) {
-    alert("O novo PIN deve ter de 4 a 8 números!");
+    avisar("O novo PIN deve ter de 4 a 8 números!");
     return;
   }
   if (novoPin !== confirmaPin) {
-    alert("Os novos PINs não coincidem!");
+    avisar("Os novos PINs não coincidem!");
     return;
   }
 
@@ -2672,7 +2682,7 @@ async function salvarNovoPin() {
   }
 
   if (!res || !res.sucesso) {
-    alert((res && res.erro) || "O PIN atual informado está incorreto!");
+    avisar((res && res.erro) || "O PIN atual informado está incorreto!");
     return;
   }
 
@@ -2683,8 +2693,8 @@ async function salvarNovoPin() {
   mostrarToast("Novo PIN cadastrado com sucesso!");
 }
 
-function resetarDadosDemo() {
-  if (confirm("Deseja restaurar os horários, trocas e e-mails para o padrão de demonstração do IFS?")) {
+async function resetarDadosDemo() {
+  if (await confirmar("Deseja restaurar os horários, trocas e e-mails para o padrão de demonstração do IFS?")) {
     localStorage.removeItem("IFS_LOCAL_DATABASE");
     localStorage.removeItem("IFS_DB_VERSION");
     localStorage.removeItem("IFS_TROCAS_PERMUTAS");
@@ -2928,3 +2938,45 @@ window.extrairMinutosDoHorario = extrairMinutosDoHorario;
 window.abrirModal = abrirModal;
 window.fecharTodosModais = fecharTodosModais;
 window.forcarAtualizacaoApp = forcarAtualizacaoApp;
+
+
+// ============================================================================
+// JANELAS DE AVISO E CONFIRMAÇÃO NO VISUAL DO APP (no lugar de alert/confirm)
+// ============================================================================
+function dialogoApp_(mensagem, comCancelar, rotuloOk) {
+  return new Promise((resolve) => {
+    const ov = document.createElement("div");
+    ov.className = "modal-overlay active dialogo-app";
+    ov.setAttribute("role", "dialog");
+    ov.setAttribute("aria-modal", "true");
+    const card = document.createElement("div");
+    card.className = "modal-card";
+    const corpo = document.createElement("div");
+    corpo.className = "modal-body dialogo-texto";
+    corpo.textContent = String(mensagem == null ? "" : mensagem);
+    const acoes = document.createElement("div");
+    acoes.className = "dialogo-acoes";
+    const fim = (v) => { document.removeEventListener("keydown", tecla, true); ov.remove(); resolve(v); };
+    const tecla = (e) => { if (e.key === "Escape") { e.stopPropagation(); fim(false); } };
+    if (comCancelar) {
+      const bc = document.createElement("button");
+      bc.type = "button"; bc.className = "btn-dialogo btn-dialogo-sec"; bc.textContent = "Cancelar";
+      bc.onclick = () => fim(false);
+      acoes.appendChild(bc);
+    }
+    const bo = document.createElement("button");
+    bo.type = "button"; bo.className = "btn-dialogo btn-dialogo-ok"; bo.textContent = rotuloOk || (comCancelar ? "Confirmar" : "Entendi");
+    bo.onclick = () => fim(true);
+    acoes.appendChild(bo);
+    card.appendChild(corpo); card.appendChild(acoes); ov.appendChild(card);
+    ov.addEventListener("click", (e) => { if (e.target === ov) fim(false); });
+    document.addEventListener("keydown", tecla, true);
+    document.body.appendChild(ov);
+    setTimeout(() => bo.focus(), 30);
+  });
+}
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !document.querySelector(".dialogo-app") && document.querySelector(".modal-overlay.active")) fecharTodosModais();
+});
+function avisar(mensagem) { return dialogoApp_(mensagem, false); }
+function confirmar(mensagem, rotuloOk) { return dialogoApp_(mensagem, true, rotuloOk); }
