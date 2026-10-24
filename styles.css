@@ -2013,3 +2013,25 @@ body {
 /* almoço e intervalo entre as aulas do dia */
 .pausa-faixa { display: flex; align-items: center; justify-content: center; text-align: center; gap: 12px; flex-wrap: wrap; margin: 2px 0 8px; padding: 10px 12px; border-radius: 8px; font-size: 13px; color: #6b5a1e; background: repeating-linear-gradient(135deg, #fbf6e8, #fbf6e8 6px, #f6efd8 6px, #f6efd8 12px); border: 1px dashed #e3d7a8; }
 .pausa-faixa strong { color: #3f3510; font-weight: 700; }
+
+/* ---- Sinal escolar ---- */
+.sinal-intro { font-size: 13px; color: var(--text-secondary); line-height: 1.45; margin: 0 0 12px; }
+.sinal-resumo { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 1px solid #dde3da; border-radius: 12px; background: #fff; margin-bottom: 12px; }
+.sinal-resumo strong { font-size: 18px; color: #0e7490; }
+.sinal-resumo span { font-size: 12px; color: var(--text-secondary); }
+.sinal-dias { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.sinal-dia { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid #c9d2c6; background: #fff; color: #1b2420; font-size: 14px; font-weight: 600; cursor: pointer; }
+.sinal-dia.ativo { background: var(--primary-dark, #1f4d2e); border-color: var(--primary-dark, #1f4d2e); color: #fff; }
+.sinal-lista { border: 1px solid #dde3da; border-radius: 12px; background: #fff; overflow: hidden; margin-bottom: 12px; }
+.sinal-ev { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #edf0ea; font-size: 13px; }
+.sinal-ev:last-child { border-bottom: 0; }
+.sinal-hora { font-weight: 700; font-size: 15px; width: 46px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.sinal-tipo { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 9px; background: #eceff0; color: #3b4650; flex-shrink: 0; }
+.sinal-inicio .sinal-tipo, .sinal-volta .sinal-tipo { background: #dff0e3; color: #17482a; }
+.sinal-troca .sinal-tipo { background: #e6f4f8; color: #0b5a70; }
+.sinal-intervalo .sinal-tipo { background: #f6efd8; color: #6b5a1e; }
+.sinal-txt { color: var(--text-secondary); line-height: 1.3; min-width: 0; }
+.sinal-como { margin-top: 14px; font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
+.sinal-como strong { color: #1b2420; font-size: 13px; }
+.sinal-como ol { margin: 4px 0 6px; padding-left: 18px; }
+.sinal-como p { margin: 0; }

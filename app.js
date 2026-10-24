@@ -2590,7 +2590,57 @@ function abrirModalConfig() {
     `<div><dt>${escAviso(rotulo)}</dt><dd>${escAviso(email)}</dd></div>`).join("");
   const chk = document.getElementById("chkBalizador");
   if (chk) { chk.checked = balizadorAtivo(); chk.onchange = () => definirBalizadorAtivo(chk.checked); }
+  const bs = document.getElementById("btnAbrirSinal");
+  if (bs) bs.onclick = () => { fecharTodosModais(); abrirModalSinal(); };
   abrirModal("modalConfig");
+}
+
+// ---------- Sinal escolar (calendário .ics com os toques das minhas aulas) ----------
+function aulasParaSinal() {
+  const out = [];
+  Object.keys(bancoDeDados || {}).forEach((prof) => (bancoDeDados[prof] || []).forEach((a) => {
+    if (prof === usuarioLogado ? (a.status !== "alert" && a.status !== "assumed") : (a.status === "assumed" && a.substituto === usuarioLogado)) out.push(a);
+  }));
+  return out;
+}
+function abrirModalSinal() {
+  const aulas = aulasParaSinal();
+  const sem = SinalEscolar.eventosSemana(aulas);
+  const dias = SinalEscolar.DIAS.filter((d) => sem[d]);
+  const fim = SinalEscolar.FIM_PADRAO.split("-").reverse().join("/");
+  document.getElementById("sinalFim").textContent = fim;
+  const chk = document.getElementById("chkSinalNome");
+  const btn = document.getElementById("btnBaixarSinal");
+  const resumo = document.getElementById("sinalResumo");
+  const wDias = document.getElementById("sinalDias");
+  const lista = document.getElementById("sinalLista");
+  let dia;
+  const hoje = SinalEscolar.DIAS[new Date().getDay() - 1];
+  dia = dias.includes(hoje) ? hoje : dias[0];
+  const total = SinalEscolar.totalEventos(aulas);
+  if (!dias.length) {
+    resumo.textContent = "Você ainda não tem aulas na grade.";
+    wDias.innerHTML = ""; lista.innerHTML = ""; btn.disabled = true;
+    abrirModal("modalSinal"); return;
+  }
+  btn.disabled = false;
+  resumo.innerHTML = `<strong>${total} avisos por semana</strong><span>${dias.map((d) => d.replace("-feira", "")).join(", ")} · até ${fim}</span>`;
+  const desenhar = () => {
+    wDias.innerHTML = dias.map((d) => `<button type="button" class="sinal-dia${d === dia ? " ativo" : ""}" data-dia="${d}" role="tab" aria-selected="${d === dia}">${d.replace("-feira", "")}</button>`).join("");
+    lista.innerHTML = sem[dia].map((e) => `<div class="sinal-ev sinal-${e.tipo}"><span class="sinal-hora">${SinalEscolar.hhmm(e.min)}</span><span class="sinal-tipo">${escAviso(SinalEscolar.titulo(e, false))}</span><span class="sinal-txt">${chk.checked && e.tipo !== "intervalo" ? escAviso(e.turma + " · " + e.disc) : ""}</span></div>`).join("");
+  };
+  wDias.onclick = (ev) => { const b = ev.target.closest("[data-dia]"); if (b) { dia = b.dataset.dia; desenhar(); } };
+  chk.onchange = desenhar;
+  btn.onclick = () => {
+    const ics = SinalEscolar.gerarICS(usuarioLogado, aulas, { comNome: chk.checked });
+    const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = SinalEscolar.nomeArquivo(usuarioLogado);
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  };
+  desenhar();
+  abrirModal("modalSinal");
 }
 
 function salvarConfiguracoes() { fecharTodosModais(); }

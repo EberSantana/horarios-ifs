@@ -12,7 +12,7 @@
   <link rel="icon" id="faviconLink" type="image/png" href="./icons/icon-192.png">
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=4.47">
+  <link rel="stylesheet" href="./styles.css?v=4.48">
 </head>
 <body>
 
@@ -662,6 +662,37 @@
   </div>
 </div>
 
+<!-- Modal: Meu sinal escolar -->
+<div id="modalSinal" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 class="modal-title">🔔 Meu sinal escolar</h3>
+      <button type="button" class="btn-close-modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="sinal-intro">Avisos discretos no <strong>seu celular</strong> nos horários das suas aulas. Os alunos não ouvem nada.</p>
+      <div id="sinalResumo" class="sinal-resumo"></div>
+      <div id="sinalDias" class="sinal-dias" role="tablist" aria-label="Dia da semana"></div>
+      <div id="sinalLista" class="sinal-lista"></div>
+      <label class="switch-linha" for="chkSinalNome">
+        <span class="switch-texto"><strong>Mostrar turma e disciplina no aviso</strong><small>Desligado, o aviso mostra só "Início da aula", "Troca de aula" e "Fim da aula".</small></span>
+        <input type="checkbox" id="chkSinalNome" class="switch-input" role="switch" checked>
+        <span class="switch-trilho" aria-hidden="true"></span>
+      </label>
+      <button type="button" id="btnBaixarSinal" class="btn-primary" style="width: 100%; margin-top: 12px;">Baixar meu sinal (.ics)</button>
+      <div class="sinal-como">
+        <strong>Como usar</strong>
+        <ol>
+          <li>Toque em <em>Baixar meu sinal</em>.</li>
+          <li>Abra o arquivo baixado e escolha importar no calendário do celular.</li>
+          <li>Deixe o celular no modo vibrar durante as aulas.</li>
+        </ol>
+        <p>Valem até <span id="sinalFim"></span>. Se seu horário mudar, baixe de novo e apague o calendário antigo "Sinal Escolar".</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal 6: Configurações Gerais e E-mails da Coordenação -->
 <div id="modalConfig" class="modal-overlay">
   <div class="modal-card">
@@ -677,6 +708,8 @@
         <input type="checkbox" id="chkBalizador" class="switch-input" role="switch">
         <span class="switch-trilho" aria-hidden="true"></span>
       </label>
+
+      <button type="button" id="btnAbrirSinal" class="btn-primary" style="width: 100%; margin-top: 10px;">🔔 Meu sinal escolar (avisos das aulas)</button>
 
       <hr style="border: 0; border-top: 1px solid #eee; margin: 16px 0;">
 
@@ -770,8 +803,9 @@
 <!-- Toast de Notificações -->
 <div id="toast">Notificação</div>
 
-<script src="./api.js?v=4.47"></script>
-<script src="./app.js?v=4.47"></script>
+<script src="./sinal.js?v=4.48"></script>
+<script src="./api.js?v=4.48"></script>
+<script src="./app.js?v=4.48"></script>
 
 </body>
 </html>

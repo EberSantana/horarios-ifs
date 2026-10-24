@@ -442,3 +442,28 @@ td.acoes .btn + .btn { margin-left: 6px; }
 .quadro tbody tr.q-pausa:hover td, .quadro tbody tr.q-pausa:focus-within td { background: repeating-linear-gradient(135deg, #fbf6e8, #fbf6e8 6px, #f6efd8 6px, #f6efd8 12px); }
 .quadro tr.q-pausa th { font-weight: 600; color: #6b5a1e; vertical-align: middle; }
 @media print { .quadro tr.q-pausa td { background: #f6efd8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+
+/* ---- Sinais dos professores ---- */
+.sinais-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: start; }
+.sinais-lista { padding: 8px; display: flex; flex-direction: column; gap: 6px; max-height: 70vh; overflow: auto; }
+.sinal-prof { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid transparent; background: transparent; text-align: left; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 4px; }
+.sinal-prof:hover { background: #f3f6f1; }
+.sinal-prof.ativo { background: #e3efe5; border-color: var(--mata, #1f4d2e); color: var(--mata-escuro, #17482a); }
+.sinal-prof .selo-n { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 2px 9px; background: #eef1ec; color: #3b4650; flex-shrink: 0; }
+.sinal-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; padding: 16px 18px; border-bottom: 1px solid #edf0ea; }
+.sinal-chk { display: flex; align-items: center; gap: 8px; font-size: 13px; min-height: 44px; cursor: pointer; }
+.sinal-semana { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.sinal-col { border-right: 1px solid #edf0ea; padding: 0 8px 10px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sinal-col:last-child { border-right: 0; }
+.sinal-col-t { margin: 0 -8px 4px; padding: 10px 12px; background: #f9faf7; border-bottom: 1px solid #edf0ea; font-size: 13px; font-weight: 700; color: #4a554e; }
+.sinal-ev2 { padding: 6px 8px; border-radius: 6px; font-size: 12px; line-height: 1.3; background: #f0f2f1; border-left: 3px solid #6b766f; display: flex; flex-direction: column; gap: 1px; }
+.sinal-ev2 small { color: #4a554e; font-size: 11px; }
+.sinal-ev2.sinal-inicio, .sinal-ev2.sinal-volta { background: #eaf5ec; border-left-color: #2c6a40; }
+.sinal-ev2.sinal-troca { background: #e9f5f9; border-left-color: #0e7490; }
+.sinal-ev2.sinal-intervalo { background: #f6efd8; border-left-color: #c9b66a; }
+@media (max-width: 860px) {
+  .sinais-layout { grid-template-columns: 1fr; }
+  .sinais-lista { max-height: 220px; }
+  .sinal-semana { grid-template-columns: 1fr; }
+  .sinal-col { border-right: 0; border-bottom: 1px solid #edf0ea; }
+}

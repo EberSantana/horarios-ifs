@@ -205,7 +205,7 @@ function abrirApp() {
 // ---------------------------------------------------------------- navegação
 const TELAS = {
   inicio: telaInicio, emails: telaEmails, grade: telaGrade, cadastros: telaCadastros, banco: telaBanco,
-  professores: telaProfessores, arquivos: telaArquivos, config: telaConfig
+  professores: telaProfessores, sinais: telaSinais, arquivos: telaArquivos, config: telaConfig
 };
 function irPara(tela) {
   estado.tela = tela;
@@ -1186,7 +1186,7 @@ async function telaProfessores(main) {
   const ativos = estado.professores.filter((p) => p.ativo).length;
   const fp = estado.filtroProf;
   main.innerHTML = cabecalho("Professores", `${ativos} ativos · ${estado.professores.length - ativos} desligados · o e-mail é usado em todos os avisos`,
-      `<button class="btn btn-primario" data-acao="novo-prof">+ Cadastrar professor</button>`) + `
+      `<button class="btn" data-acao="ir" data-tela="sinais">🔔 Sinais (.ics)</button><button class="btn btn-primario" data-acao="novo-prof">+ Cadastrar professor</button>`) + `
     <section class="cartao">
       <div class="filtros">
         <div class="campo largo"><label for="pBusca">Buscar professor</label><input id="pBusca" class="input" type="search" value="${esc(fp.busca)}"></div>
@@ -1276,6 +1276,58 @@ async function reativarProf(nome) {
 }
 
 // ================================================================ IMPORTAR / EXPORTAR
+// ---------------------------------------------------------------- sinais dos professores
+function aulasSinalDe(prof) {
+  return estado.grade.filter((a) => a.prof === prof ? (a.status !== "alert" && a.status !== "assumed") : (a.status === "assumed" && a.substituto === prof));
+}
+async function telaSinais(main) {
+  await Promise.all([carregarGrade(), carregarProfessores()]);
+  const S = window.SinalEscolar;
+  const nomes = [...new Set(estado.grade.map((a) => a.prof).concat(estado.grade.map((a) => a.substituto)))].filter((n) => n && n !== "A definir");
+  const profs = nomes.map((n) => ({ nome: n, aulas: aulasSinalDe(n) })).filter((p) => p.aulas.length)
+    .map((p) => ({ ...p, total: S.totalEventos(p.aulas) })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  const fim = S.FIM_PADRAO.split("-").reverse().join("/");
+  if (!estado.sinalProf || !profs.some((p) => p.nome === estado.sinalProf)) estado.sinalProf = profs.length ? profs[0].nome : "";
+  if (estado.sinalNome === undefined) estado.sinalNome = true;
+  main.innerHTML = cabecalho("Sinais dos professores", "Cada professor recebe um calendário com os toques das <strong>próprias</strong> aulas. Aqui a coordenação confere e baixa o arquivo de qualquer professor.",
+    `<button class="btn" data-acao="sinal-zip">Baixar de todos (.zip)</button>`) + `
+    <div class="sinais-layout">
+      <section class="cartao sinais-lista" aria-label="Professores"><div id="sinProfs"></div></section>
+      <section class="cartao" id="sinDetalhe" style="min-width:0"></section>
+    </div>
+    <p class="mudo pequeno" style="margin:0">Os toques valem até ${fim}. O professor também pode baixar o próprio sinal no app (Configurações → Meu sinal escolar). Se a grade mudar, ele deve baixar de novo e apagar o calendário antigo "Sinal Escolar".</p>`;
+  const desenhar = () => {
+    $("#sinProfs").innerHTML = profs.length ? profs.map((p) => `<button type="button" class="sinal-prof${p.nome === estado.sinalProf ? " ativo" : ""}" data-acao="sinal-pick" data-nome="${esc(p.nome)}"><span>${esc(p.nome)}</span><span class="selo-n">${p.total} avisos</span></button>`).join("") : '<p class="mudo" style="padding:16px">Nenhuma aula cadastrada.</p>';
+    const p = profs.find((x) => x.nome === estado.sinalProf);
+    if (!p) { $("#sinDetalhe").innerHTML = ""; return; }
+    const sem = S.eventosSemana(p.aulas);
+    $("#sinDetalhe").innerHTML = `<div class="sinal-cab"><div><strong style="font-size:18px">${esc(p.nome)}</strong>
+      <div class="mudo pequeno">${p.total} avisos por semana · até ${fim} · alarme no horário exato</div></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <label class="sinal-chk"><input type="checkbox" id="sinNome" ${estado.sinalNome ? "checked" : ""}> Turma e disciplina no aviso</label>
+        <button class="btn btn-primario" data-acao="sinal-baixar">Baixar sinal (.ics)</button></div></div>
+      <div class="sinal-semana">${S.DIAS.map((d) => `<div class="sinal-col"><div class="sinal-col-t">${d.replace("-feira", "")}</div>${
+        (sem[d] || []).length ? sem[d].map((e) => `<div class="sinal-ev2 sinal-${e.tipo}"><span><b>${S.hhmm(e.min)}</b> · ${esc(S.titulo(e, false))}</span>${estado.sinalNome && e.tipo !== "intervalo" ? `<small>${esc(e.turma)} · ${esc(e.disc)}</small>` : ""}</div>`).join("") : '<span class="mudo pequeno">Sem aulas</span>'}</div>`).join("")}</div>`;
+    const c = $("#sinNome"); if (c) c.onchange = () => { estado.sinalNome = c.checked; desenhar(); };
+  };
+  main._sinal = { profs, desenhar };
+  estado.sinalDados = profs;
+  desenhar();
+}
+function baixarSinais(todos) {
+  const S = window.SinalEscolar, profs = estado.sinalDados || [];
+  const opcoes = { comNome: estado.sinalNome !== false };
+  if (!todos) {
+    const p = profs.find((x) => x.nome === estado.sinalProf); if (!p) return;
+    baixarArquivo(S.nomeArquivo(p.nome), S.gerarICS(p.nome, p.aulas, opcoes), "text/calendar;charset=utf-8");
+    toast("Sinal de " + p.nome + " baixado."); return;
+  }
+  if (!profs.length) { toast("Não há aulas cadastradas.", true); return; }
+  const zip = S.montarZip(profs.map((p) => ({ nome: S.nomeArquivo(p.nome), texto: S.gerarICS(p.nome, p.aulas, opcoes) })));
+  baixarArquivo("sinais_professores.zip", new Blob([zip], { type: "application/zip" }));
+  toast(profs.length + " sinais baixados em um arquivo .zip.");
+}
+
 async function telaArquivos(main) {
   const v = await chamar("admin_versoes");
   const versoes = v.sucesso ? v.versoes : [];
@@ -1701,6 +1753,9 @@ document.addEventListener("click", (ev) => {
   switch (d.acao) {
     case "recarregar": invalidarDados(); recarregarTela(); break;
     case "ir": irPara(d.tela); break;
+    case "sinal-pick": estado.sinalProf = d.nome; { const m = $("#conteudo"); if (m._sinal) m._sinal.desenhar(); } break;
+    case "sinal-baixar": baixarSinais(false); break;
+    case "sinal-zip": baixarSinais(true); break;
     case "indicar": modalIndicar(d.id); break;
     case "liberar": mudarStatus(d.id, "liberar"); break;
     case "normalizar": mudarStatus(d.id, "normal"); break;
