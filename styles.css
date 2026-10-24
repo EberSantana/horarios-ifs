@@ -2049,3 +2049,94 @@ body {
 .balizador { text-align: center; }
 .balizador-acoes { text-align: center; }
 .balizador-barra { margin-left: auto; margin-right: auto; }
+
+/* ==========================================================================
+   NOVA INTERFACE (modelo A · Institucional) — computador, tablet e celular
+   ========================================================================== */
+@media screen {
+  :root {
+    --primary-color: #17402a;
+    --primary-dark: #0f2d1d;
+    --bg-color: #f1f5f0;
+    --border-color: #dbe5dc;
+    --border-radius: 14px;
+    --font-nova: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  body, button, input, select, textarea { font-family: var(--font-nova); }
+  * { font-family: var(--font-nova); }
+  .badge-notif-counter { border-color: #17402a; }
+
+  /* Cabeçalho */
+  .app-header { background: #17402a; }
+  .brand-info h1 { font-weight: 800; letter-spacing: -0.01em; }
+  .sync-bar { background: #1f5237; }
+  .tab-navigation { background: #17402a; border-bottom: 0; padding: 0 12px; gap: 4px; }
+  .header-nav-sticky-wrapper { background: #17402a; }
+
+  /* Abas: estilo "pasta" sobre o verde (tablet/computador sem menu lateral) */
+  .tab-btn { background: transparent; border: 0; color: #dcebe0; border-radius: 12px 12px 0 0; min-height: 46px; padding: 12px 16px; font-weight: 700; }
+  .tab-btn:hover { background: rgba(255,255,255,.1); color: #fff; border: 0; }
+  .tab-btn.active { background: var(--bg-color); color: #17402a; border: 0; box-shadow: none; }
+
+  /* Painel da próxima aula como destaque verde */
+  .balizador { background: #17402a; border: 0; color: #fff; border-radius: 18px; padding: 22px 24px; box-shadow: var(--shadow-md); }
+  .balizador-agora { background: #2f7d4f; color: #fff; }
+  .balizador-topo { color: #bfe0c9; opacity: 1; letter-spacing: .12em; }
+  .balizador-hora { font-size: clamp(2.2rem, 7vw, 3.4rem); letter-spacing: -0.03em; }
+  .balizador-desc span { color: #bfe0c9; opacity: 1; }
+  .balizador-barra { background: rgba(255,255,255,.2); }
+  .balizador-barra span { background: #bfe0c9; }
+  .balizador-toggle { color: #fff; }
+  .balizador-mini { color: #17402a; }
+
+  /* Cartões e ações */
+  .class-card { border-radius: 14px; border-color: var(--border-color); box-shadow: none; }
+  .class-card:hover { box-shadow: var(--shadow-md); }
+  .legend-box { background: #fff; border-color: var(--border-color); }
+  .btn-quick-action { border-radius: 12px; min-height: 48px; font-weight: 700; }
+  .day-header { color: #17402a; }
+  .btn-primary { background-color: #17402a; }
+}
+
+/* Celular: barra de navegação fixa embaixo (rola para o lado) */
+@media screen and (max-width: 700px) {
+  .tab-navigation {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 120;
+    background: #fff; border-top: 1px solid var(--border-color);
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+    gap: 6px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    box-shadow: 0 -4px 14px rgba(0,0,0,.08);
+  }
+  .tab-btn {
+    flex: 0 0 auto; min-height: 44px; padding: 8px 14px; border-radius: 12px;
+    background: #f1f5f0; color: #3d4f43; font-size: 13px; font-weight: 700; white-space: nowrap;
+  }
+  .tab-btn:hover { background: #f1f5f0; color: #3d4f43; }
+  .tab-btn.active { background: #17402a; color: #fff; }
+  .content-area { padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
+  .header-nav-sticky-wrapper { position: static; }
+}
+
+/* Computador largo: menu lateral verde + conteúdo à direita */
+@media screen and (min-width: 1100px) {
+  #tela-painel[style*="flex"] { display: grid !important; grid-template-columns: 252px minmax(0, 1fr); grid-template-rows: auto auto 1fr; min-height: 100vh; }
+  .header-nav-sticky-wrapper { display: contents; }
+  .tab-navigation {
+    grid-column: 1; grid-row: 1 / span 3; position: sticky; top: 0; align-self: start; height: 100vh;
+    flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; align-items: stretch;
+    padding: 96px 16px 20px; gap: 4px; background: #17402a; overflow-y: auto;
+  }
+  .tab-btn { justify-content: flex-start; border-radius: 10px; padding: 12px 14px; min-height: 46px; font-size: 14px; }
+  .tab-btn.active { background: #fff; color: #17402a; }
+  .app-header { grid-column: 2; grid-row: 1; background: #fff; color: #14211a; padding: 22px 36px 8px; border-bottom: 1px solid var(--border-color); }
+  .brand-info h1 { color: #14211a; font-size: 24px; }
+  .brand-info p { color: #44554b; opacity: 1; }
+  .app-header .btn-header-action { background: #fff; color: #17402a; border-color: #b9cbbd; }
+  .app-header .btn-header-notif { background: #fff; color: #17402a; border-color: #b9cbbd; }
+  .app-header .sync-bar { background: #f1f5f0; color: #14211a; }
+  .app-header .user-avatar { background: #dff0e3; color: #17402a; }
+  #alertBanner { grid-column: 2; grid-row: 2; }
+  .content-area { grid-column: 2; grid-row: 3; padding: 24px 36px 40px; }
+  /* título do painel dentro do menu lateral */
+  .tab-navigation::before { content: "Painel Docente"; position: absolute; top: 28px; left: 24px; color: #fff; font-weight: 800; font-size: 19px; }
+}
