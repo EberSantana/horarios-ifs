@@ -2044,3 +2044,8 @@ body {
 .sinal-venc[hidden] { display: none; }
 
 #tela-login { padding-top: env(safe-area-inset-top, 0px); }
+
+/* Painel da próxima aula: tudo centralizado */
+.balizador { text-align: center; }
+.balizador-acoes { text-align: center; }
+.balizador-barra { margin-left: auto; margin-right: auto; }
