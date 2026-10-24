@@ -2115,6 +2115,7 @@ body {
   .tab-btn.active { background: #17402a; color: #fff; }
   .content-area { padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
   .header-nav-sticky-wrapper { position: static; }
+  #toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* Computador largo: menu lateral verde + conteúdo à direita */
@@ -2134,6 +2135,7 @@ body {
   .app-header .btn-header-action { background: #fff; color: #17402a; border-color: #b9cbbd; }
   .app-header .btn-header-notif { background: #fff; color: #17402a; border-color: #b9cbbd; }
   .app-header .sync-bar { background: #f1f5f0; color: #14211a; }
+  .app-header .btn-refresh { color: #17402a; }
   .app-header .user-avatar { background: #dff0e3; color: #17402a; }
   #alertBanner { grid-column: 2; grid-row: 2; }
   .content-area { grid-column: 2; grid-row: 3; padding: 24px 36px 40px; }

@@ -1,6 +1,6 @@
 // Service Worker - Painel Docente IFS Tobias Barreto
 // Ao publicar nova versão: mude VERSAO aqui E o ?v= no index.html (devem ser iguais)
-const VERSAO = '4.52';
+const VERSAO = '4.53';
 const CACHE_NAME = 'ifs-painel-v' + VERSAO;
 const ASSETS_TO_CACHE = [
   './',
