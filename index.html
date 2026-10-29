@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#17402a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Horários IFS">
+  <title>Painel Docente - IFS Campus Tobias Barreto</title>
+  
+  <link rel="icon" id="faviconLink" type="image/png" href="./icons/icon-192.png">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <script src="./tema.js?v=4.81"></script>
+  <link rel="stylesheet" href="./styles.css?v=4.81">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/></symbol><symbol id="i-undo-2" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></symbol><symbol id="i-alarm-clock" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" /> <path d="M12 9v4l2 2" /> <path d="M5 3 2 6" /> <path d="m22 6-3-3" /> <path d="M6.38 18.7 4 21" /> <path d="M17.64 18.67 20 21" /></symbol><symbol id="i-arrow-left-right" viewBox="0 0 24 24"><path d="M8 3 4 7l4 4" /> <path d="M4 7h16" /> <path d="m16 21 4-4-4-4" /> <path d="M20 17H4" /></symbol><symbol id="i-bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0" /> <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" /></symbol><symbol id="i-calendar-days" viewBox="0 0 24 24"><path d="M8 2v4" /> <path d="M16 2v4" /> <rect width="18" height="18" x="3" y="4" rx="2" /> <path d="M3 10h18" /> <path d="M8 14h.01" /> <path d="M12 14h.01" /> <path d="M16 14h.01" /> <path d="M8 18h.01" /> <path d="M12 18h.01" /> <path d="M16 18h.01" /></symbol><symbol id="i-chart-column" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol><symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol><symbol id="i-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /> <path d="m9 12 2 2 4-4" /></symbol><symbol id="i-circle-x" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /> <path d="m15 9-6 6" /> <path d="m9 9 6 6" /></symbol><symbol id="i-clipboard-list" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></symbol><symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /> <polyline points="12 6 12 12 16 14" /></symbol><symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <polyline points="7 10 12 15 17 10" /> <line x1="12" x2="12" y1="15" y2="3" /></symbol><symbol id="i-hand" viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2" /> <path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2" /> <path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8" /> <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" /></symbol><symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M5 22h14" /> <path d="M5 2h14" /> <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" /> <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" /></symbol><symbol id="i-house" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></symbol><symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12" /> <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /></symbol><symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /> <path d="M12 16v-4" /> <path d="M12 8h.01" /></symbol><symbol id="i-key-round" viewBox="0 0 24 24"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z" /> <circle cx="16.5" cy="7.5" r=".5" fill="currentColor" /></symbol><symbol id="i-landmark" viewBox="0 0 24 24"><line x1="3" x2="21" y1="22" y2="22" /> <line x1="6" x2="6" y1="18" y2="11" /> <line x1="10" x2="10" y1="18" y2="11" /> <line x1="14" x2="14" y1="18" y2="11" /> <line x1="18" x2="18" y1="18" y2="11" /> <polygon points="12 2 20 7 4 7" /></symbol><symbol id="i-life-buoy" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /> <path d="m4.93 4.93 4.24 4.24" /> <path d="m14.83 9.17 4.24-4.24" /> <path d="m14.83 14.83 4.24 4.24" /> <path d="m9.17 14.83-4.24 4.24" /> <circle cx="12" cy="12" r="4" /></symbol><symbol id="i-lightbulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" /> <path d="M9 18h6" /> <path d="M10 22h4" /></symbol><symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol><symbol id="i-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2" /> <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></symbol><symbol id="i-mailbox" viewBox="0 0 24 24"><path d="M22 17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9.5C2 7 4 5 6.5 5H18c2.2 0 4 1.8 4 4v8Z" /> <polyline points="15,9 18,9 18,11" /> <path d="M6.5 5C9 5 11 7 11 9.5V17a2 2 0 0 1-2 2" /> <line x1="6" x2="7" y1="10" y2="10" /></symbol><symbol id="i-party-popper" viewBox="0 0 24 24"><path d="M5.8 11.3 2 22l10.7-3.79" /> <path d="M4 3h.01" /> <path d="M22 8h.01" /> <path d="M15 2h.01" /> <path d="M22 20h.01" /> <path d="m22 2-2.24.81a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10" /> <path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17" /> <path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7" /> <path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z" /></symbol><symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5" /> <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" /></symbol><symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14" /> <path d="M12 5v14" /></symbol><symbol id="i-printer" viewBox="0 0 24 24"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /> <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6" /> <rect x="6" y="14" width="12" height="8" rx="1" /></symbol><symbol id="i-refresh-cw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /> <path d="M21 3v5h-5" /> <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /> <path d="M8 16H3v5" /></symbol><symbol id="i-save" viewBox="0 0 24 24"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /> <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" /> <path d="M7 3v4a1 1 0 0 0 1 1h7" /></symbol><symbol id="i-scale" viewBox="0 0 24 24"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" /> <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" /> <path d="M7 21h10" /> <path d="M12 3v18" /> <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" /></symbol><symbol id="i-school" viewBox="0 0 24 24"><path d="M14 22v-4a2 2 0 1 0-4 0v4" /> <path d="m18 10 3.447 1.724a1 1 0 0 1 .553.894V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7.382a1 1 0 0 1 .553-.894L6 10" /> <path d="M18 5v17" /> <path d="m4 6 7.106-3.553a2 2 0 0 1 1.788 0L20 6" /> <path d="M6 5v17" /> <circle cx="12" cy="9" r="2" /></symbol><symbol id="i-send" viewBox="0 0 24 24"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" /> <path d="m21.854 2.147-10.94 10.939" /></symbol><symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /> <circle cx="12" cy="12" r="3" /></symbol><symbol id="i-skip-forward" viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4" /> <line x1="19" x2="19" y1="5" y2="19" /></symbol><symbol id="i-smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /> <path d="M12 18h.01" /></symbol><symbol id="i-triangle-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /> <path d="M12 9v4" /> <path d="M12 17h.01" /></symbol><symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <polyline points="17 8 12 3 7 8" /> <line x1="12" x2="12" y1="3" y2="15" /></symbol><symbol id="i-user-round" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5" /> <path d="M20 21a8 8 0 0 0-16 0" /></symbol><symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18" /> <path d="m6 6 12 12" /></symbol></defs></svg>
+
+<div class="app-container">
+
+  <!-- ===================================================================== -->
+  <!-- TELA 1: IDENTIFICAÇÃO E LOGIN COM SISTEMA DE PIN                      -->
+  <!-- ===================================================================== -->
+  <section id="tela-login">
+    <div class="login-card">
+      <div class="login-badge">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 10h2v4h-2zm0 6h2v2h-2z"/>
+        </svg>
+        <span>IFS Campus Tobias Barreto</span>
+      </div>
+      
+      <h1 class="login-title">Painel Docente</h1>
+      <p class="login-subtitle">Gestão de Horários, Trocas & Substituições (2026.2)</p>
+
+      <div id="erroLogin" class="error-text"></div>
+
+      <div class="form-group">
+        <label class="form-label" for="loginProf">Selecione seu Perfil:</label>
+        <div class="select-wrapper">
+          <select id="loginProf" class="custom-select">
+            <option value="" disabled selected>Escolha seu nome...</option>
+            <option value="Eber">Prof. Eber (Você)</option>
+            <option value="Adriano">Prof. Adriano</option>
+            <option value="Alex">Prof. Alex</option>
+            <option value="Alyrio">Prof. Alyrio</option>
+            <option value="Ângelo">Prof. Ângelo</option>
+            <option value="Christiano">Prof. Christiano</option>
+            <option value="Claifton">Prof. Claifton</option>
+            <option value="Elliot">Prof. Elliot</option>
+            <option value="Emerson">Prof. Emerson</option>
+            <option value="Érica Delfino">Profa. Érica Delfino</option>
+            <option value="Eric">Prof. Eric</option>
+            <option value="Felippe">Prof. Felippe</option>
+            <option value="Fernanda">Profa. Fernanda</option>
+            <option value="Grayce">Profa. Grayce</option>
+            <option value="Pedro Ernesto">Prof. Pedro Ernesto</option>
+            <option value="Pedro Goes">Prof. Pedro Goes</option>
+            <option value="Luiz Rafael Freitas">Prof. Luiz Rafael Freitas</option>
+            <option value="Raisa">Profa. Raisa</option>
+            <option value="Sanderson">Prof. Sanderson</option>
+            <option value="Sérgio">Prof. Sérgio</option>
+            <option value="Vinicius">Prof. Vinicius</option>
+            <option value="Vitor">Prof. Vitor</option>
+            <option value="Weder">Prof. Weder</option>
+            <option value="Welkson">Prof. Welkson</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="pinInput">PIN de Acesso (4 Dígitos):</label>
+        <div class="pin-field-container">
+          <input type="password" id="pinInput" class="pin-input" placeholder="••••" maxlength="6" inputmode="numeric">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+            <label class="checkbox-label">
+              <input type="checkbox" id="lembrarAcesso" checked>
+              <span>Lembrar meu acesso</span>
+            </label>
+            <button type="button" id="btnEsqueciPin" style="background: none; border: none; padding: 10px 4px; min-height: 40px; color: #1b5e20; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: underline;">
+              Esqueci meu PIN
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" id="btnLogin" class="btn-primary">Entrar no Painel</button>
+
+      <div class="login-info-box">
+        <svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg> <strong>Segurança Docente:</strong> O PIN padrão inicial de todos os professores é <strong>1234</strong>. Você pode alterar seu PIN a qualquer momento no menu de configurações do painel.
+      </div>
+      <p style="text-align:center;margin-top:14px;font-size:13px"><a href="./admin.html" style="color:#5f6368;display:inline-block;padding:10px 12px">Acesso da coordenação</a></p>
+    </div>
+  </section>
+
+
+  <!-- ===================================================================== -->
+  <!-- TELA 2: PAINEL PRINCIPAL DO DOCENTE                                   -->
+  <!-- ===================================================================== -->
+  <section id="tela-painel">
+    
+    <!-- Header e Navegação Unificados (Sticky sem sobreposição) -->
+    <div class="header-nav-sticky-wrapper">
+      <!-- Cabeçalho -->
+      <header class="app-header">
+        <div class="header-top">
+          <div class="brand-info">
+            <h1>Painel Docente • IFSTB</h1>
+            <p class="brand-campus">Campus Tobias Barreto</p>
+            <p class="brand-prof" id="nomeUsuarioTopo"></p>
+          </div>
+          
+          <div class="user-status">
+            <button type="button" id="btnNotificacoesGlobal" class="btn-header-notif" title="Ver Central de Mudanças e Alertas" aria-label="Notificações e Mudanças">
+              <span><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg></span>
+              <span id="badgeMudancasGlobal" class="badge-notif-counter" style="display:none;">0</span>
+            </button>
+            <button type="button" id="btnOpenSettings" class="btn-header-action" title="Configurações e E-mails"><svg class="ic" aria-hidden="true"><use href="#i-settings"/></svg></button>
+            <button type="button" id="btnLogout" class="btn-header-action" title="Sair da Conta">Sair</button>
+          </div>
+        </div>
+
+        <!-- Barra de Sincronização -->
+        <div class="sync-bar">
+          <div class="sync-status">
+            <span id="syncDot" class="sync-dot"></span>
+            <span id="syncText">Sincronizado</span>
+          </div>
+          <div>
+            <span id="nomeUsuarioLogado" style="font-weight: 600; margin-right: 6px;">Prof. Eber</span>
+            <button type="button" id="btnManualRefresh" class="btn-refresh">Atualizar</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Banner Global de Alerta -->
+      <div id="alertBanner" class="alert-banner">
+        <div class="alert-banner-content">
+          <div class="alert-pulse-badge" id="countAlertas">0</div>
+          <span id="textoAlertBanner">Aulas disponíveis para substituição!</span>
+        </div>
+        <button type="button" id="btnVerAlertas" class="btn-view-alert">Ver Aulas</button>
+      </div>
+
+      <!-- Navegação por Abas (Tabs) -->
+      <div id="bannerFila" class="banner-fila" role="status" aria-live="polite" style="display:none">
+        <span id="bannerFilaTexto"></span>
+        <button type="button" id="btnTentarEnvio" class="btn-fila">Tentar agora</button>
+      </div>
+      <nav class="tab-navigation">
+        <button type="button" class="tab-btn active" data-tab="tab-minha">
+          <span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-calendar-days"/></svg></span><span class="tab-lbl"><span class="l-longo">Minha Grade</span><span class="l-curto">Grade</span></span>
+        </button>
+        <button type="button" class="tab-btn" data-tab="tab-livres">
+          <span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-life-buoy"/></svg></span><span class="tab-lbl"><span class="l-longo">Disponíveis</span><span class="l-curto">Livres</span></span>
+        </button>
+        <button type="button" class="tab-btn" data-tab="tab-banco">
+          <span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-landmark"/></svg></span><span class="tab-lbl"><span class="l-longo">Banco de aulas</span><span class="l-curto">Banco</span></span>
+        </button>
+        <button type="button" class="tab-btn" data-tab="tab-trocas">
+          <span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-arrow-left-right"/></svg></span><span class="tab-lbl"><span class="l-longo">Trocas &amp; Reposições</span><span class="l-curto">Trocas</span></span>
+          <span class="badge-counter" id="badgeQtdTrocas" style="display:none; background: var(--accent-swap);">0</span>
+        </button>
+        <button type="button" class="tab-btn" data-tab="tab-turmas">
+          <span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-school"/></svg></span><span class="tab-lbl"><span class="l-longo">Turmas</span><span class="l-curto">Turmas</span></span>
+        </button>
+        <button type="button" class="tab-btn" data-tab="tab-relatorios">
+          <span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg></span><span class="tab-lbl"><span class="l-longo">Relatórios</span><span class="l-curto">Relat.</span></span>
+        </button>
+        <button type="button" class="tab-btn" data-tab="tab-emails">
+          <span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg></span><span class="tab-lbl"><span class="l-longo">E-mails &amp; Avisos</span><span class="l-curto">Avisos</span></span>
+          <span class="badge-counter" id="badgeQtdEmails" style="display:none; background: var(--accent-reposicao);">0</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Área de Conteúdo das Abas -->
+    <main class="content-area">
+
+      <!-- Legenda de Cores -->
+      <div class="legend-box">
+        <div class="legend-tag">
+          <span class="status-dot dot-green"></span>
+          <span>Aula Confirmada</span>
+        </div>
+        <div class="legend-tag">
+          <span class="status-dot dot-red"></span>
+          <span>Precisa de Substituto</span>
+        </div>
+        <div class="legend-tag">
+          <span class="status-dot dot-yellow"></span>
+          <span>Substituição Assumida</span>
+        </div>
+        <div class="legend-tag">
+          <span class="status-dot dot-purple"></span>
+          <span>Troca (Permuta)</span>
+        </div>
+        <div class="legend-tag">
+          <span class="status-dot dot-blue"></span>
+          <span>Reposição</span>
+        </div>
+      </div>
+
+      <!-- ABA 1: MINHA GRADE -->
+      <div id="tab-minha" class="tab-pane active">
+        <div class="action-bar-top">
+          <button type="button" id="btnOpenModalAusenciaMultipla" class="btn-quick-action btn-falta-trigger">
+            <span><svg class="ic" aria-hidden="true"><use href="#i-triangle-alert"/></svg> Informar Falta (Múltiplos Tempos)</span>
+          </button>
+          <button type="button" id="btnOpenModalReposicao" class="btn-quick-action btn-reposicao-trigger">
+            <span><svg class="ic" aria-hidden="true"><use href="#i-calendar-days"/></svg> Agendar Reposição de Aula</span>
+          </button>
+        </div>
+        <div id="balizadorAula" class="balizador" style="display:none;" aria-live="polite"></div>
+        <div id="minhaGradeContainer"></div>
+      </div>
+
+      <!-- ABA 2: AULAS DISPONÍVEIS -->
+      <div id="tab-livres" class="tab-pane">
+        <div id="aulasLivresContainer"></div>
+      </div>
+
+      <!-- ABA: BANCO DE AULAS -->
+      <div id="tab-banco" class="tab-pane">
+        <div id="bancoContainer"></div>
+      </div>
+
+      <!-- ABA 3: TROCAS E REPOSIÇÕES -->
+      <div id="tab-trocas" class="tab-pane">
+        <!-- BARRA RÁPIDA DE AÇÕES -->
+        <div class="action-bar-top" style="margin-bottom: 16px;">
+          <button type="button" id="btnNovaTrocaTab" class="btn-quick-action" style="background: var(--accent-swap-light); color: var(--accent-swap); border: 1px solid color-mix(in srgb, var(--accent-swap) 25%, transparent);">
+            <span><svg class="ic" aria-hidden="true"><use href="#i-arrow-left-right"/></svg> Propor Troca de Horário (Múltiplos Tempos)</span>
+          </button>
+          <button type="button" id="btnNovaReposicaoTab" class="btn-quick-action btn-reposicao-trigger">
+            <span><svg class="ic" aria-hidden="true"><use href="#i-calendar-days"/></svg> Agendar Reposição de Aula</span>
+          </button>
+        </div>
+
+        <div class="filtros-solic">
+        <div class="form-group">
+          <label class="form-label" for="filtroEscopoSolic">Mostrar:</label>
+          <select id="filtroEscopoSolic" class="custom-input">
+            <option value="minhas" selected>Só as minhas</option>
+            <option value="todas">De todos os professores</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="filtroStatusSolic">Situação das permutas:</label>
+          <select id="filtroStatusSolic" class="custom-input">
+            <option value="todas" selected>Todas</option>
+            <option value="pendente">Pendentes</option>
+            <option value="aceita">Confirmadas</option>
+            <option value="recusada">Recusadas</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="filtroPeriodoSolic">Período da solicitação:</label>
+          <select id="filtroPeriodoSolic" class="custom-input">
+            <option value="1">Última semana</option>
+            <option value="2">Últimas 2 semanas</option>
+            <option value="4">Últimas 4 semanas</option>
+            <option value="8">Últimas 8 semanas</option>
+            <option value="todas" selected>Todas</option>
+          </select>
+        </div>
+        </div>
+
+        <h3 class="day-header"><svg class="ic" aria-hidden="true"><use href="#i-arrow-left-right"/></svg> Propostas de Troca de Horários (Permutas)</h3>
+        <div id="trocasContainer"></div>
+
+        <h3 class="day-header" style="margin-top: 24px;"><svg class="ic" aria-hidden="true"><use href="#i-calendar-days"/></svg> Reposições de Aula Cadastradas</h3>
+        <div id="reposicoesContainer"></div>
+      </div>
+
+      <!-- ABA 4: GRADE POR TURMA -->
+      <div id="tab-turmas" class="tab-pane">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label" for="filtroTurmaSelect">Filtrar por Turma (Integrado, Subsequente & Graduação):</label>
+          <div class="select-wrapper">
+            <select id="filtroTurmaSelect" class="custom-select">
+              <optgroup label="Cursos Técnicos Integrados (Diurno)">
+                <option value="1º DS">1º Desenvolvimento de Sistemas (1º DS)</option>
+                <option value="2º DS">2º Desenvolvimento de Sistemas (2º DS)</option>
+                <option value="3º DS">3º Desenvolvimento de Sistemas (3º DS)</option>
+                <option value="1º ADM">1º Administração (1º ADM)</option>
+                <option value="2º ADM">2º Administração (2º ADM)</option>
+                <option value="3º ADM">3º Administração (3º ADM)</option>
+              </optgroup>
+              <optgroup label="Cursos Técnicos Subsequentes (Noturno)">
+                <option value="1º Info">1º Semestre Informática (1º Info - Subsequente)</option>
+                <option value="3º Info">3º Semestre Informática (3º Info - Subsequente)</option>
+                <option value="2º Comércio">2º Semestre Comércio (2º Comércio - Subsequente)</option>
+              </optgroup>
+              <optgroup label="Curso Superior (Noturno)">
+                <option value="Graduação ADM">Bacharelado em Administração (Graduação ADM)</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+        <div id="gradeTurmaContainer"></div>
+      </div>
+
+      <!-- ABA 5: RELATÓRIOS & PRESTAÇÃO DE CONTAS -->
+      <div id="tab-relatorios" class="tab-pane">
+        
+        <!-- Cabeçalho Exclusivo para Impressão -->
+        <div class="print-only-header">
+          <h2 style="font-size: 18px; margin: 0;">INSTITUTO FEDERAL DE SERGIPE - CAMPUS TOBIAS BARRETO</h2>
+          <p style="font-size: 13px; margin: 4px 0 0 0;">RELATÓRIO CONSOLIDADO DE HORÁRIOS, SUBSTITUIÇÕES, PERMUTAS E REPOSIÇÕES</p>
+          <small id="dataGeracaoRelatorio" style="font-size: 11px;"></small>
+        </div>
+
+        <div class="report-header-box">
+          <div class="report-header-title"><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg> Relatórios & Prestação de Contas</div>
+          <div class="report-header-desc">
+            Consolidado para a Coordenação Pedagógica, Direção de Ensino e controle de carga horária / RIT.
+          </div>
+        </div>
+
+        <!-- Indicadores / KPIs -->
+        <div class="report-kpis">
+          <div class="report-kpi-card kpi-faltas">
+            <div class="report-kpi-num" id="kpiTotalFaltas">0</div>
+            <div class="report-kpi-title">Ausências</div>
+          </div>
+          <div class="report-kpi-card kpi-subs">
+            <div class="report-kpi-num" id="kpiTotalSubs">0</div>
+            <div class="report-kpi-title">Substituições</div>
+          </div>
+          <div class="report-kpi-card kpi-trocas">
+            <div class="report-kpi-num" id="kpiTotalTrocas">0</div>
+            <div class="report-kpi-title">Permutas</div>
+          </div>
+          <div class="report-kpi-card kpi-rep">
+            <div class="report-kpi-num" id="kpiTotalRep">0</div>
+            <div class="report-kpi-title">Reposições</div>
+          </div>
+        </div>
+
+        <!-- Barra de Filtros do Relatório -->
+        <div class="report-filters-bar">
+          <div class="form-group">
+            <label class="form-label" for="filtroRelatorioTipo">Tipo de Registro:</label>
+            <div class="select-wrapper">
+              <select id="filtroRelatorioTipo" class="custom-select">
+                <option value="TODOS">Todos os Registros</option>
+                <option value="AUSENCIA">Ausências / Faltas</option>
+                <option value="SUBSTITUICAO">Substituições Assumidas</option>
+                <option value="PERMUTA">Trocas (Permutas)</option>
+                <option value="REPOSICAO">Reposições de Aula</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="filtroRelatorioProf">Filtrar Docente:</label>
+            <div class="select-wrapper">
+              <select id="filtroRelatorioProf" class="custom-select">
+                <option value="TODOS">Todos os Professores</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="filtroRelatorioTurma">Filtrar Turma:</label>
+            <div class="select-wrapper">
+              <select id="filtroRelatorioTurma" class="custom-select">
+                <option value="TODAS">Todas as Turmas</option>
+                <optgroup label="Integrado (Diurno)">
+                  <option value="1º DS">1º DS</option>
+                  <option value="2º DS">2º DS</option>
+                  <option value="3º DS">3º DS</option>
+                  <option value="1º ADM">1º ADM</option>
+                  <option value="2º ADM">2º ADM</option>
+                  <option value="3º ADM">3º ADM</option>
+                </optgroup>
+                <optgroup label="Subsequente (Noturno)">
+                  <option value="1º Info">1º Info (Subsequente)</option>
+                  <option value="3º Info">3º Info (Subsequente)</option>
+                  <option value="2º Comércio">2º Comércio (Subsequente)</option>
+                </optgroup>
+                <optgroup label="Superior (Noturno)">
+                  <option value="Graduação ADM">Graduação ADM</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ações de Exportação -->
+        <div class="report-actions-row">
+          <button type="button" id="btnImprimirRelatorio" class="btn-report-action btn-report-print">
+            <span><svg class="ic" aria-hidden="true"><use href="#i-printer"/></svg> Imprimir / Salvar PDF</span>
+          </button>
+          <button type="button" id="btnExportarCsv" class="btn-report-action btn-report-csv">
+            <span><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg> Baixar Planilha (CSV)</span>
+          </button>
+          <button type="button" id="btnCopiarTabela" class="btn-report-action btn-report-copy">
+            <span><svg class="ic" aria-hidden="true"><use href="#i-clipboard-list"/></svg> Copiar Tabela</span>
+          </button>
+        </div>
+
+        <!-- Dica de Rolagem para Telas Menores -->
+        <div class="table-scroll-hint">
+          <span>↔️ Deslize para o lado para visualizar todas as colunas do relatório</span>
+        </div>
+
+        <!-- Tabela do Relatório -->
+        <div class="report-table-wrapper">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Data / Horário</th>
+                <th>Tipo</th>
+                <th>Docente Titular</th>
+                <th>Substituto / Colega</th>
+                <th>Turma & Disciplina</th>
+                <th>Detalhes / Justificativa</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="tabelaRelatoriosCorpo">
+              <!-- Linhas geradas dinamicamente -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Assinaturas Formais para Impressão -->
+        <div class="print-signatures">
+          <div class="signature-line">
+            Coordenação de Curso
+          </div>
+          <div class="signature-line">
+            Direção de Ensino (DEN / IFS)
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ABA 6: CENTRAL DE E-MAILS & NOTIFICAÇÕES -->
+      <div id="tab-emails" class="tab-pane">
+        <div style="background: white; padding: 12px 14px; border-radius: 12px; margin-bottom: 14px; box-shadow: var(--shadow-sm);">
+          <div style="font-size: 13px; font-weight: 700; color: var(--primary-dark); margin-bottom: 4px;">
+            <svg class="ic" aria-hidden="true"><use href="#i-send"/></svg> Meus avisos
+          </div>
+          <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
+            Os e-mails que o sistema enviou para você. Arquive os que já viu para deixar a caixa limpa.
+          </p>
+        </div>
+        <div id="emailsLogContainer"></div>
+      </div>
+
+    </main>
+
+  </section>
+
+</div>
+
+<!-- ======================================================================= -->
+<!-- MODAIS INTELIGENTES                                                     -->
+<!-- ======================================================================= -->
+
+<!-- Modal 1: Liberar Aula com Seleção de Múltiplos Tempos e Única Justificativa -->
+<div id="modalLiberar" class="modal-overlay">
+  <div class="modal-card modal-card-large">
+    <div class="modal-header">
+      <h3 class="modal-title"><svg class="ic" aria-hidden="true"><use href="#i-triangle-alert"/></svg> Informar Ausência / Falta de Aulas</h3>
+      <button type="button" class="btn-close-modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label" for="selectDiaFalta">Dia da Semana:</label>
+        <select id="selectDiaFalta" class="custom-input custom-select"></select>
+      </div>
+
+      <div class="form-group">
+        <div class="tempos-selection-header">
+          <label class="form-label" style="margin-bottom:0;">Selecione os Tempos para a Mesma Justificativa:</label>
+          <div class="tempos-quick-actions">
+            <button type="button" id="btnMarcarTodosTempos" class="btn-chip-action">Marcar Todos do Dia</button>
+            <button type="button" id="btnDesmarcarTodosTempos" class="btn-chip-action">Desmarcar</button>
+          </div>
+        </div>
+        <div id="listaTemposContainer" class="tempos-checklist-container"></div>
+        <div id="resumoTemposSelecionados" class="tempos-summary-badge">0 tempos selecionados</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inputDataFalta">Data da Ausência / Falta:</label>
+        <input type="date" id="inputDataFalta" class="custom-input">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inputMotivoFalta">Motivo / Justificativa (Única para todos os tempos marcados):</label>
+        <input type="text" id="inputMotivoFalta" class="custom-input" placeholder="Ex: Consulta médica, banca examinadora, capacitação, atestado">
+      </div>
+
+      <p id="modalLiberarDesc" style="font-size: 11px; color: var(--primary-color); font-weight: 600; margin-top: 6px;"></p>
+
+      <div class="modal-info-box">
+        <svg class="ic" aria-hidden="true"><use href="#i-info"/></svg> Todos os tempos selecionados serão disponibilizados simultaneamente para substituição e a coordenação pedagógica receberá uma notificação única consolidada.
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary btn-cancelar-modal">Cancelar</button>
+      <button type="button" id="btnConfirmarLiberar" class="btn-danger">
+        <span id="textoBtnConfirmarLiberar">Confirmar Falta</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 2: Confirmar Assunção de Aula -->
+<div id="modalAssumir" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 class="modal-title">Assumir Substituição</h3>
+      <button type="button" class="btn-close-modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="modalAssumirTexto"></p>
+      <p style="margin-top: 10px; font-size: 12px; color: var(--primary-color);">
+        <svg class="ic" aria-hidden="true"><use href="#i-circle-check"/></svg> A coordenação pedagógica e o professor cedente receberão a confirmação imediata por e-mail.
+      </p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary btn-cancelar-modal">Voltar</button>
+      <button type="button" id="btnConfirmarAssumir" class="btn-primary" style="flex:1;">Confirmar Substituição</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Assumir aula sem professor (Banco de aulas) -->
+<div id="modalBanco" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 class="modal-title">Assumir aula no Banco de aulas</h3>
+      <button type="button" class="btn-close-modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="modalBancoTexto" style="margin-bottom: 12px;"></p>
+      <div class="form-group">
+        <label for="selectDataBanco" class="form-label">Em que dia você vai ministrar?</label>
+        <select id="selectDataBanco" class="custom-input custom-select"></select>
+      </div>
+      <div class="form-group">
+        <label for="inputObsBanco" class="form-label">Observação (opcional)</label>
+        <input type="text" id="inputObsBanco" class="custom-input" maxlength="120" placeholder="Ex: conteúdo que vou trabalhar">
+      </div>
+      <p style="margin-top: 8px; font-size: 12px; color: var(--primary-color);">
+        A coordenação confirma o pedido. Depois da confirmação, cada tempo vira 1 crédito no seu banco de aulas.
+      </p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary btn-cancelar-modal">Voltar</button>
+      <button type="button" id="btnConfirmarBanco" class="btn-primary" style="flex:1;">Enviar pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 3: Propor Troca de Horário (Permuta de Múltiplos Tempos) -->
+<div id="modalTroca" class="modal-overlay">
+  <div class="modal-card modal-card-large">
+    <div class="modal-header">
+      <h3 class="modal-title"><svg class="ic" aria-hidden="true"><use href="#i-arrow-left-right"/></svg> Propor Permuta de Horários (Múltiplos Tempos)</h3>
+      <button type="button" class="btn-close-modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <!-- Seção 1: Minhas Aulas a Ceder -->
+      <div class="swap-section-card">
+        <div class="swap-section-title">
+          <span><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg> 1. Suas Aulas a Serem Cedidas</span>
+          <span class="badge-count-swap" id="badgeMinhasAulasCedidas">0 tempos</span>
+        </div>
+        <div class="form-group" style="margin-bottom: 6px;">
+          <div class="tempos-selection-header">
+            <label class="form-label" for="selectDiaMinhasAulasTroca" style="margin-bottom:0;">Dia da sua grade:</label>
+            <div class="tempos-quick-actions">
+              <button type="button" id="btnMarcarTodasMinhasTroca" class="btn-chip-action">Marcar Todas</button>
+              <button type="button" id="btnDesmarcarTodasMinhasTroca" class="btn-chip-action">Desmarcar</button>
+            </div>
+          </div>
+          <select id="selectDiaMinhasAulasTroca" class="custom-input custom-select" style="margin-bottom:8px;"></select>
+          <div id="listaMinhasAulasTroca" class="tempos-checklist-container" style="max-height: 140px;"></div>
+        </div>
+      </div>
+
+      <!-- Seção 2: Colega e Aulas Desejadas -->
+      <div class="swap-section-card" style="margin-top: 12px;">
+        <div class="swap-section-title">
+          <span><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg> 2. Professor Colega e Aulas Desejadas</span>
+          <span class="badge-count-swap" id="badgeAulasColegaDesejadas">0 tempos</span>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 8px;">
+          <label class="form-label" for="selectColegaTroca">Com qual professor deseja permutar?</label>
+          <select id="selectColegaTroca" class="custom-input custom-select">
+            <option value="" disabled selected>Selecione o professor colega...</option>
+          </select>
+        </div>
+
+        <div id="containerAulasColegaTroca" style="display:none;">
+          <div class="tempos-selection-header">
+            <label class="form-label" for="selectDiaColegaTroca" style="margin-bottom:0;">Dia da grade do colega:</label>
+            <div class="tempos-quick-actions">
+              <button type="button" id="btnMarcarTodasColegaTroca" class="btn-chip-action">Marcar Todas</button>
+              <button type="button" id="btnDesmarcarTodasColegaTroca" class="btn-chip-action">Desmarcar</button>
+            </div>
+          </div>
+          <select id="selectDiaColegaTroca" class="custom-input custom-select" style="margin-bottom:8px;"></select>
+          <div id="listaAulasColegaTroca" class="tempos-checklist-container" style="max-height: 140px;"></div>
+        </div>
+      </div>
+
+      <!-- Indicador de Balanço / Resumo da Troca -->
+      <div id="resumoBalancoTroca" class="swap-balance-indicator">
+        <svg class="ic" aria-hidden="true"><use href="#i-scale"/></svg> Selecione as suas aulas e as aulas do colega para comparar os tempos.
+      </div>
+
+      <!-- Seção 3: Data e Justificativa -->
+      <div class="form-group" style="margin-top: 10px;">
+        <label class="form-label" for="inputDataTroca">Data ou Período Previsto para a Troca:</label>
+        <input type="date" id="inputDataTroca" class="custom-input">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inputMotivoTroca">Justificativa da Permuta (Única para todos os tempos):</label>
+        <input type="text" id="inputMotivoTroca" class="custom-input" placeholder="Ex: Acordo mútuo para participação em evento acadêmico / banca">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary btn-cancelar-modal">Cancelar</button>
+      <button type="button" id="btnConfirmarPropostaTroca" class="btn-purple">
+        <span id="textoBtnConfirmarPropostaTroca">Enviar Proposta de Troca</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 4: Agendar Reposição de Aula -->
+<div id="modalReposicao" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 class="modal-title">Agendar Reposição de Aula</h3>
+      <button type="button" class="btn-close-modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Disciplina / Turma a Repor (pode marcar mais de uma):</label>
+        <div id="listaDisciplinasReposicao" class="lista-checks-repos" role="group" aria-label="Disciplinas e turmas a repor"></div>
+        <button type="button" id="btnMarcarTodasRepos" class="btn-link" style="margin-top:6px;">Marcar todas</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inputDataReposicao">Data da Reposição (Ex: Sábado Letivo ou Contraturno):</label>
+        <input type="date" id="inputDataReposicao" class="custom-input">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inputHoraIniReposicao">Horário da Reposição:</label>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input type="time" id="inputHoraIniReposicao" style="flex:1;min-width:0" class="custom-input" aria-label="Início" step="300">
+          <span style="font-weight:700;">às</span>
+          <input type="time" id="inputHoraFimReposicao" style="flex:1;min-width:0" class="custom-input" aria-label="Término" step="300">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inputSalaReposicao">Local / Sala de Aula:</label>
+        <input type="text" id="inputSalaReposicao" class="custom-input" placeholder="Ex: Laboratório 1 ou Sala 04">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inputMotivoReposicao">Referente à ausência do dia (opcional):</label>
+        <input type="date" id="inputMotivoReposicao" class="custom-input">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary btn-cancelar-modal">Cancelar</button>
+      <button type="button" id="btnConfirmarReposicao" class="btn-blue">Agendar e Avisar Coordenação</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 5: Bloqueio por Conflito de Horário -->
+<div id="modalConflito" class="modal-overlay">
+  <div class="modal-card" style="border-top: 6px solid var(--accent-color);">
+    <div class="modal-header">
+      <h3 class="modal-title" style="color: var(--accent-color);"><svg class="ic" aria-hidden="true"><use href="#i-triangle-alert"/></svg> Conflito de Horário Detectado</h3>
+      <button type="button" class="btn-close-modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="modalConflitoTexto" style="line-height: 1.5; white-space: pre-line;"></p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-primary btn-cancelar-modal" style="width: 100%;">Entendido</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Meu sinal escolar -->
+<div id="modalSinal" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 class="modal-title"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg> Meu sinal escolar</h3>
+      <button type="button" class="btn-close-modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="sinal-intro">Avisos discretos no <strong>seu celular</strong> nos horários das suas aulas. Os alunos não ouvem nada.</p>
+      <div id="sinalVencido" class="sinal-venc" hidden><svg class="ic" aria-hidden="true"><use href="#i-triangle-alert"/></svg> O período dos toques já terminou. Peça à coordenação para cadastrar o novo período e sincronize o app antes de baixar.</div>
+      <div id="sinalResumo" class="sinal-resumo"></div>
+      <div id="sinalDias" class="sinal-dias" role="tablist" aria-label="Dia da semana"></div>
+      <div id="sinalLista" class="sinal-lista"></div>
+      <label class="switch-linha" for="chkSinalNome">
+        <span class="switch-texto"><strong>Mostrar turma e disciplina no aviso</strong><small>Desligado, o aviso mostra só "Início da aula", "Troca de aula" e "Fim da aula".</small></span>
+        <input type="checkbox" id="chkSinalNome" class="switch-input" role="switch" checked>
+        <span class="switch-trilho" aria-hidden="true"></span>
+      </label>
+      <button type="button" id="btnBaixarSinal" class="btn-primary" style="width: 100%; margin-top: 12px;">Baixar meu sinal (.ics)</button>
+      <div class="sinal-como">
+        <strong>Como usar</strong>
+        <ol>
+          <li>Toque em <em>Baixar meu sinal</em>.</li>
+          <li>Abra o arquivo baixado e escolha importar no calendário do celular.</li>
+          <li>Deixe o celular no modo vibrar durante as aulas.</li>
+        </ol>
+        <p>Valem até <span id="sinalFim"></span>. Se seu horário mudar, baixe de novo e apague o calendário antigo "Sinal Escolar".</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 6: Configurações Gerais e E-mails da Coordenação -->
+<div id="modalConfig" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 class="modal-title">Configurações & Notificações</h3>
+      <button type="button" class="btn-close-modal">&times;</button>
+    </div>
+    <div class="modal-body">
+
+      <h4 style="font-size: 14px; margin-bottom: 6px; color: var(--primary-dark);"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg> Exibição</h4>
+      <label class="switch-linha" for="chkBalizador">
+        <span class="switch-texto"><strong>Mostrar a hora da minha aula</strong><small>Quadro no topo de Minha Grade com a aula em andamento ou a próxima.</small></span>
+        <input type="checkbox" id="chkBalizador" class="switch-input" role="switch">
+        <span class="switch-trilho" aria-hidden="true"></span>
+      </label>
+
+      <h4 style="font-size: 14px; margin: 14px 0 2px; color: var(--primary-dark);"><svg class="ic" aria-hidden="true"><use href="#i-palette"/></svg> Cores do aplicativo</h4>
+      <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">Escolha a paleta de que mais gosta. Vale só neste aparelho.</p>
+      <div id="temasGrade" class="temas-grade" role="radiogroup" aria-label="Paleta de cores"></div>
+
+      <button type="button" id="btnAbrirSinal" class="btn-primary" style="width: 100%; margin-top: 10px;"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg> Meu sinal escolar (avisos das aulas)</button>
+
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 16px 0;">
+
+      <h4 style="font-size: 14px; margin-bottom: 6px; color: var(--primary-dark);"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg> Para onde vão os avisos</h4>
+      <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.4;">
+        Faltas, substituições, trocas e reposições geram e-mail automático para você, para a coordenação do curso da turma e para a coordenação geral.
+        Os endereços são definidos pela coordenação no painel administrativo.
+      </p>
+      <dl id="listaDestinosAvisos" class="destinos-avisos"></dl>
+
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 16px 0;">
+
+
+      <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--primary-dark);"><svg class="ic" aria-hidden="true"><use href="#i-key-round"/></svg> Alterar meu PIN de Acesso:</h4>
+      <div class="form-group">
+        <label class="form-label" for="inputPinAtual">PIN Atual:</label>
+        <input type="password" id="inputPinAtual" class="custom-input" placeholder="Ex: 1234" maxlength="6" inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="inputNovoPin">Novo PIN:</label>
+        <input type="password" id="inputNovoPin" class="custom-input" placeholder="Novo PIN (4 a 6 dígitos)" maxlength="6" inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="inputConfirmaPin">Confirmar Novo PIN:</label>
+        <input type="password" id="inputConfirmaPin" class="custom-input" placeholder="Repita o novo PIN" maxlength="6" inputmode="numeric">
+      </div>
+      <button type="button" id="btnSalvarNovoPin" class="btn-primary" style="width: 100%; margin-top: 4px;">
+        <svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Salvar novo PIN
+      </button>
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 16px 0;">
+
+      <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--primary-dark);"><svg class="ic" aria-hidden="true"><use href="#i-smartphone"/></svg> Aplicativo PWA & Atualizações:</h4>
+      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+        Se você estiver usando no iPhone ou navegador e novas atualizações não aparecerem de imediato, clique abaixo para descarregar o cache e recarregar a versão mais recente:
+      </p>
+      <button type="button" id="btnForcarAtualizacaoApp" class="btn-secondary" style="width: 100%; margin-bottom: 12px; font-weight: 600; color: #1b5e20;">
+        <svg class="ic" aria-hidden="true"><use href="#i-refresh-cw"/></svg> Atualizar Versão do App (Limpar Cache)
+      </button>
+
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 16px 0;">
+
+      <button type="button" id="btnResetarDemo" class="btn-secondary" style="width: 100%; color: #d32f2f;">
+        Restaurar Dados Originais de Demonstração
+      </button>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary btn-cancelar-modal" style="flex:1;">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 7: Recuperação de PIN -->
+<div id="modalEsqueciPin" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 class="modal-title"><svg class="ic" aria-hidden="true"><use href="#i-key-round"/></svg> Recuperação de PIN</h3>
+      <button type="button" class="btn-close-modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="modalEsqueciPinDesc" style="font-weight: 700; color: var(--primary-dark); margin-bottom: 12px;"></p>
+      <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 14px;">
+        Ao confirmar, o sistema enviará para o seu e-mail institucional oficial <strong>(@ifs.edu.br)</strong> um <strong>PIN temporário</strong>. Use-o para entrar e depois escolha um PIN novo em <svg class="ic" aria-hidden="true"><use href="#i-settings"/></svg> Configurações.
+      </p>
+      <div style="background: #e8f5e9; padding: 10px 12px; border-radius: 8px; font-size: 12px; color: #2e7d32; line-height: 1.4;">
+        <svg class="ic" aria-hidden="true"><use href="#i-lightbulb"/></svg> <em>Dica de Gestão: O Coordenador do Curso também pode consultar ou redefinir seu PIN a qualquer momento na aba "Professores" da planilha oficial no Google Sheets.</em>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary btn-cancelar-modal">Cancelar</button>
+      <button type="button" id="btnConfirmarRecuperarPin" class="btn-primary" style="flex:1;">Enviar PIN temporário</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 8: Central de Mudanças e Alertas (Mobile & Tablet) -->
+<div id="modalMudancasAlertas" class="modal-overlay">
+  <div class="modal-card modal-card-large">
+    <div class="modal-header">
+      <h3 class="modal-title"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg> Central de Mudanças & Alertas</h3>
+      <button type="button" class="btn-close-modal">&times;</button>
+    </div>
+    <div class="modal-body" id="corpoModalMudancas">
+      <!-- Preenchido dinamicamente via JS -->
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-primary btn-cancelar-modal" style="width: 100%;">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast de Notificações -->
+<div id="toast">Notificação</div>
+
+<script src="./sinal.js?v=4.81"></script>
+<script src="./api.js?v=4.81"></script>
+<script src="./app.js?v=4.81"></script>
+
+</body>
+</html>
