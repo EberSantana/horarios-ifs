@@ -2302,7 +2302,17 @@ body {
 #btnMarcarTodasRepos { background: none; border: 0; padding: 8px 2px; min-height: 40px; font-weight: 700; font-size: 14px; color: var(--accent-reposicao-dark); cursor: pointer; text-decoration: underline; }
 
 /* Feriados nacionais */
-.day-header.dia-semana { flex-wrap: wrap; row-gap: 6px; }
+.day-header.dia-semana { flex-wrap: nowrap; }
+.day-header.dia-semana .dia-nome, .day-header.dia-semana .dia-qtd, .day-header.dia-semana .dia-tag { white-space: nowrap; flex: 0 0 auto; }
+.day-header.dia-semana .dia-qtd { margin-left: auto; }
+.dia-tag.feriado .fer-nome { display: none; }
+@media (min-width: 600px) { .dia-tag.feriado .fer-nome { display: inline; } }
+@media (max-width: 350px) {
+  .day-header.dia-semana { gap: 6px; padding-left: 12px; padding-right: 12px; }
+  .day-header.dia-semana .dia-nome { font-size: 14px; }
+  .day-header.dia-semana .dia-tag { font-size: 10.5px; padding: 3px 7px; letter-spacing: .2px; }
+  .day-header.dia-semana .dia-qtd { font-size: 13px; }
+}
 .day-header.dia-semana .dia-tag.feriado { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
 .day-header.dia-semana .dia-tag.feriado.facultativo { background: #f1f5f9; color: #475569; border-color: #94a3b8; }
 .aviso-feriado { display: none; align-items: flex-start; gap: 10px; margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: #fef3c7; color: #78350f; border: 1px solid #f59e0b; font-size: 14px; line-height: 1.35; }

@@ -971,7 +971,7 @@ function cabecalhoDia_(dia, qtd) {
   let fer = "";
   if (window.Feriados && Feriados.ativo()) {
     const f = Feriados.da(Feriados.dataDoDiaDaSemana(nomes.indexOf(dia)));
-    if (f) fer = `<span class="dia-tag feriado${f.tipo === "facultativo" ? " facultativo" : ""}">${f.tipo === "facultativo" ? "Ponto facultativo" : "Feriado"} · ${escAviso(f.nome)}</span>`;
+    if (f) fer = `<span class="dia-tag feriado${f.tipo === "facultativo" ? " facultativo" : ""}"><span class="fer-tipo">${f.tipo === "facultativo" ? "Facultativo" : "Feriado"}</span><span class="fer-nome"> · ${escAviso(f.nome)}</span></span>`;
   }
   return `<div class="day-header dia-semana"><span class="dia-nome">${dia}</span>${tag}${fer}<span class="dia-qtd">${qtd} ${qtd === 1 ? "tempo" : "tempos"}</span></div>`;
 }
