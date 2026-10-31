@@ -1083,6 +1083,12 @@ let balizadorAulas = [];
 function balizadorAtivo() { try { return localStorage.getItem("IFS_BALIZADOR_" + usuarioLogado) !== "0"; } catch (e) { return true; } }
 function definirBalizadorAtivo(v) { try { localStorage.setItem("IFS_BALIZADOR_" + usuarioLogado, v ? "1" : "0"); } catch (e) {} atualizarBalizador(); }
 // Faixa "próximo feriado" no topo de Minha Grade (liga/desliga em Configurações)
+function rotuloFeriado_(f) {
+  if (f.tipo === "facultativo") return "(ponto facultativo)";
+  if (f.local === "estadual") return "(feriado estadual · a conferir)";
+  if (f.local === "municipal") return "(feriado municipal · a conferir)";
+  return "(feriado nacional)";
+}
 function atualizarAvisoFeriado() {
   const el = document.getElementById("avisoFeriado");
   if (!el) return;
@@ -1093,7 +1099,7 @@ function atualizarAvisoFeriado() {
   const hojeF = Feriados.curto(f.data) === Feriados.curto(new Date());
   const dias = Math.round((f.data.getTime() - new Date().setHours(12, 0, 0, 0)) / 86400000);
   const quando = hojeF ? "Hoje" : (dias === 1 ? "Amanhã" : Feriados.nomeDia(f.data).replace(/^./, (c) => c.toUpperCase()) + " " + Feriados.curto(f.data));
-  el.innerHTML = `<span class="aviso-feriado-ic">${ic("calendar-days")}</span><span><strong>${quando} · ${escAviso(f.nome)}</strong> ${f.tipo === "facultativo" ? "(ponto facultativo)" : "(feriado nacional)"}${lista.length > 1 ? `<small>Depois: ${lista.slice(1, 3).map((x) => escAviso(x.nome) + " " + Feriados.curto(x.data)).join(" · ")}</small>` : ""}</span>`;
+  el.innerHTML = `<span class="aviso-feriado-ic">${ic("calendar-days")}</span><span><strong>${quando} · ${escAviso(f.nome)}</strong> ${rotuloFeriado_(f)}${lista.length > 1 ? `<small>Depois: ${lista.slice(1, 3).map((x) => escAviso(x.nome) + " " + Feriados.curto(x.data)).join(" · ")}</small>` : ""}</span>`;
   el.style.display = "flex";
 }
 function atualizarBalizador(aulas) {
@@ -1144,6 +1150,11 @@ function atualizarBalizador(aulas) {
     const quando = b.daqui === 0 ? "hoje" : b.daqui === 1 ? "amanhã" : b.dia.toLowerCase();
     const ate = b.daqui === 0 ? ` · começa em ${b.ini - min >= 60 ? Math.floor((b.ini - min) / 60) + " h " + ((b.ini - min) % 60) + " min" : (b.ini - min) + " min"}` : "";
     topo = ic("skip-forward") + " Próxima aula · " + quando + ate;
+    if (window.Feriados && Feriados.ativo()) {
+      const d = new Date(); d.setDate(d.getDate() + b.daqui);
+      const fe = Feriados.da(d);
+      if (fe) rodape = `<div class="balizador-feriado">${ic("calendar-days")} ${fe.tipo === "facultativo" ? "Ponto facultativo" : "Feriado"} · ${escAviso(fe.nome)} — confirme com a coordenação se haverá aula.</div>`;
+    }
   }
   el.className = classe;
   el.style.display = "block";
@@ -2859,7 +2870,12 @@ function abrirModalConfig() {
   const chkF = document.getElementById("chkFeriados");
   if (chkF && window.Feriados) {
     chkF.checked = Feriados.ativo();
-    chkF.onchange = () => { Feriados.definir(chkF.checked); atualizarAvisoFeriado(); if (typeof renderizarMinhaGrade === "function") renderizarMinhaGrade(); };
+    chkF.onchange = () => { Feriados.definir(chkF.checked); atualizarAvisoFeriado(); atualizarBalizador(); if (typeof renderizarMinhaGrade === "function") renderizarMinhaGrade(); };
+    const chkL = document.getElementById("chkFeriadosLocal");
+    if (chkL) {
+      chkL.checked = Feriados.ativoLocal();
+      chkL.onchange = () => { Feriados.definirLocal(chkL.checked); atualizarAvisoFeriado(); atualizarBalizador(); if (typeof renderizarMinhaGrade === "function") renderizarMinhaGrade(); };
+    }
   }
   desenharTemas_();
   const bs = document.getElementById("btnAbrirSinal");

@@ -2315,6 +2315,8 @@ body {
 }
 .day-header.dia-semana .dia-tag.feriado { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
 .day-header.dia-semana .dia-tag.feriado.facultativo { background: #f1f5f9; color: #475569; border-color: #94a3b8; }
+.balizador-feriado { margin-top: 8px; padding: 6px 10px; border-radius: 8px; background: #fef3c7; color: #78350f; border: 1px solid #f59e0b; font-size: 12.5px; line-height: 1.35; font-weight: 600; }
+.balizador-feriado .ic { width: 14px; height: 14px; vertical-align: -2px; }
 .aviso-feriado { display: none; align-items: flex-start; gap: 10px; margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: #fef3c7; color: #78350f; border: 1px solid #f59e0b; font-size: 14px; line-height: 1.35; }
 .aviso-feriado .aviso-feriado-ic { flex: 0 0 auto; display: inline-flex; margin-top: 1px; }
 .aviso-feriado .ic { width: 18px; height: 18px; }
@@ -2509,6 +2511,7 @@ html[data-tema="escuro"] .btn-ver-mais { border: 1px solid var(--border-color, v
 html[data-tema="escuro"] .day-header.dia-semana .dia-tag.amanha { background: var(--card-bg); }
 html[data-tema="escuro"] .day-header.dia-semana .dia-tag.feriado { background: #3A2F12; color: #FCD34D; }
 html[data-tema="escuro"] .day-header.dia-semana .dia-tag.feriado.facultativo { background: var(--card-bg); color: var(--text-secondary); }
+html[data-tema="escuro"] .balizador-feriado { background: #3A2F12; color: #FCD34D; }
 html[data-tema="escuro"] .aviso-feriado { background: #3A2F12; color: #FCD34D; }
 /* ESCURO-AUTO fim */
 
