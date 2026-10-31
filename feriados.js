@@ -36,8 +36,8 @@
     return (cache[ano] = m);
   }
   function da(d) { var x = mapa(d.getFullYear())[chave(d)]; if (x && x.local && !ativoLocal()) x = null; return x ? { nome: x.nome, tipo: x.tipo, local: x.local || "", data: new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12) } : null; }
-  function ativo() { try { return localStorage.getItem(CHAVE) !== "0"; } catch (e) { return true; } }
-  function ativoLocal() { try { return localStorage.getItem(CHAVE_LOCAL) !== "0"; } catch (e) { return true; } }
+  function ativo() { try { return localStorage.getItem(CHAVE) === "1"; } catch (e) { return false; } }
+  function ativoLocal() { try { return localStorage.getItem(CHAVE_LOCAL) === "1"; } catch (e) { return false; } }
   function definirLocal(v) { try { localStorage.setItem(CHAVE_LOCAL, v ? "1" : "0"); } catch (e) {} }
   function definir(v) { try { localStorage.setItem(CHAVE, v ? "1" : "0"); } catch (e) {} }
   function curto(d) { return p2(d.getDate()) + "/" + p2(d.getMonth() + 1); }
