@@ -2301,6 +2301,16 @@ body {
 .lista-checks-repos .tempo-row-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 #btnMarcarTodasRepos { background: none; border: 0; padding: 8px 2px; min-height: 40px; font-weight: 700; font-size: 14px; color: var(--accent-reposicao-dark); cursor: pointer; text-decoration: underline; }
 
+/* Feriados nacionais */
+.day-header.dia-semana { flex-wrap: wrap; row-gap: 6px; }
+.day-header.dia-semana .dia-tag.feriado { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
+.day-header.dia-semana .dia-tag.feriado.facultativo { background: #f1f5f9; color: #475569; border-color: #94a3b8; }
+.aviso-feriado { display: none; align-items: flex-start; gap: 10px; margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: #fef3c7; color: #78350f; border: 1px solid #f59e0b; font-size: 14px; line-height: 1.35; }
+.aviso-feriado .aviso-feriado-ic { flex: 0 0 auto; display: inline-flex; margin-top: 1px; }
+.aviso-feriado .ic { width: 18px; height: 18px; }
+.aviso-feriado strong { font-weight: 800; }
+.aviso-feriado small { display: block; margin-top: 2px; font-size: 12.5px; opacity: .85; }
+
 /* ==========================================================================
    TEMAS DE COR (o professor escolhe em Configurações; padrão = verde IFS)
    ========================================================================== */
@@ -2487,6 +2497,9 @@ html[data-tema="escuro"] .selo-pendente { background: #3A2F12; color: #FCD34D; }
 html[data-tema="escuro"] .solic-corpo { border-top: 1px dashed var(--border-color, var(--border-color)); }
 html[data-tema="escuro"] .btn-ver-mais { border: 1px solid var(--border-color, var(--border-color)); background: var(--card-bg); }
 html[data-tema="escuro"] .day-header.dia-semana .dia-tag.amanha { background: var(--card-bg); }
+html[data-tema="escuro"] .day-header.dia-semana .dia-tag.feriado { background: #3A2F12; color: #FCD34D; }
+html[data-tema="escuro"] .day-header.dia-semana .dia-tag.feriado.facultativo { background: var(--card-bg); color: var(--text-secondary); }
+html[data-tema="escuro"] .aviso-feriado { background: #3A2F12; color: #FCD34D; }
 /* ESCURO-AUTO fim */
 
 /* Modo Escuro: superfícies que tinham branco fixo */
