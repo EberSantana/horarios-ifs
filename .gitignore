@@ -5,3 +5,5 @@ Thumbs.db
 *.pkg
 package-lock.json
 node_modules/
+tema/
+dia_*.png

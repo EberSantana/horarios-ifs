@@ -4,7 +4,7 @@ const { chromium } = require('/opt/npm-tools/node_modules/playwright');
  const falhas=[];
  for(const [w,h] of [[390,844],[1280,800]]){
   const ctx=await b.newContext({viewport:{width:w,height:h},isMobile:w<500,hasTouch:w<500,serviceWorkers:'block'});
-  await ctx.addInitScript(()=>{localStorage.setItem('IFS_BACKEND_URL','http://localhost:8765/exec');});
+  await ctx.addInitScript(()=>{localStorage.setItem('IFS_BACKEND_URL','http://localhost:8765/exec');localStorage.setItem('IFS_FERIADOS','1');});
   const p=await ctx.newPage(); p.on('pageerror',e=>falhas.push(e.message));
   await p.goto('http://localhost:8765/index.html'); await p.waitForTimeout(800);
   const v=await p.locator('#loginProf option').evaluateAll(os=>os.find(o=>o.textContent.includes('Emerson')).value);
