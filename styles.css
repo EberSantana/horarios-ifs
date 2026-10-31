@@ -2050,7 +2050,7 @@ body {
 .btn-card-primary { background: var(--primary-mid); color: #fff; border: 0; }
 
 /* almoço e intervalo entre as aulas do dia */
-.pausa-faixa { display: flex; align-items: center; justify-content: center; text-align: center; gap: 12px; flex-wrap: wrap; margin: 2px 0 8px; padding: 14px 14px; border-radius: 8px; font-size: 16px; color: #5a4a14; background: repeating-linear-gradient(135deg, #fbf6e8, #fbf6e8 6px, #f6efd8 6px, #f6efd8 12px); border: 1px dashed #e3d7a8; }
+.pausa-faixa { display: flex; width: fit-content; max-width: 100%; box-sizing: border-box; align-items: center; justify-content: center; text-align: center; gap: 12px; flex-wrap: wrap; margin: 2px auto 8px; padding: 12px 28px; border-radius: 8px; font-size: 16px; color: #5a4a14; background: repeating-linear-gradient(135deg, #fbf6e8, #fbf6e8 6px, #f6efd8 6px, #f6efd8 12px); border: 1px dashed #e3d7a8; }
 .pausa-faixa strong { color: #3f3510; font-weight: 800; font-size: 17px; }
 .pausa-faixa span { font-weight: 600; font-size: 16px; }
 
